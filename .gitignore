@@ -20,7 +20,6 @@ stamp-h*
 *.guess
 autom4te.cache
 tags
-deadbeef
 todo.txt
 test
 shots
