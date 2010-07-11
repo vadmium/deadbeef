@@ -20,6 +20,7 @@
 #include <string.h>
 #include "gme/gme.h"
 #include "../../deadbeef.h"
+#include <android/log.h>
 
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
@@ -42,7 +43,7 @@ cgme_open (void) {
 static int
 cgme_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     gme_info_t *info = (gme_info_t*)_info;
-    int samplerate = deadbeef->conf_get_int ("synth.samplerate", 48000);
+    int samplerate = deadbeef->conf_get_int ("synth.samplerate", 44100);
     if (gme_open_file (it->fname, &info->emu, samplerate)) {
         return -1;
     }
@@ -108,6 +109,7 @@ cgme_seek (DB_fileinfo_t *_info, float time) {
 
 static DB_playItem_t *
 cgme_insert (DB_playItem_t *after, const char *fname) {
+    __android_log_write(ANDROID_LOG_INFO,"DDB","cgme_insert");
     Music_Emu *emu;
     if (!gme_open_file (fname, &emu, gme_info_only)) {
         int cnt = gme_track_count (emu);
@@ -178,6 +180,7 @@ cgme_insert (DB_playItem_t *after, const char *fname) {
         }
     }
     else {
+        __android_log_write(ANDROID_LOG_INFO,"DDB","failed to open file");
         printf ("error adding %s\n", fname);
     }
     return after;

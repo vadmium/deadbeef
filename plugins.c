@@ -28,7 +28,7 @@
 #endif
 #include <limits.h>
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#  include "config.h"
 #endif
 #include "gettext.h"
 #include "plugins.h"
@@ -545,11 +545,17 @@ plug_init_plugin (DB_plugin_t* (*loadfunc)(DB_functions_t *), void *handle) {
     return 0;
 }
 
-void
+static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
+    return strcmp ((*a)->d_name, (*b)->d_name);
+}
+
+int
 plug_load_all (void) {
 #if DISABLE_VERSIONCHECK
     fprintf (stderr, "\033[0;31mDISABLE_VERSIONCHECK=1! do not distribute!\033[0;m\n");
 #endif
+
+#if !TARGET_ANDROID
     const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
     trace ("plug: mutex_create\n");
     mutex = mutex_create ();
@@ -588,7 +594,7 @@ plug_load_all (void) {
         }
         fprintf (stderr, "loading plugins from %s\n", plugdir);
         namelist = NULL;
-        n = scandir (plugdir, &namelist, NULL, alphasort);
+        n = scandir (plugdir, &namelist, NULL, dirent_alphasort);
         if (n < 0)
         {
             if (namelist) {
@@ -665,6 +671,7 @@ plug_load_all (void) {
             free (namelist);
         }
     }
+#endif
 // load all compiled-in modules
 #define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
 #include "moduleconf.h"
@@ -672,6 +679,14 @@ plug_load_all (void) {
 #define PLUG(n) plug_init_plugin (n##_load, NULL);
 #include "moduleconf.h"
 #undef PLUG
+#if TARGET_ANDROID
+#define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
+#include "moduleconf-android.h"
+#undef PLUG
+#define PLUG(n) plug_init_plugin (n##_load, NULL);
+#include "moduleconf-android.h"
+#undef PLUG
+#endif
 
     plugin_t *plug;
     // categorize plugins
@@ -729,8 +744,9 @@ plug_load_all (void) {
     // select output plugin
     if (plug_select_output () < 0) {
         fprintf (stderr, "failed to find output plugin!\n");
-        exit (-1);
+        return -1;
     }
+    return 0;
 }
 
 void
@@ -747,9 +763,11 @@ plug_unload_all (void) {
     fprintf (stderr, "stopped all plugins\n");
     while (plugins) {
         plugin_t *next = plugins->next;
+#if !TARGET_ANDROID
         if (plugins->handle) {
             dlclose (plugins->handle);
         }
+#endif
         free (plugins);
         plugins = next;
     }
