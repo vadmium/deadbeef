@@ -13,7 +13,7 @@ extern "C" {
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
@@ -21,7 +21,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
@@ -29,7 +29,47 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
  * Signature: (I[S)[S
  */
 JNIEXPORT jshortArray JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
-  (JNIEnv *, jobject, jint, jshortArray);
+  (JNIEnv *, jclass, jint, jshortArray);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_count
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_item_text
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1text
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_prev
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1prev
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_next
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1next
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_idx
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
+  (JNIEnv *, jclass, jint);
 
 #ifdef __cplusplus
 }

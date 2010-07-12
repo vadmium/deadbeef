@@ -161,7 +161,7 @@ static DB_output_t jni_out = {
 };
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
-  (JNIEnv *env, jobject obj) {
+  (JNIEnv *env, jclass cls) {
     __android_log_write(ANDROID_LOG_INFO,"DDB","ddb_start");
       // initialize ddb
     setlocale (LC_ALL, "");
@@ -196,7 +196,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
 }
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
-  (JNIEnv *env, jobject obj) {
+  (JNIEnv *env, jclass cls) {
     pl_save_all ();
     conf_save ();
     streamer_free ();
@@ -210,7 +210,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
 }
 
 JNIEXPORT jshortArray JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
-  (JNIEnv *env, jobject obj, jint size, jshortArray buffer) {
+  (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
     short b[size];
     memset (b, 0, sizeof (b));
     if (streamer_ok_to_read (size*2)) {
@@ -225,4 +225,60 @@ JNIEXPORT jshortArray JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
     (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
 
     return buffer;
+}
+
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count
+  (JNIEnv *env, jclass cls)
+{
+    int cnt = pl_getcount (PL_MAIN);
+    char logmsg[100];
+    snprintf (logmsg, sizeof (logmsg), "pl_getcount = %d\n", cnt);
+    __android_log_write(ANDROID_LOG_INFO,"DDB",logmsg);
+    return cnt;
+}
+
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1text
+  (JNIEnv *env, jclass cls, jint idx)
+{
+    char s[200] = "n/a";
+    playItem_t *it = pl_get_for_idx_and_iter (idx, PL_MAIN);
+    if (it) {
+        pl_format_title (it, idx, s, sizeof (s), -1, "%n. %f");
+        pl_item_unref (it);
+    }
+    char logmsg[300];
+    snprintf (logmsg, sizeof (logmsg), "pl_get_item_text[%d]= %s\n", idx, s);
+    __android_log_write(ANDROID_LOG_INFO,"DDB",logmsg);
+    return (*env)->NewStringUTF(env, s);
+}
+
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1prev
+  (JNIEnv *env, jclass cls)
+{
+    streamer_move_to_prevsong ();
+    char logmsg[300];
+    playItem_t *curr = streamer_get_playing_track ();
+    if (curr) {
+        snprintf (logmsg, sizeof (logmsg), "curr track = %d\n", pl_get_idx_of (curr));
+        __android_log_write(ANDROID_LOG_INFO,"DDB",logmsg);
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1next
+  (JNIEnv *env, jclass cls)
+{
+    streamer_move_to_nextsong (1);
+    char logmsg[300];
+    playItem_t *curr = streamer_get_playing_track ();
+    if (curr) {
+        snprintf (logmsg, sizeof (logmsg), "curr track = %d\n", pl_get_idx_of (curr));
+        __android_log_write(ANDROID_LOG_INFO,"DDB",logmsg);
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
+  (JNIEnv *env, jclass cls, jint idx)
+{
+    streamer_set_nextsong (idx, 1);
 }

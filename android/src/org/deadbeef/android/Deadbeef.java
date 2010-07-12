@@ -1,9 +1,6 @@
 package org.deadbeef.android;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import android.app.Activity;
+import android.app.ListActivity;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -11,6 +8,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
+import android.widget.ListView;
 
 class Player {
 	public Player() {
@@ -22,7 +20,7 @@ class Player {
     		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
     		AudioFormat.ENCODING_PCM_16BIT);
     
-    private DeadbeefAPI ddb = new DeadbeefAPI();
+//    private DeadbeefAPI ddb = new DeadbeefAPI();
     private AudioTrack audio = new AudioTrack(
     		AudioManager.STREAM_MUSIC, 44100,
     		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
@@ -34,15 +32,13 @@ class Player {
     private Thread playThread;
 
     private class PlayRunnable implements Runnable {
-    	float osc = 0;
-		float incr = 440.0f / 44100.0f;
+
     	public void run() {
-    		ddb.start();
     		audio.play();
 
     		short buffer[] = new short[minSize];
     		while (playing) {
-    			buffer = ddb.getBuffer(minSize, buffer);
+    			buffer = DeadbeefAPI.getBuffer(minSize, buffer);
  
     			audio.write(buffer, 0, minSize);
     			while (paused) {
@@ -55,7 +51,7 @@ class Player {
     		}
 
     		audio.stop();
-    		ddb.stop();
+    		DeadbeefAPI.stop();
     	}
     }
     
@@ -68,25 +64,30 @@ class Player {
     }
 }
 
-public class Deadbeef extends Activity {
+public class Deadbeef extends ListActivity {
 	Player ply;
-	private List<String> fileList = new ArrayList<String>();
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+		DeadbeefAPI.start();
+
         setContentView(R.layout.main);
         
-//        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title, fileList);
-//        setListAdapter(adapter);
+        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+        setListAdapter(adapter);
+        
+//        ListView lv = getListView();
+//        lv.setOnClickListener(mListViewClickListener);
         
         ImageButton button = (ImageButton)findViewById(R.id.quit);
         button.setOnClickListener(mQuitListener);
         
-//        ListView playlist = (ListView)findViewById(R.id.playlist);
-//        ListAdapter	 adapter = playlist.getAdapter();
-//        playlist.add ("test.nsf");
+        button = (ImageButton)findViewById(R.id.prev);
+        button.setOnClickListener(mPrevListener);
+
+        button = (ImageButton)findViewById(R.id.next);
+        button.setOnClickListener(mNextListener);
         
         ply = new Player();
         
@@ -98,6 +99,25 @@ public class Deadbeef extends Activity {
         	finish ();
         }
     };
-    
+
+    private OnClickListener mPrevListener = new OnClickListener() {
+        public void onClick(View v) {
+        	DeadbeefAPI.play_prev ();
+        }
+    };
+
+    private OnClickListener mNextListener = new OnClickListener() {
+        public void onClick(View v) {
+        	DeadbeefAPI.play_next ();
+        }
+    };
+
+    private OnClickListener mListViewClickListener = new OnClickListener() {
+        public void onClick(View v) {
+//        	int idx = v.getId();
+//:        	DeadbeefAPI.play_idx (idx);
+        }
+    };
+
 }
 
