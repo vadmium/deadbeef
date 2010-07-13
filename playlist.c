@@ -49,7 +49,6 @@
 #include "threading.h"
 #include "metacache.h"
 #include "volume.h"
-#include <android/log.h>
 
 #define DISABLE_LOCKING 0
 #define DEBUG_LOCKING 0
@@ -1407,16 +1406,12 @@ pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(pl
 
 int
 pl_add_file (const char *fname, int (*cb)(playItem_t *it, void *data), void *user_data) {
-    __android_log_write(ANDROID_LOG_INFO,"DDB","pl_add_file");
-    __android_log_write(ANDROID_LOG_INFO,"DDB",fname);
     int abort = 0;
     playItem_t *it = pl_insert_file (playlist->tail[PL_MAIN], fname, &abort, cb, user_data);
     if (it) {
         // pl_insert_file doesn't hold reference, don't unref here
-        __android_log_write(ANDROID_LOG_INFO,"DDB","success!");
         return 0;
     }
-    __android_log_write(ANDROID_LOG_INFO,"DDB","failed!");
     return -1;
 }
 
