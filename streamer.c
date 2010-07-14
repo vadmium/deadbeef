@@ -37,6 +37,8 @@
 #include "volume.h"
 #include "vfs.h"
 
+//extern void android_trace (const char *fmt, ...);
+//#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
 

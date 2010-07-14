@@ -14,6 +14,7 @@ public class DeadbeefAPI
 	public static native void play_prev ();
 	public static native void play_next ();
 	public static native void play_idx (int idx);
+	public static native float play_get_pos ();
 	
 	static {
 		System.loadLibrary("deadbeef");

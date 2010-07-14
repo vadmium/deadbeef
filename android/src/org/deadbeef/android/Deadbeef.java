@@ -112,11 +112,9 @@ public class Deadbeef extends ListActivity {
         }
     };
 
-    private OnClickListener mListViewClickListener = new OnClickListener() {
-        public void onClick(View v) {
-//        	int idx = v.getId();
-//:        	DeadbeefAPI.play_idx (idx);
-        }
+    @Override
+    public void onListItemClick (ListView l, View v, int position, long id) {
+   		DeadbeefAPI.play_idx (position);
     };
 
 }

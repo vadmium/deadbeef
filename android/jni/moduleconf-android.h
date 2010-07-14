@@ -1,6 +1,6 @@
 //PLUG(adplug)
 //PLUG(dca)
-//PLUG(dumb)
+PLUG(dumb)
 //PLUG(ffap)
 PLUG(gme)
 //PLUG(musepack)
