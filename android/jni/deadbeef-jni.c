@@ -204,6 +204,9 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
     pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);
+    pl_add_file ("/sdcard/deadbeef/7real_01.vtx", NULL, NULL);
+    pl_add_file ("/sdcard/deadbeef/7real_02.vtx", NULL, NULL);
+    pl_add_file ("/sdcard/deadbeef/7real_03.vtx", NULL, NULL);
     // start song #0 in playlist
     streamer_set_nextsong (0, 1);
 
