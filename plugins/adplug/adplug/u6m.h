@@ -20,8 +20,8 @@
  * This code extends the Adlib Winamp plug-in by Simon Peter <dn.tlp@gmx.net>
  */
 
+#include <string.h>
 #include <stack>
-
 #include "player.h"
 
 #define default_dict_size 4096     // because maximum codeword size == 12 bits
@@ -32,7 +32,7 @@ class Cu6mPlayer: public CPlayer
  public:
   static CPlayer *factory(Copl *newopl);
 
-  Cu6mPlayer(Copl *newopl) : CPlayer(newopl), song_data(0)
+  Cu6mPlayer(Copl *newopl) : CPlayer(newopl), song_data(0), subsong_stack_sz(0)
     {
     };
 
@@ -42,14 +42,14 @@ class Cu6mPlayer: public CPlayer
       if(song_data) delete[] song_data;
     };
 
-  bool load(const std::string &filename, const CFileProvider &fp);
+  bool load(const char *filename, const CFileProvider &fp);
   bool update();
   void rewind(int subsong);
   float getrefresh();
 
-  std::string gettype()
+  const char * gettype()
     {
-      return std::string("Ultima 6 Music");
+      return "Ultima 6 Music";
     };
 
  protected:
@@ -109,7 +109,9 @@ class Cu6mPlayer: public CPlayer
   int song_pos;               // current offset within the song
   int loop_position;          // position of the loop point
   int read_delay;             // delay (in timer ticks) before further song data is read
-  std::stack<subsong_info> subsong_stack;
+  enum {MAX_SUBSONG_STACK = 100};
+  subsong_info subsong_stack[MAX_SUBSONG_STACK];
+  int subsong_stack_sz;
 
   int instrument_offsets[9];  // offsets of the adlib instrument data
   // vibrato ("vb")

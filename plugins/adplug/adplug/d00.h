@@ -35,18 +35,18 @@ class Cd00Player: public CPlayer
   ~Cd00Player()
     { if(filedata) delete [] filedata; };
 
-  bool load(const std::string &filename, const CFileProvider &fp);
+  bool load(const char *filename, const CFileProvider &fp);
   bool update();
   void rewind(int subsong);
   float getrefresh();
 
-  std::string gettype();
-  std::string gettitle()
-    { if(version > 1) return std::string(header->songname); else return std::string(); };
-  std::string getauthor()
-    { if(version > 1) return std::string(header->author); else return std::string(); };
-  std::string getdesc()
-    { if(*datainfo) return std::string(datainfo); else return std::string(); };
+  const char * gettype();
+  const char * gettitle()
+    { if(version > 1) return header->songname; else return ""; };
+  const char * getauthor()
+    { if(version > 1) return header->author; else return ""; };
+  const char * getdesc()
+    { if(*datainfo) return datainfo; else return ""; };
   unsigned int getsubsongs();
 
  protected:

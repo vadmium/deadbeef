@@ -22,7 +22,8 @@
  * Extra Fine Slides (EEx, FEx) & Fine Vibrato (Uxy) are inaccurate
  */
 
-#include <cstring>
+#include <stdio.h>
+#include <string.h>
 #include "s3m.h"
 
 const char Cs3mPlayer::chnresolv[] =	// S3M -> adlib channel conversion
@@ -56,7 +57,7 @@ Cs3mPlayer::Cs3mPlayer(Copl *newopl): CPlayer(newopl)
       }
 }
 
-bool Cs3mPlayer::load(const std::string &filename, const CFileProvider &fp)
+bool Cs3mPlayer::load(const char *filename, const CFileProvider &fp)
 {
   binistream		*f = fp.open(filename); if(!f) return false;
   unsigned short	insptr[99],pattptr[99];
@@ -404,7 +405,7 @@ void Cs3mPlayer::rewind(int subsong)
   opl->write(1,32);			// Go to ym3812 mode
 }
 
-std::string Cs3mPlayer::gettype()
+const char * Cs3mPlayer::gettype()
 {
   char filever[5];
 
@@ -416,7 +417,8 @@ std::string Cs3mPlayer::gettype()
   default: strcpy(filever,"3.??");
   }
 
-  return (std::string("Scream Tracker ") + filever);
+  snprintf (filetype, sizeof (filetype), "Scream Tracker %s", filever);
+  return filetype;
 }
 
 float Cs3mPlayer::getrefresh()

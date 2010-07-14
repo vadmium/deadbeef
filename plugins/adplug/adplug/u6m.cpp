@@ -34,7 +34,7 @@ CPlayer *Cu6mPlayer::factory(Copl *newopl)
   return new Cu6mPlayer(newopl);
 }
 
-bool Cu6mPlayer::load(const std::string &filename, const CFileProvider &fp)
+bool Cu6mPlayer::load(const char *filename, const CFileProvider &fp)
 {
   // file validation section
   // this section only checks a few *necessary* conditions
@@ -178,8 +178,8 @@ void Cu6mPlayer::rewind(int subsong)
       carrier_mf_mod_delay[i] = 0;
     }
 
-  while (!subsong_stack.empty())		// empty subsong stack
-    subsong_stack.pop();
+  while (subsong_stack_sz > 0) // empty subsong stack
+    subsong_stack--;
 
   opl->init();
   out_adlib(1,32);	// go to OPL2 mode
@@ -583,7 +583,7 @@ void Cu6mPlayer::command_81()
   new_ss_info.subsong_start = read_song_byte(); new_ss_info.subsong_start += read_song_byte() << 8;
   new_ss_info.continue_pos = song_pos;
 
-  subsong_stack.push(new_ss_info);
+  subsong_stack[subsong_stack_sz++] = new_ss_info;
   song_pos = new_ss_info.subsong_start;
 }
 
@@ -662,10 +662,10 @@ void Cu6mPlayer::command_E()
 // ---------------------------
 void Cu6mPlayer::command_F()
 {
-  if (!subsong_stack.empty())
+  if (subsong_stack_sz)
     {
-      subsong_info temp = subsong_stack.top();
-      subsong_stack.pop();
+      subsong_info temp = subsong_stack[subsong_stack_sz-1];
+      subsong_stack_sz--;
       temp.subsong_repetitions--;
       if (temp.subsong_repetitions==0)
         {
@@ -674,7 +674,7 @@ void Cu6mPlayer::command_F()
       else
         {
 	  song_pos = temp.subsong_start;
-	  subsong_stack.push(temp);
+	  subsong_stack[subsong_stack_sz++] = temp;
         }
     }
   else

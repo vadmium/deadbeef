@@ -29,7 +29,7 @@ CPlayer *CrawPlayer::factory(Copl *newopl)
   return new CrawPlayer(newopl);
 }
 
-bool CrawPlayer::load(const std::string &filename, const CFileProvider &fp)
+bool CrawPlayer::load(const char *filename, const CFileProvider &fp)
 {
   binistream *f = fp.open(filename); if(!f) return false;
   char id[8];

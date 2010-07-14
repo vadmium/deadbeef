@@ -27,7 +27,7 @@ CPlayer *CsngPlayer::factory(Copl *newopl)
   return new CsngPlayer(newopl);
 }
 
-bool CsngPlayer::load(const std::string &filename, const CFileProvider &fp)
+bool CsngPlayer::load(const char *filename, const CFileProvider &fp)
 {
   binistream *f = fp.open(filename); if(!f) return false;
   int i;

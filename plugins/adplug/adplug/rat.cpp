@@ -254,14 +254,14 @@ float CxadratPlayer::xadplayer_getrefresh()
   return 60.0f;
 }
 
-std::string CxadratPlayer::xadplayer_gettype()
+const char * CxadratPlayer::xadplayer_gettype()
 {
-  return (std::string("xad: rat player"));
+  return "xad: rat player";
 }
 
-std::string CxadratPlayer::xadplayer_gettitle()
+const char * CxadratPlayer::xadplayer_gettitle()
 {
-  return (std::string(rat.hdr.title,32));
+  return rat.hdr.title;
 }
 
 unsigned int CxadratPlayer::xadplayer_getinstruments()
