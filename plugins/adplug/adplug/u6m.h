@@ -21,7 +21,6 @@
  */
 
 #include <string.h>
-#include <stack>
 #include "player.h"
 
 #define default_dict_size 4096     // because maximum codeword size == 12 bits
@@ -165,6 +164,7 @@ class Cu6mPlayer: public CPlayer
   bool lzw_decompress(data_block source, data_block dest);
   int get_next_codeword (long& bits_read, unsigned char *source, int codeword_size);
   void output_root(unsigned char root, unsigned char *destination, long& position);
-  void get_string(int codeword, MyDict& dictionary, std::stack<unsigned char>& root_stack);
+  //void get_string(int codeword, MyDict& dictionary, std::stack<unsigned char>& root_stack);
+  void get_string(int codeword, MyDict& dictionary, unsigned char *root_stack, int &root_stack_size);
 };
 

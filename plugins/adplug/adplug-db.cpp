@@ -79,7 +79,7 @@ adplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     info->subsong = it->tracknum;
     info->decoder->rewind (info->subsong);
-    info->totalsamples = info->decoder->songlength (info->subsong) * samplerate / 1000;
+    info->totalsamples = info->decoder->songlength (info->subsong) / 1000.f * samplerate;
     info->currentsample = 0;
     info->toadd = 0;
 
@@ -90,7 +90,7 @@ adplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     _info->samplerate = samplerate;
     _info->readpos = 0;
 
-    trace ("adplug_init ok (duration=%f, totalsamples=%d)\n", deadbeef->pl_get_item_duration (it), totalsamples);
+    trace ("adplug_init ok (songlength=%d, duration=%f, totalsamples=%d)\n", info->decoder->songlength (info->subsong), deadbeef->pl_get_item_duration (it), info->totalsamples);
 
     return 0;
 }

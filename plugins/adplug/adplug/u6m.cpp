@@ -200,6 +200,8 @@ float Cu6mPlayer::getrefresh()
 // ============================================================================================
 
 
+#define ROOT_STACK_SIZE 200
+
 // decompress from memory to memory
 bool Cu6mPlayer::lzw_decompress(Cu6mPlayer::data_block source, Cu6mPlayer::data_block dest)
 {
@@ -209,7 +211,11 @@ bool Cu6mPlayer::lzw_decompress(Cu6mPlayer::data_block source, Cu6mPlayer::data_
   int next_free_codeword = 0x102;
   int dictionary_size = 0x200;
   MyDict dictionary = MyDict();
-  std::stack<unsigned char> root_stack;
+
+  unsigned char root_stack[ROOT_STACK_SIZE];
+  int root_stack_size = 0;
+
+//  std::stack<unsigned char> root_stack;
 
   long bytes_written = 0;
 
@@ -240,13 +246,13 @@ bool Cu6mPlayer::lzw_decompress(Cu6mPlayer::data_block source, Cu6mPlayer::data_
 	  if (cW < next_free_codeword)  // codeword is already in the dictionary
 	    {
 	      // create the string associated with cW (on the stack)
-	      get_string(cW,dictionary,root_stack);
-	      C = root_stack.top();
+	      get_string(cW,dictionary,root_stack,root_stack_size);
+	      C = root_stack[root_stack_size-1];
 	      // output the string represented by cW
-	      while (!root_stack.empty())
+	      while (root_stack_size>0)
 		{
-		  SAVE_OUTPUT_ROOT(root_stack.top(), dest, bytes_written);
-		  root_stack.pop();
+		  SAVE_OUTPUT_ROOT(root_stack[root_stack_size-1], dest, bytes_written);
+		  root_stack_size--;
 		}
 	      // add pW+C to the dictionary
 	      dictionary.add(C,pW);
@@ -264,13 +270,13 @@ bool Cu6mPlayer::lzw_decompress(Cu6mPlayer::data_block source, Cu6mPlayer::data_
 	  else  // codeword is not yet defined
 	    {
 	      // create the string associated with pW (on the stack)
-	      get_string(pW,dictionary,root_stack);
-	      C = root_stack.top();
+	      get_string(pW,dictionary,root_stack,root_stack_size);
+	      C = root_stack[root_stack_size-1];
 	      // output the string represented by pW
-	      while (!root_stack.empty())
+	      while (root_stack_size>0)
 		{
-		  SAVE_OUTPUT_ROOT(root_stack.top(), dest, bytes_written);
-		  root_stack.pop();
+		  SAVE_OUTPUT_ROOT(root_stack[root_stack_size-1], dest, bytes_written);
+		  root_stack_size--;
 		}
 	      // output the char C
 	      SAVE_OUTPUT_ROOT(C, dest, bytes_written);
@@ -356,7 +362,8 @@ void Cu6mPlayer::output_root(unsigned char root, unsigned char *destination, lon
 
 
 // output the string represented by a codeword
-void Cu6mPlayer::get_string(int codeword, Cu6mPlayer::MyDict& dictionary, std::stack<unsigned char>& root_stack)
+//void Cu6mPlayer::get_string(int codeword, Cu6mPlayer::MyDict& dictionary, std::stack<unsigned char>& root_stack)
+void Cu6mPlayer::get_string(int codeword, Cu6mPlayer::MyDict& dictionary, unsigned char *root_stack, int &root_stack_size)
 {
   unsigned char root;
   int current_codeword;
@@ -367,11 +374,11 @@ void Cu6mPlayer::get_string(int codeword, Cu6mPlayer::MyDict& dictionary, std::s
     {
       root = dictionary.get_root(current_codeword);
       current_codeword = dictionary.get_codeword(current_codeword);
-      root_stack.push(root);
+      root_stack[root_stack_size++]=root;
     }
 
   // push the root at the leaf
-  root_stack.push((unsigned char)current_codeword);
+  root_stack[root_stack_size++]= (unsigned char)current_codeword;
 }
 
 
