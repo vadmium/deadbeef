@@ -178,8 +178,7 @@ void Cu6mPlayer::rewind(int subsong)
       carrier_mf_mod_delay[i] = 0;
     }
 
-  while (subsong_stack_sz > 0) // empty subsong stack
-    subsong_stack--;
+  subsong_stack_sz = 0;
 
   opl->init();
   out_adlib(1,32);	// go to OPL2 mode

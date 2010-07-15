@@ -20,9 +20,7 @@
  *
  * Visit:  http://tenacity.hispeed.com/aomit/oplx/
  */
-#include <cstring>
-#include <algorithm>
-
+#include <string.h>
 #include "rol.h"
 #include "debug.h"
 
@@ -78,6 +76,10 @@ CrolPlayer::CrolPlayer(Copl *newopl)
 {
     int n;
 
+    memset (mTempoEvents, 0, sizeof (mTempoEvents));
+    memset (voice_data, 0, sizeof (voice_data));
+    memset (ins_list, 0, sizeof (ins_list));
+
     memset(bxRegister,  0, sizeof(bxRegister) );
     memset(volumeCache, 0, sizeof(volumeCache) );
     memset(freqCache,   0, sizeof(freqCache) );
@@ -99,18 +101,20 @@ bool CrolPlayer::load(const char *filename, const CFileProvider &fp)
 {
     binistream *f = fp.open(filename); if(!f) return false;
 
-    char *fn = new char[strlen(filename)+12];
+    char fn[strlen(filename)+12];
     int i;
     const char * bnk_filename;
 
     AdPlug_LogWrite("*** CrolPlayer::load(f, \"%s\") ***\n", filename);
     strcpy(fn,filename);
-    for (i=strlen(fn)-1; i>=0; i--)
-      if (fn[i] == '/' || fn[i] == '\\')
-	break;
+    int len = strlen(fn)-1;
+    for (i=len; i>=0; i--) {
+        if (fn[i] == '/' || fn[i] == '\\') {
+            break;
+        }
+    }
     strcpy(fn+i+1,"standard.bnk");
     bnk_filename = fn;
-    delete [] fn;
     AdPlug_LogWrite("bnk_filename = \"%s\"\n",bnk_filename);
 
     rol_header = new SRolHeader;
@@ -160,6 +164,7 @@ bool CrolPlayer::load(const char *filename, const CFileProvider &fp)
 
     rewind( 0 );
     AdPlug_LogWrite("--- CrolPlayer::load ---\n");
+
     return true;
 }
 //---------------------------------------------------------
@@ -246,7 +251,7 @@ float CrolPlayer::getrefresh()
 //---------------------------------------------------------
 void CrolPlayer::UpdateVoice( int const voice, CVoiceData &voiceData )
 {
-    if( !voiceData.n_note_events || voiceData.mEventStatus & CVoiceData::kES_NoteEnd )
+    if( !voiceData.n_note_events || (voiceData.mEventStatus & CVoiceData::kES_NoteEnd) )
     {
         return; // no note data to process, don't bother doing anything.
     }
@@ -448,8 +453,6 @@ void CrolPlayer::load_tempo_events( binistream *f )
 {
     int16 const num_tempo_events = f->readInt( 2 );
 
-    n_tempo_events = 0;
-
     for(int i=0; i<num_tempo_events; ++i)
     {
         STempoEvent event;
@@ -460,9 +463,10 @@ void CrolPlayer::load_tempo_events( binistream *f )
     }
 }
 //---------------------------------------------------------
-bool CrolPlayer::load_voice_data( binistream *f, const char * const &bnk_filename, const CFileProvider &fp )
+bool CrolPlayer::load_voice_data( binistream *f, const char *bnk_filename, const CFileProvider &fp )
 {
     SBnkHeader bnk_header;
+    memset (&bnk_header, 0, sizeof (bnk_header));
     binistream *bnk_file = fp.open( bnk_filename);
 
     if( bnk_file )
@@ -479,6 +483,7 @@ bool CrolPlayer::load_voice_data( binistream *f, const char * const &bnk_filenam
             load_instrument_events( f, voice, bnk_file, bnk_header );
             load_volume_events( f, voice );
             load_pitch_events( f, voice );
+
         }
 
         fp.close(bnk_file);
@@ -589,19 +594,13 @@ bool CrolPlayer::load_bnk_info( binistream *f, SBnkHeader &header )
       instrument.index = f->readInt( 2 );
       instrument.record_used = f->readInt(1);
       f->readString( instrument.name, 9 );
-
-      // printf("%s = #%d\n", instrument.name, i );
     }
-
-  //std::sort( ins_name_list.begin(), ins_name_list.end(), StringCompare() );
 
   return true;
 }
 //---------------------------------------------------------
 int CrolPlayer::load_rol_instrument( binistream *f, SBnkHeader const &header, const char * name )
 {
-//    TInstrumentNames const &ins_name_list = header.ins_name_list;
-
     int const ins_index = get_ins_index( name );
 
     if( ins_index != -1 )
@@ -622,7 +621,7 @@ int CrolPlayer::load_rol_instrument( binistream *f, SBnkHeader const &header, co
     }
 
     SUsedList &usedIns = ins_list[n_used_ins++];
-    usedIns.name = name;
+    usedIns.name = name; // no strdup, pointing to SInstrumentEvent name
 
     if (ipos < header.n_ins_names && ipos >= 0) {
         read_rol_instrument( f, usedIns.instrument );

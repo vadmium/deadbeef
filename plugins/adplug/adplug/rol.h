@@ -106,10 +106,10 @@ private:
         MAX_INSTRUMENT_EVENTS = 32768,
         MAX_VOLUME_EVENTS = 32768,
         MAX_PITCHEVENTS = 32768,
-        MAX_INSTRUMENTS = 100,
-        MAX_VOICE_DATA = 100,
+        MAX_INSTRUMENTS = 1000,
+        MAX_VOICE_DATA = 1000,
         MAX_TEMPO_EVENTS = 32768,
-        MAX_USED_INS = 100,
+        MAX_USED_INS = 1000,
     };
 
 #define bit_pos( pos ) (1<<pos)
@@ -141,6 +141,10 @@ private:
                 ,n_volume_events(0)
                 ,n_pitch_events(0)
         {
+            memset (note_events, 0, sizeof (note_events));
+            memset (instrument_events, 0, sizeof (instrument_events));
+            memset (volume_events, 0, sizeof (volume_events));
+            memset (pitch_events, 0, sizeof (pitch_events));
         }
 
         void Reset()
@@ -237,7 +241,7 @@ private:
     } SUsedList;
 
     void load_tempo_events     ( binistream *f );
-    bool load_voice_data       ( binistream *f, const char * const &bnk_filename, const CFileProvider &fp );
+    bool load_voice_data       ( binistream *f, const char *bnk_filename, const CFileProvider &fp );
     void load_note_events      ( binistream *f, CVoiceData &voice );
     void load_instrument_events( binistream *f, CVoiceData &voice,
                                  binistream *bnk_file, SBnkHeader const &bnk_header );
