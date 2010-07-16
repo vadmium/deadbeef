@@ -202,6 +202,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
     // add test file to playlist
     pl_clear (); // !!TEST
     pl_add_file ("/sdcard/deadbeef/The!Complete.hsc", NULL, NULL);
+    pl_add_file ("/sdcard/deadbeef/adlib.s3m", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);

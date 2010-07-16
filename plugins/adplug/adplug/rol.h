@@ -99,16 +99,8 @@ private:
         real32 variation;
     } SPitchEvent;
 
-    // FIXME: allocate exactly as much as needed
     enum {
         MAX_NOTE_EVENTS = 2000,
-        MAX_INSTRUMENT_EVENTS = 2000,
-        MAX_VOLUME_EVENTS = 2000,
-        MAX_PITCHEVENTS = 2000,
-        MAX_INSTRUMENTS = 1000,
-        MAX_VOICE_DATA = 20,
-        MAX_TEMPO_EVENTS = 2000,
-        MAX_USED_INS = 1000,
     };
 
 #define bit_pos( pos ) (1<<pos)
@@ -141,9 +133,15 @@ private:
                 ,n_pitch_events(0)
         {
             memset (note_events, 0, sizeof (note_events));
-            memset (instrument_events, 0, sizeof (instrument_events));
-            memset (volume_events, 0, sizeof (volume_events));
-            memset (pitch_events, 0, sizeof (pitch_events));
+            instrument_events = 0;
+            volume_events = 0;
+            pitch_events = 0;
+        }
+
+        ~CVoiceData () {
+            delete[] instrument_events;
+            delete[] volume_events;
+            delete[] pitch_events;
         }
 
         void Reset()
@@ -160,11 +158,11 @@ private:
 
         SNoteEvent       note_events[MAX_NOTE_EVENTS];
         int n_note_events;
-        SInstrumentEvent instrument_events[MAX_INSTRUMENT_EVENTS];
+        SInstrumentEvent *instrument_events;
         int n_instrument_events;
-        SVolumeEvent     volume_events[MAX_VOLUME_EVENTS];
+        SVolumeEvent     *volume_events;
         int n_volume_events;
-        SPitchEvent      pitch_events[MAX_PITCHEVENTS];
+        SPitchEvent      *pitch_events;
         int n_pitch_events;
 
         bool              mForceNote : 1;
@@ -194,7 +192,7 @@ private:
         int32  abs_offset_of_name_list;
         int32  abs_offset_of_data;
 
-        SInstrumentName ins_name_list[MAX_INSTRUMENTS];
+        SInstrumentName *ins_name_list;
         int n_ins_names;
     } SBnkHeader;
 
@@ -265,11 +263,11 @@ private:
     void send_operator( int const voice, SOPL2Op const &modulator, SOPL2Op const &carrier );
 
     SRolHeader *rol_header;
-    STempoEvent    mTempoEvents[MAX_TEMPO_EVENTS];
+    STempoEvent    *mTempoEvents;
     int n_tempo_events;
-    CVoiceData                  voice_data[MAX_VOICE_DATA];
+    CVoiceData                  *voice_data;
     int n_voice_data;
-    SUsedList      ins_list[MAX_USED_INS];
+    SUsedList      *ins_list;
     int n_used_ins;
 
     unsigned int                mNextTempoEvent;

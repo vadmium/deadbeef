@@ -81,9 +81,9 @@ CrolPlayer::CrolPlayer(Copl *newopl)
     trace ("CrolPlayer ctor enter\n");
     int n;
 
-    memset (mTempoEvents, 0, sizeof (mTempoEvents));
-    memset (voice_data, 0, sizeof (voice_data));
-    memset (ins_list, 0, sizeof (ins_list));
+    mTempoEvents = 0;
+    voice_data = 0;
+    ins_list = 0;
 
     memset(bxRegister,  0, sizeof(bxRegister) );
     memset(volumeCache, 0, sizeof(volumeCache) );
@@ -102,6 +102,10 @@ CrolPlayer::~CrolPlayer()
         delete rol_header;
         rol_header=NULL;
     }
+
+    delete[] mTempoEvents;
+    delete[] voice_data;
+    delete[] ins_list;
 }
 //---------------------------------------------------------
 bool CrolPlayer::load(const char *filename, const CFileProvider &fp)
@@ -460,6 +464,9 @@ void CrolPlayer::load_tempo_events( binistream *f )
 {
     int16 const num_tempo_events = f->readInt( 2 );
 
+    mTempoEvents = new STempoEvent[num_tempo_events];
+    memset (mTempoEvents, 0, sizeof (STempoEvent) * num_tempo_events);
+
     for(int i=0; i<num_tempo_events; ++i)
     {
         STempoEvent event;
@@ -481,6 +488,7 @@ bool CrolPlayer::load_voice_data( binistream *f, const char *bnk_filename, const
         load_bnk_info( bnk_file, bnk_header );
 
         int const numVoices = rol_header->mode ? kNumMelodicVoices : kNumPercussiveVoices;
+        voice_data = new CVoiceData[numVoices];
 
         for(int i=0; i<numVoices; ++i)
         {
@@ -494,6 +502,7 @@ bool CrolPlayer::load_voice_data( binistream *f, const char *bnk_filename, const
         }
 
         fp.close(bnk_file);
+        delete[] bnk_header.ins_name_list;
 
         return true;
     }
@@ -513,14 +522,12 @@ void CrolPlayer::load_note_events( binistream *f, CVoiceData &voice )
 
         do
         {
-            SNoteEvent event;
+            SNoteEvent &event = voice.note_events[voice.n_note_events++];
 
             event.number   = f->readInt( 2 );
             event.duration = f->readInt( 2 );
 
             event.number += kSilenceNote; // adding -12
-
-            voice.note_events[voice.n_note_events++] = event;
 
             total_duration += event.duration;
         } while( total_duration < time_of_last_note );
@@ -538,6 +545,8 @@ void CrolPlayer::load_instrument_events( binistream *f, CVoiceData &voice,
                                          binistream *bnk_file, SBnkHeader const &bnk_header )
 {
     int16 const number_of_instrument_events = f->readInt( 2 );
+    voice.instrument_events = new SInstrumentEvent[number_of_instrument_events];
+    memset (voice.instrument_events, 0, sizeof (SInstrumentEvent) * number_of_instrument_events);
 
     for(int i=0; i<number_of_instrument_events; ++i)
     {
@@ -557,6 +566,8 @@ void CrolPlayer::load_instrument_events( binistream *f, CVoiceData &voice,
 void CrolPlayer::load_volume_events( binistream *f, CVoiceData &voice )
 {
     int16 const number_of_volume_events = f->readInt( 2 );
+    voice.volume_events = new SVolumeEvent[number_of_volume_events];
+    memset (voice.volume_events, 0, sizeof (SVolumeEvent) * number_of_volume_events);
 
     for(int i=0; i<number_of_volume_events; ++i)
     {
@@ -571,6 +582,8 @@ void CrolPlayer::load_volume_events( binistream *f, CVoiceData &voice )
 void CrolPlayer::load_pitch_events( binistream *f, CVoiceData &voice )
 {
     int16 const number_of_pitch_events = f->readInt( 2 );
+    voice.pitch_events = new SPitchEvent[number_of_pitch_events];
+    memset (voice.pitch_events, 0, sizeof (SPitchEvent) * number_of_pitch_events);
 
     for(int i=0; i<number_of_pitch_events; ++i)
     {
@@ -594,6 +607,9 @@ bool CrolPlayer::load_bnk_info( binistream *f, SBnkHeader &header )
 
   f->seek( header.abs_offset_of_name_list, binio::Set );
 
+  header.ins_name_list = new SInstrumentName[header.number_of_list_entries_used];
+  memset (header.ins_name_list, 0, sizeof (SInstrumentName) * header.number_of_list_entries_used);
+
   for(int i=0; i<header.number_of_list_entries_used; ++i)
     {
       SInstrumentName &instrument = header.ins_name_list[header.n_ins_names++];
@@ -602,6 +618,10 @@ bool CrolPlayer::load_bnk_info( binistream *f, SBnkHeader &header )
       instrument.record_used = f->readInt(1);
       f->readString( instrument.name, 9 );
     }
+
+    // preallocate space for instruments
+    ins_list = new SUsedList[header.number_of_list_entries_used * 2];
+    memset (ins_list, 0, sizeof (SUsedList) * header.number_of_list_entries_used * 2);
 
   return true;
 }
@@ -613,6 +633,11 @@ int CrolPlayer::load_rol_instrument( binistream *f, SBnkHeader const &header, co
     if( ins_index != -1 )
     {
         return ins_index;
+    }
+
+    if (n_used_ins >= header.n_ins_names * 2) {
+        AdPlug_LogWrite("*** CrolPlayer::load_rol_instrument out of memory***\n");
+        return -1;
     }
 
     // find instrument struct by name to get file pos

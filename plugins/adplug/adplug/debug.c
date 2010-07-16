@@ -21,8 +21,6 @@
  * Copyright (c) 2002 Simon Peter <dn.tlp@gmx.net>
  */
 
-#define DEBUG
-
 #ifdef DEBUG
 
 #ifdef HAVE_CONFIG_H

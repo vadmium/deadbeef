@@ -127,7 +127,7 @@ LOCAL_SRC_FILES +=\
 				  adplug/xsm.cpp\
 				  adplug/xsm.h
 
-LOCAL_CFLAGS += -Dstricmp=strcasecmp -DVERSION=\"2.1\" -I$(LOCAL_PATH)/adplug -I$(LOCAL_PATH)/libbinio -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O0 -g
+LOCAL_CFLAGS += -Dstricmp=strcasecmp -DVERSION=\"2.1\" -I$(LOCAL_PATH)/adplug -I$(LOCAL_PATH)/libbinio -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../..
 
 LOCAL_ARM_MODE := arm
 
