@@ -28,8 +28,10 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
+extern "C" void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf (stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define trace(fmt,...)
 
 extern "C" {
 
@@ -235,6 +237,8 @@ adplug_insert (DB_playItem_t *after, const char *fname) {
     // return track pointer on success
     // return NULL on failure
 
+    trace ("adplug: trying to insert %s\n", fname);
+
     CSilentopl opl;
     CPlayer *p = CAdPlug::factory (fname, &opl, CAdPlug::players);
     if (!p) {
@@ -252,18 +256,19 @@ adplug_insert (DB_playItem_t *after, const char *fname) {
         it->tracknum = i;
         deadbeef->pl_set_item_duration (it, p->songlength (i)/1000.f);
         // add metainfo
-        if (p->gettitle()[0]) {
-            adplug_add_meta (it, "title", p->gettitle());
-        }
-        else {
-            deadbeef->pl_add_meta (it, "title", NULL);
-        }
-        if (p->getdesc()[0]) {
-            adplug_add_meta (it, "comment", p->getdesc());
-        }
-        if (!p->getauthor()[0]) {
-            adplug_add_meta (it, "artist", p->getauthor());
-        }
+//        if (p->gettitle()[0]) {
+//            adplug_add_meta (it, "title", p->gettitle());
+//        }
+//        else {
+//            deadbeef->pl_add_meta (it, "title", NULL);
+//        }
+//        if (p->getdesc()[0]) {
+//            adplug_add_meta (it, "comment", p->getdesc());
+//        }
+//        if (!p->getauthor()[0]) {
+//            adplug_add_meta (it, "artist", p->getauthor());
+//        }
+        deadbeef->pl_add_meta (it, "title", NULL);
         // insert
         after = deadbeef->pl_insert_item (after, it);
         deadbeef->pl_item_unref (it);

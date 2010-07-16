@@ -21,7 +21,16 @@
  * Copyright (c) 2002 Simon Peter <dn.tlp@gmx.net>
  */
 
+#define DEBUG
+
 #ifdef DEBUG
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#if TARGET_ANDROID
+#include <android/log.h>
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -36,6 +45,15 @@ void AdPlug_LogFile(const char *filename)
 
 void AdPlug_LogWrite(const char *fmt, ...)
 {
+
+#if TARGET_ANDROID
+    char p[300];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(p, sizeof(p), fmt, ap);
+    va_end(ap);
+    __android_log_write(ANDROID_LOG_INFO,"DDB",p);
+#else
   va_list argptr;
 
   va_start(argptr, fmt);
@@ -47,6 +65,7 @@ void AdPlug_LogWrite(const char *fmt, ...)
     vfprintf(stderr, fmt, argptr);
 
   va_end(argptr);
+#endif
 }
 
 #else

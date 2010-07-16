@@ -103,8 +103,6 @@ bool CdfmLoader::load(const char *filename, const CFileProvider &fp)
 
 const char * CdfmLoader::gettype()
 {
-	char tmpstr[20];
-
 	sprintf(tmpstr,"Digital-FM %d.%d",header.hiver,header.lover);
 	return tmpstr;
 }

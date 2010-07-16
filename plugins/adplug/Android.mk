@@ -36,8 +36,6 @@ LOCAL_SRC_FILES +=\
 				  adplug/cff.h\
 				  adplug/d00.cpp\
 				  adplug/d00.h\
-				  adplug/database.cpp\
-				  adplug/database.h\
 				  adplug/debug.c\
 				  adplug/debug.h\
 				  adplug/dfm.cpp\
@@ -129,7 +127,7 @@ LOCAL_SRC_FILES +=\
 				  adplug/xsm.cpp\
 				  adplug/xsm.h
 
-LOCAL_CFLAGS += -Dstricmp=strcasecmp -DVERSION=\"2.1\" -I$(LOCAL_PATH)/adplug -I$(LOCAL_PATH)/libbinio
+LOCAL_CFLAGS += -Dstricmp=strcasecmp -DVERSION=\"2.1\" -I$(LOCAL_PATH)/adplug -I$(LOCAL_PATH)/libbinio -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O0 -g
 
 LOCAL_ARM_MODE := arm
 

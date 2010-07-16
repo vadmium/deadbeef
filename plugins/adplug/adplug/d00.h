@@ -97,6 +97,7 @@ class Cd00Player: public CPlayer
   d00header *header;
   d00header1 *header1;
   char *filedata;
+  char	tmpstr[40];
 
  private:
   void setvolume(unsigned char chan);

@@ -24,7 +24,6 @@
   slides use previous effect data instead of current.
 */
 
-#include <cstring>
 #include <stdlib.h>
 #include <string.h>
 

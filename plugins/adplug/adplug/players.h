@@ -31,7 +31,7 @@ public:
   typedef CPlayer *(*Factory)(Copl *);
 
   Factory	factory;
-  char filetype[10];
+  char filetype[50];
 
   CPlayerDesc();
   CPlayerDesc(const CPlayerDesc &pd);

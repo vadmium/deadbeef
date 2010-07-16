@@ -19,7 +19,7 @@
  * dro2.cpp - DOSBox Raw OPL v2.0 player by Adam Nielsen <malvineous@shikadi.net>
  */
 
-#include <cstring>
+#include <string.h>
 #include <stdio.h>
 
 #include "dro2.h"

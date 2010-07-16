@@ -23,7 +23,7 @@
  * NOTES: 3-oct-04: the DRO format is not yet finalized. beware.
  */
 
-#include <cstring>
+#include <string.h>
 #include <stdio.h>
 
 #include "dro.h"

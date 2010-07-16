@@ -20,7 +20,6 @@
  *           SAdT Loader by Mamiya <mamiya@users.sourceforge.net>
  */
 
-#include <cstring>
 #include <stdio.h>
 #include <string.h>
 

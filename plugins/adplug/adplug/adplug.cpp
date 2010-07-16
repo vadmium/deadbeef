@@ -72,6 +72,7 @@
 
 // List of all players that come with the standard AdPlug distribution
 CPlayerDesc CAdPlug::allplayers[] = {
+  CPlayerDesc(CrolPlayer::factory, "Adlib Visual Composer", ".rol\0"),
   CPlayerDesc(ChscPlayer::factory, "HSC-Tracker", ".hsc\0"),
   CPlayerDesc(CsngPlayer::factory, "SNGPlay", ".sng\0"),
   CPlayerDesc(CimfPlayer::factory, "Apogee IMF", ".imf\0.wlf\0.adlib\0"),
@@ -104,7 +105,6 @@ CPlayerDesc CAdPlug::allplayers[] = {
   CPlayerDesc(CxadratPlayer::factory, "rat", ".xad\0"),
   CPlayerDesc(CldsPlayer::factory, "LOUDNESS Sound System", ".lds\0"),
   CPlayerDesc(Cu6mPlayer::factory, "Ultima 6 Music", ".m\0"),
-  CPlayerDesc(CrolPlayer::factory, "Adlib Visual Composer", ".rol\0"),
   CPlayerDesc(CxsmPlayer::factory, "eXtra Simple Music", ".xsm\0"),
   CPlayerDesc(CdroPlayer::factory, "DOSBox Raw OPL v0.1", ".dro\0"),
   CPlayerDesc(Cdro2Player::factory, "DOSBox Raw OPL v2.0", ".dro\0"),

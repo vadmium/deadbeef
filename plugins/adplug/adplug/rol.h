@@ -23,8 +23,6 @@
 #ifndef H_ROLPLAYER
 #define H_ROLPLAYER
 
-#include <strings.h>
-
 #include "player.h"
 
 class CrolPlayer: public CPlayer
@@ -101,14 +99,15 @@ private:
         real32 variation;
     } SPitchEvent;
 
+    // FIXME: allocate exactly as much as needed
     enum {
-        MAX_NOTE_EVENTS = 32768,
-        MAX_INSTRUMENT_EVENTS = 32768,
-        MAX_VOLUME_EVENTS = 32768,
-        MAX_PITCHEVENTS = 32768,
+        MAX_NOTE_EVENTS = 2000,
+        MAX_INSTRUMENT_EVENTS = 2000,
+        MAX_VOLUME_EVENTS = 2000,
+        MAX_PITCHEVENTS = 2000,
         MAX_INSTRUMENTS = 1000,
-        MAX_VOICE_DATA = 1000,
-        MAX_TEMPO_EVENTS = 32768,
+        MAX_VOICE_DATA = 20,
+        MAX_TEMPO_EVENTS = 2000,
         MAX_USED_INS = 1000,
     };
 

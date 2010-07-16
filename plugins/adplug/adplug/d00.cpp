@@ -450,8 +450,6 @@ void Cd00Player::rewind(int subsong)
 
 const char * Cd00Player::gettype()
 {
-  char	tmpstr[40];
-
   sprintf(tmpstr,"EdLib packed (version %d)",version > 1 ? header->version : header1->version);
   return tmpstr;
 }

@@ -31,10 +31,14 @@ const unsigned short CPlayer::note_table[12] =
 const unsigned char CPlayer::op_table[9] =
   {0x00, 0x01, 0x02, 0x08, 0x09, 0x0a, 0x10, 0x11, 0x12};
 
+extern "C" void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 CPlayer::CPlayer(Copl *newopl)
-  : opl(newopl)
+//  : opl(newopl)
   //, db(CAdPlug::database)
 {
+    trace ("CPlayer this=%p, newopl=%p\n", this, newopl);
+    opl = newopl;
 }
 
 CPlayer::~CPlayer()

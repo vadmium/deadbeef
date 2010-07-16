@@ -49,4 +49,5 @@ private:
 
 	char songinfo[33];
 	char instname[32][12];
+	char tmpstr[20];
 };

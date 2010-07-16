@@ -1,4 +1,4 @@
-///PLUG(adplug)
+PLUG(adplug)
 //PLUG(dca)
 PLUG(dumb)
 //PLUG(ffap)
