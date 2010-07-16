@@ -105,7 +105,7 @@ public class Deadbeef extends ListActivity {
         	DeadbeefAPI.play_prev ();
         }
     };
-
+    
     private OnClickListener mNextListener = new OnClickListener() {
         public void onClick(View v) {
         	DeadbeefAPI.play_next ();

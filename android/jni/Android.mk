@@ -6,7 +6,7 @@ include $(CLEAR_VARS)
 
 CORE_PATH=../..
 
-LOCAL_STATIC_LIBRARIES := core gme libsamplerate dumb vtx adplug
+LOCAL_STATIC_LIBRARIES := core gme libsamplerate dumb vtx adplug sid
 
 LOCAL_CFLAGS    += -DHAVE_CONFIG_H -I$(LOCAL_PATH) -I$(LOCAL_PATH)/../.. -std=c99
 
