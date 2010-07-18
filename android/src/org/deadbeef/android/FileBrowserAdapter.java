@@ -103,4 +103,8 @@ public class FileBrowserAdapter extends BaseAdapter {
 	   notifyDataSetChanged ();
    }
 
+    public void AddFolder () {
+        // add folder to playlist
+        DeadbeefAPI.pl_add_folder (currentPath);
+    }
 }

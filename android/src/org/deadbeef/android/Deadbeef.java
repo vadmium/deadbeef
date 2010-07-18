@@ -9,11 +9,16 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.SeekBar;
+import android.widget.BaseAdapter;
+import android.util.Log;
 
 class Player {
 	public Player() {
@@ -87,6 +92,7 @@ class Player {
 public class Deadbeef extends ListActivity {
 	Player ply;
 	Timer sbTimer;
+	String TAG = "DDB";
 	
     /** Called when the activity is first created. */
     @Override
@@ -127,6 +133,13 @@ public class Deadbeef extends ListActivity {
         ply = new Player();       
    }
     
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+    	MenuInflater inflater = getMenuInflater();
+    	inflater.inflate(R.menu.optionsmenu, menu);
+    	return true;
+    }
+             
 /*    private OnClickListener mQuitListener = new OnClickListener() {
         public void onClick(View v) {
         	ply.stop ();
@@ -146,17 +159,26 @@ public class Deadbeef extends ListActivity {
         }
     };
     
-    private void BrowseForFile () {
+    private void AddFolder () {
+        Log.i(TAG,"AddFolder ()");
+        Intent i = new Intent (this, FileBrowser.class);
     	startActivityForResult(
-        		new Intent(this, FileBrowser.class),
+        		i,
                 0);
     }
 
-/*    private OnClickListener mAddListener = new OnClickListener() {
-        public void onClick(View v) {
-        	BrowseForFile();
-        }
-    };*/
+    @Override
+    protected void onActivityResult (int requestCode, int resultCode, Intent data) {
+        // add folder to playlist
+        ((BaseAdapter)getListAdapter()).notifyDataSetChanged ();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected (MenuItem item) {
+        Log.i(TAG,"onOptionsItemSelected");
+        AddFolder ();
+        return true;
+    };
     
     private void PlayPause () {
     	ply.playpause ();
@@ -175,11 +197,6 @@ public class Deadbeef extends ListActivity {
         	PlayPause();
         }
     };
-
-    @Override
-    protected void onActivityResult (int requestCode, int resultCode, Intent data) {
-    }
-
 
     @Override
     public void onListItemClick (ListView l, View v, int position, long id) {
