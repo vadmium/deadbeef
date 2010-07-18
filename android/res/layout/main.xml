@@ -35,67 +35,65 @@
     
     </LinearLayout>
     
-<!-- playlist browser -->
-	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    </ViewFlipper>
+   
+   <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content" 
 	              android:orientation="horizontal">
-
-     
-    <TextView android:id="@+id/text2"
+	              
+	<TextView android:id="@+id/current_pos_text"
               android:layout_width="wrap_content"
-              android:layout_height="wrap_content" android:text="Browse playlists"/>
-              
-    <ListView android:id="@+id/playlists"
-              android:layout_width="fill_parent"
-               android:layout_height="fill_parent"
-               android:layout_weight="1"
-               >
-    </ListView>
-    
-    </LinearLayout>
-    
-    
-    </ViewFlipper>
-    
+              android:layout_height="wrap_content"
+              android:text="0:00"/>
+	               
     <SeekBar android:id="@+id/seekbar"
 	              android:layout_width="fill_parent" 
-	              android:layout_height="wrap_content"/> 
+	              android:layout_height="wrap_content"
+	              android:layout_weight="1"
+	              android:scrollbarSize="3px"
+	              android:progressDrawable="@drawable/ddb_seekbar"
+	              android:thumb="@drawable/ddb_seekbar_thumb"
+	              android:paddingLeft="20sp"
+	              android:paddingRight="20sp"
+	              />
+	              
+	<TextView android:id="@+id/duration_text"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="0:00"/>
 
-	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	</LinearLayout> 
+
+	<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content" 
-	              android:orientation="horizontal">
-	    <ImageButton android:id="@+id/stop"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/stop"/>
-	    <ImageButton android:id="@+id/play"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/play"/>
-	    <ImageButton android:id="@+id/pause"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/pause"/>
-	    <ImageButton android:id="@+id/quit"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/quit"/>
-	</LinearLayout>
-	
+	              android:orientation="horizontal"
+	              android:gravity="center_horizontal">
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	              android:layout_width="fill_parent" 
+	              android:layout_width="wrap_content" 
 	              android:layout_height="wrap_content" 
 	              android:orientation="horizontal">
+	              
 	    <ImageButton android:id="@+id/prev"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/prev"/>
+	            android:layout_height="wrap_content" android:src="@drawable/ic_media_previous"/>
+	    <ImageButton android:id="@+id/play"
+	            android:layout_width="wrap_content"
+	            android:layout_height="wrap_content" android:src="@drawable/ic_media_play"/>
 	    <ImageButton android:id="@+id/next"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/next"/>
-	    <ImageButton android:id="@+id/add"
+	            android:layout_height="wrap_content" android:src="@drawable/ic_media_next"/>
+	    <!-- ImageButton android:id="@+id/add"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/add"/>
-	    <ImageButton android:id="@+id/playlists"
+	            android:layout_height="wrap_content" android:src="@drawable/add"/-->
+	    <!-- ImageButton android:id="@+id/pause"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/playlists"/>
+	            android:layout_height="wrap_content" android:src="@drawable/pause"/-->
+	    <!-- ImageButton android:id="@+id/quit"
+	            android:layout_width="wrap_content"
+	            android:layout_height="wrap_content" android:src="@drawable/quit"/-->
 	</LinearLayout>
+	</RelativeLayout>
 	
 </LinearLayout>

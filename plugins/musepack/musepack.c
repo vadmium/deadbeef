@@ -29,8 +29,10 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
+extern void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf (stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define trace(fmt,...)
 
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
@@ -306,6 +308,7 @@ musepack_seek (DB_fileinfo_t *_info, float time) {
 
 static DB_playItem_t *
 musepack_insert (DB_playItem_t *after, const char *fname) {
+    trace ("mpc: inserting %s\n", fname);
     mpc_reader reader = {
         .read = musepack_vfs_read,
         .seek = musepack_vfs_seek,
@@ -316,14 +319,14 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
 
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
-        fprintf (stderr, "mpc: insert failed to open %s\n", fname);
+        trace ("mpc: insert failed to open %s\n", fname);
         return NULL;
     }
     reader.data = fp;
 
     mpc_demux *demux = mpc_demux_init (&reader);
     if (!demux) {
-        fprintf (stderr, "mpc: mpc_demux_init failed\n");
+        trace ("mpc: mpc_demux_init failed\n");
         deadbeef->fclose (fp);
         return NULL;
     }

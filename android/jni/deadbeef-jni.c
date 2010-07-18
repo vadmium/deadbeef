@@ -201,12 +201,13 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
 
     // add test file to playlist
     pl_clear (); // !!TEST
-    pl_add_file ("/sdcard/deadbeef/Sanxion.sid", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/The!Complete.hsc", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/adlib.s3m", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/Beyond The Invisible (CDM).mpc", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/Sanxion.sid", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/The!Complete.hsc", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/adlib.s3m", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/7real_01.vtx", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/7real_02.vtx", NULL, NULL);
     pl_add_file ("/sdcard/deadbeef/7real_03.vtx", NULL, NULL);
@@ -292,3 +293,28 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
 }
 
 
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos
+  (JNIEnv *env, jclass cls)
+{
+    playItem_t *it = streamer_get_playing_track ();
+    if (it) {
+        float pos = streamer_get_playpos () / pl_get_item_duration (it);
+        pl_item_unref (it);
+        return pos;
+    }
+    return 0;
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1seek
+  (JNIEnv *env, jclass cls, jfloat pos)
+{
+    playItem_t *trk = streamer_get_playing_track ();
+    if (trk) {
+        float time = pos * pl_get_item_duration (trk);
+        if (time < 0) {
+            time = 0;
+        }
+        pl_item_unref (trk);
+        streamer_set_seek (time);
+    }
+}

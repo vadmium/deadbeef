@@ -2,4 +2,5 @@
 <resources>
     <string name="hello">Hello World, Deadbeef!</string>
     <string name="app_name">DeaDBeeF</string>
+    <string name="title_file_browser">Browse file</string>
 </resources>

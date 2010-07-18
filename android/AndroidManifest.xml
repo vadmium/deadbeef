@@ -12,7 +12,9 @@
             </intent-filter>
         </activity>
 
-    </application>
+    <activity android:name=".FileBrowser" android:label="@string/title_file_browser">
+</activity>
+</application>
 
 
 </manifest> 

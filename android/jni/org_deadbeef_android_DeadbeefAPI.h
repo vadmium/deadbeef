@@ -71,6 +71,22 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1next
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
   (JNIEnv *, jclass, jint);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_get_pos
+ * Signature: ()F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_seek
+ * Signature: (F)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1seek
+  (JNIEnv *, jclass, jfloat);
+
 #ifdef __cplusplus
 }
 #endif
