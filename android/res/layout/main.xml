@@ -25,6 +25,59 @@
                android:text="No data"/>
     
     </LinearLayout>
+
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	              android:layout_width="wrap_content" 
+	              android:layout_height="wrap_content" 
+	              android:orientation="vertical">
+
+	<!--  album -->
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	              android:layout_width="wrap_content" 
+	              android:layout_height="wrap_content" 
+	              android:orientation="horizontal">
+	    
+		<ImageView android:id="@+id/ImageView01" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/disc_24"></ImageView>
+		<TextView android:id="@+id/np_album"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="N/A"/>
+	
+	</LinearLayout>
+
+	<!-- artist -->
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	              android:layout_width="wrap_content" 
+	              android:layout_height="wrap_content" 
+	              android:orientation="horizontal">
+	    
+		<ImageView android:id="@+id/ImageView02" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/people_24"></ImageView>
+		<TextView android:id="@+id/np_artist"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="N/A"/>
+	
+	</LinearLayout>
+
+	<!-- title -->
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	              android:layout_width="wrap_content" 
+	              android:layout_height="wrap_content"
+	              android:orientation="horizontal">
+	    
+		<ImageView android:id="@+id/ImageView03" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/title_24"></ImageView>
+		<TextView android:id="@+id/np_title"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="N/A"/>
+	
+	</LinearLayout>
+
+              
+	              
+	</LinearLayout>
+	              
+	              
     
    
    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -60,6 +113,7 @@
 	              android:layout_height="wrap_content" 
 	              android:orientation="horizontal"
 	              android:gravity="center_horizontal">
+	              
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="wrap_content" 
 	              android:layout_height="wrap_content" 

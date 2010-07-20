@@ -292,6 +292,45 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1clear
   (JNIEnv *env, jclass cls)
 {
     pl_clear ();
+    pl_save_current ();
+}
+
+
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1current_1idx
+  (JNIEnv *env, jclass cls)
+{
+    playItem_t *it = streamer_get_playing_track ();
+    if (it) {
+        int idx = pl_get_idx_of (it);
+        pl_item_unref (it);
+        return idx;
+    }
+    return -1;
+}
+
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1metadata
+  (JNIEnv *env, jclass cls, jint idx, jstring key)
+{
+     const jbyte *str;
+     str = (*env)->GetStringUTFChars(env, key, NULL);
+     if (str == NULL) {
+         return NULL;
+     }
+
+     playItem_t *it = pl_get_for_idx_and_iter (idx, PL_MAIN);
+     jstring res = NULL;
+
+     if (it) {
+         const char *val = pl_find_meta (it, str);
+         if (val) {
+             res = (*env)->NewStringUTF(env, val);
+         }
+         pl_item_unref (it);
+         (*env)->ReleaseStringUTFChars(env, key, str);
+         return res;
+     }
+     (*env)->ReleaseStringUTFChars(env, key, str);
+     return NULL;
 }
 
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1prev

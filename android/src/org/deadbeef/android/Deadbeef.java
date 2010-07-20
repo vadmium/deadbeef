@@ -96,15 +96,30 @@ public class Deadbeef extends ListActivity {
 	
     boolean dontUpdatePlayPos = false;
     
+    int curr_track = -1;
+    
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run () {
+    		TextView tv;
+    		int track = DeadbeefAPI.pl_get_current_idx ();
+    		if (track != curr_track) {
+    			curr_track = track;
+    			
+    			if (curr_track >= 0) {
+    	    		// update album/artist/title
+    	    		tv = (TextView)findViewById(R.id.np_album);
+    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "album"));
+    	    		tv = (TextView)findViewById(R.id.np_artist);
+    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "artist"));
+    	    		tv = (TextView)findViewById(R.id.np_title);
+    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "title"));
+    			}
+    		}
 	    	// update numbers
-	    	TextView tv = (TextView)findViewById(R.id.current_pos_text);
-	    	String pos = DeadbeefAPI.play_get_pos_formatted ();
-	    	tv.setText(pos);
+	    	tv = (TextView)findViewById(R.id.current_pos_text);
+	    	tv.setText(DeadbeefAPI.play_get_pos_formatted ());
 	    	tv = (TextView)findViewById(R.id.duration_text);
-	    	String dur = DeadbeefAPI.play_get_duration_formatted ();
-	    	tv.setText(dur);
+	    	tv.setText(DeadbeefAPI.play_get_duration_formatted ());
 	
 	    	// update seekbar
 	    	if (dontUpdatePlayPos) {
