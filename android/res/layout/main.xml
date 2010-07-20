@@ -21,8 +21,8 @@
     <TextView android:id="@id/android:empty"
                android:layout_width="fill_parent"
                android:layout_height="fill_parent"
-               android:background="#FF0000"
-               android:text="No data"/>
+               android:background="#000000"
+               android:text="No data. Press Menu button and select Add Folder."/>
     
     </LinearLayout>
 
