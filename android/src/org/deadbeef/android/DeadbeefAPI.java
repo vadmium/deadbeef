@@ -10,6 +10,8 @@ public class DeadbeefAPI
 	public static native int pl_get_count ();
 	public static native String pl_get_item_text (int idx);
 	public static native int pl_add_folder (String path);
+	public static native void pl_clear ();
+	
 	
 	// playback ctrl
 	public static native void play_prev ();

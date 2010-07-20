@@ -230,6 +230,15 @@ public class Deadbeef extends ListActivity {
         if (id == R.id.menu_add_folder) {
             AddFolder ();
         }
+        else if (id == R.id.menu_clear_playlist) {
+        	DeadbeefAPI.pl_clear ();
+	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
+        }
         else if (id == R.id.menu_quit) {
             ply.stop ();
             finish ();

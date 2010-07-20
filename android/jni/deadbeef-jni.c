@@ -200,7 +200,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
     output_plugin = &jni_out;
 
     // add test file to playlist
-    pl_clear (); // !!TEST
+    //pl_clear (); // !!TEST
     //pl_add_file ("/sdcard/deadbeef/Beyond The Invisible (CDM).mpc", NULL, NULL);
     //pl_add_file ("/sdcard/deadbeef/Sanxion.sid", NULL, NULL);
     //pl_add_file ("/sdcard/deadbeef/The!Complete.hsc", NULL, NULL);
@@ -208,11 +208,12 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
     //pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
     //pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
     //pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/7real_01.vtx", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/7real_02.vtx", NULL, NULL);
-    pl_add_file ("/sdcard/deadbeef/7real_03.vtx", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/7real_01.vtx", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/7real_02.vtx", NULL, NULL);
+    //pl_add_file ("/sdcard/deadbeef/7real_03.vtx", NULL, NULL);
+
     // start song #0 in playlist
-    streamer_set_nextsong (0, 1);
+    //streamer_set_nextsong (0, 1);
 
     trace ("ddb_start done");
     return 0;
@@ -284,6 +285,12 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
 
      (*env)->ReleaseStringUTFChars(env, path, str);
      return res;
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1clear
+  (JNIEnv *env, jclass cls)
+{
+    pl_clear ();
 }
 
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1prev
