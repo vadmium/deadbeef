@@ -280,6 +280,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
          return -1;
      }
      int res = pl_add_dir (str, NULL, NULL);
+     pl_save_current ();
 
      trace ("added %s; new pl_count: %d\n", str, pl_getcount (PL_MAIN));
 
