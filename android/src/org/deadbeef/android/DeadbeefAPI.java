@@ -15,7 +15,11 @@ public class DeadbeefAPI
 	public static native void play_prev ();
 	public static native void play_next ();
 	public static native void play_idx (int idx);
-	public static native float play_get_pos ();
+	public static native float play_get_pos_normalized ();
+	public static native float play_get_pos_seconds ();
+	public static native String play_get_pos_formatted ();
+	public static native float play_get_duration_seconds ();
+	public static native String play_get_duration_formatted ();
 	public static native void play_seek (float pos);
 
 	static {

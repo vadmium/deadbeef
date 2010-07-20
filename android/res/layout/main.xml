@@ -4,22 +4,13 @@
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical" >
- <ViewFlipper android:id="@+id/flipper"
-     android:layout_width="fill_parent"
-     android:layout_height="wrap_content"
-     android:layout_weight="1">
 
-<!-- current playlist -->
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content" 
-	              android:orientation="vertical">
+	              android:orientation="vertical"
+	              android:layout_weight="1">
 
-     
-    <TextView android:id="@+id/text"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content" android:text="Playlist: Default"/>
-              
     <ListView android:id="@id/android:list"
               android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -35,7 +26,6 @@
     
     </LinearLayout>
     
-    </ViewFlipper>
    
    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="fill_parent" 

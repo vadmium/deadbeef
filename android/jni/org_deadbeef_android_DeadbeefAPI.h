@@ -49,6 +49,14 @@ JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1t
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_add_folder
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_prev
  * Signature: ()V
  */
@@ -73,10 +81,42 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    play_get_pos
+ * Method:    play_get_pos_normalized
  * Signature: ()F
  */
-JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos_1normalized
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_get_pos_seconds
+ * Signature: ()F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos_1seconds
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_get_pos_formatted
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1pos_1formatted
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_get_duration_seconds
+ * Signature: ()F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1duration_1seconds
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_get_duration_formatted
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1get_1duration_1formatted
   (JNIEnv *, jclass);
 
 /*

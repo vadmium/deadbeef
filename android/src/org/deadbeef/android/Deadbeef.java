@@ -18,7 +18,9 @@ import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.BaseAdapter;
+import android.widget.TextView;
 import android.util.Log;
+import android.os.Handler;
 
 class Player {
 	public Player() {
@@ -83,17 +85,52 @@ class Player {
     public void playpause () {
     	paused = !paused;
     }
-    
-    public float getPlayPosition () {
-    	return DeadbeefAPI.play_get_pos ();
-    }
 }
 
 public class Deadbeef extends ListActivity {
 	Player ply;
 	Timer sbTimer;
 	String TAG = "DDB";
+	Handler handler = new Handler();
+	boolean terminate = false;
 	
+    boolean dontUpdatePlayPos = false;
+    
+    final Runnable UpdateInfoRunnable = new Runnable() {
+    	public void run () {
+	    	// update numbers
+	    	TextView tv = (TextView)findViewById(R.id.current_pos_text);
+	    	String pos = DeadbeefAPI.play_get_pos_formatted ();
+	    	tv.setText(pos);
+	    	tv = (TextView)findViewById(R.id.duration_text);
+	    	String dur = DeadbeefAPI.play_get_duration_formatted ();
+	    	tv.setText(dur);
+	
+	    	// update seekbar
+	    	if (dontUpdatePlayPos) {
+	    		return;
+	    	}
+	        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
+	        float normpos = DeadbeefAPI.play_get_pos_normalized ();
+	        sb.setProgress ((int)(normpos * 1024));
+    	}
+    };
+    
+    private class ProgressThread extends Thread {
+    	@Override
+        public void run() {
+    		do {
+    			try {
+                    sleep(250);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, e.getMessage());
+                }
+    			handler.post(UpdateInfoRunnable);
+    		} while (!terminate);
+    	}
+    };
+    private ProgressThread progressThread;
+
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -126,12 +163,19 @@ public class Deadbeef extends ListActivity {
         sb.setMax(1024);
         sb.setOnSeekBarChangeListener(sbChangeListener);
         
-        sbTimer = new Timer();
-        SbTimerTask sbTimerTask = new SbTimerTask ();
-        sbTimer.scheduleAtFixedRate((TimerTask)sbTimerTask, (long)100, (long)100);
-
-        ply = new Player();       
+        ply = new Player();     
+        progressThread = new ProgressThread();
+        progressThread.start();
    }
+    
+    @Override
+    public void onDestroy() {
+    	ply.stop();
+    	ply = null;
+    	terminate = true;
+        super.onDestroy();
+    }
+
     
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -164,19 +208,32 @@ public class Deadbeef extends ListActivity {
         Intent i = new Intent (this, FileBrowser.class);
     	startActivityForResult(
         		i,
-                0);
+                10);
     }
 
     @Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
-        ((BaseAdapter)getListAdapter()).notifyDataSetChanged ();
+    	if (requestCode == 10) {
+	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
+    	}
     }
 
     @Override
     public boolean onOptionsItemSelected (MenuItem item) {
-        Log.i(TAG,"onOptionsItemSelected");
-        AddFolder ();
+        int id = item.getItemId ();
+        if (id == R.id.menu_add_folder) {
+            AddFolder ();
+        }
+        else if (id == R.id.menu_quit) {
+            ply.stop ();
+            finish ();
+        }
         return true;
     };
     
@@ -203,24 +260,6 @@ public class Deadbeef extends ListActivity {
    		DeadbeefAPI.play_idx (position);
     };
     
-    boolean dontUpdatePlayPos = false;
-    
-    void UpdateSeekBar () {
-    	if (dontUpdatePlayPos) {
-    		return;
-    	}
-        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
-        float pos = ply.getPlayPosition ();
-        sb.setProgress ((int)(pos * 1024));
-    }
-
-	class SbTimerTask extends TimerTask {
-		@Override
-		public void run () {
-			UpdateSeekBar ();
-		}
-	}
-	
 	void PlayerSeek (float value) {
 		DeadbeefAPI.play_seek (value);
 	}
