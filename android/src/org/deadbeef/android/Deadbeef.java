@@ -38,7 +38,7 @@ class Player {
     		AudioFormat.ENCODING_PCM_16BIT,
     		minSize < 4096 ? 4096 : minSize,
     		AudioTrack.MODE_STREAM);
-    public boolean paused = false;
+    public boolean paused = true;
     public boolean playing = true;
     private Thread playThread;
 
@@ -97,11 +97,25 @@ public class Deadbeef extends ListActivity {
     boolean dontUpdatePlayPos = false;
     
     int curr_track = -1;
+    int curr_state = -1; // -1=unknown, 0 = paused/stopped, 1 = playing
     
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run () {
     		TextView tv;
     		int track = DeadbeefAPI.pl_get_current_idx ();
+    		
+    		int new_state = ply.paused ? 0 : 1;
+    		if (new_state != curr_state) {
+    			curr_state = new_state;
+        		ImageButton button = (ImageButton)findViewById(R.id.play);
+        		if (curr_state == 0) {
+        			button.setImageResource (R.drawable.ic_media_play);
+        		}
+        		else {
+        			button.setImageResource (R.drawable.ic_media_pause);
+        		}
+    		}
+    		
     		if (track != curr_track) {
     			curr_track = track;
     			
@@ -264,6 +278,10 @@ public class Deadbeef extends ListActivity {
     private void PlayPause () {
     	ply.playpause ();
     	if (!ply.paused) {
+    		int curr = DeadbeefAPI.pl_get_current_idx ();
+    		if (curr < 0) {
+    			DeadbeefAPI.play_idx (0);
+    		}
     		ImageButton button = (ImageButton)findViewById(R.id.play);
             button.setImageResource (R.drawable.ic_media_pause);    		
     	}
@@ -282,6 +300,9 @@ public class Deadbeef extends ListActivity {
     @Override
     public void onListItemClick (ListView l, View v, int position, long id) {
    		DeadbeefAPI.play_idx (position);
+   		if (ply.paused) {
+   			ply.playpause();
+   		}
     };
     
 	void PlayerSeek (float value) {

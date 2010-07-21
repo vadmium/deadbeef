@@ -13,6 +13,7 @@ public class DeadbeefAPI
 	public static native void pl_clear ();
 	public static native int pl_get_current_idx ();
 	public static native String pl_get_metadata (int idx, String key);
+	public static native String pl_get_duration_formatted (int idx);
 	
 	
 	// playback ctrl

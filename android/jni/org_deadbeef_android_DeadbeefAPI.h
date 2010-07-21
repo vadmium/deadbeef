@@ -81,6 +81,14 @@ JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1metadat
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_duration_formatted
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1duration_1formatted
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_prev
  * Signature: ()V
  */

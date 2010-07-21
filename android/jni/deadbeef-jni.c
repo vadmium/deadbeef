@@ -333,6 +333,20 @@ JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1metadat
      return NULL;
 }
 
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1duration_1formatted
+  (JNIEnv *env, jclass cls, jint idx)
+{
+    playItem_t *it = pl_get_for_idx_and_iter (idx, PL_MAIN);
+    if (it) {
+        float dur = pl_get_item_duration (it);
+        pl_item_unref (it);
+        char s[50];
+        pl_format_time (dur, s, sizeof (s));
+        return (*env)->NewStringUTF(env, s);
+    }
+    return (*env)->NewStringUTF(env, "-:--");
+}
+
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1prev
   (JNIEnv *env, jclass cls)
 {
