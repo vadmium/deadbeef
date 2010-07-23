@@ -72,7 +72,7 @@ char confdir[1024]; // $HOME/.config
 char dbconfdir[1024]; // $HOME/.config/deadbeef
 
 // fake output plugin
-int jni_out_state = OUTPUT_STATE_STOPPED;
+static int jni_out_state = OUTPUT_STATE_STOPPED;
 
 static int jni_out_init(void)
 {
@@ -107,9 +107,7 @@ static int jni_out_pause(void)
 
 static int jni_out_unpause(void)
 {
-    if (jni_out_state == OUTPUT_STATE_PAUSED) {
-        jni_out_state = OUTPUT_STATE_PLAYING;
-    }
+    jni_out_state = OUTPUT_STATE_PLAYING;
 
     return 0;
 }
@@ -199,19 +197,6 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
     extern DB_output_t *output_plugin;
     output_plugin = &jni_out;
 
-    // add test file to playlist
-    //pl_clear (); // !!TEST
-    //pl_add_file ("/sdcard/deadbeef/Beyond The Invisible (CDM).mpc", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/Sanxion.sid", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/The!Complete.hsc", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/adlib.s3m", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/test.nsf", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/inside.s3m", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/plastic.s3m", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/7real_01.vtx", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/7real_02.vtx", NULL, NULL);
-    //pl_add_file ("/sdcard/deadbeef/7real_03.vtx", NULL, NULL);
-
     // start song #0 in playlist
     //streamer_set_nextsong (0, 1);
 
@@ -220,7 +205,8 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
 }
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
-  (JNIEnv *env, jclass cls) {
+  (JNIEnv *env, jclass cls)
+{
     pl_save_all ();
     conf_save ();
     streamer_free ();
@@ -233,7 +219,7 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
     return 0;
 }
 
-JNIEXPORT jshortArray JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
   (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
     short b[size];
     memset (b, 0, sizeof (b));
@@ -247,8 +233,6 @@ JNIEXPORT jshortArray JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
         trace(out);
     }
     (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
-
-    return buffer;
 }
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count
@@ -446,3 +430,45 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1seek
         streamer_set_seek (time);
     }
 }
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1toggle_1pause
+  (JNIEnv *env, jclass cls)
+{
+    if (jni_out_get_state () == OUTPUT_STATE_PLAYING) {
+        jni_out_pause ();
+    }
+    else {
+        jni_out_play ();
+    }
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1play
+  (JNIEnv *env, jclass cls)
+{
+    jni_out_play ();
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1pause
+  (JNIEnv *env, jclass cls)
+{
+    jni_out_pause ();
+}
+
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1stop
+  (JNIEnv *env, jclass cls)
+{
+    jni_out_stop ();
+}
+
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
+  (JNIEnv *env, jclass cls)
+{
+    jni_out_get_state () == OUTPUT_STATE_PAUSED;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+  (JNIEnv *env, jclass cls)
+{
+    jni_out_get_state () == OUTPUT_STATE_PLAYING;
+}
+

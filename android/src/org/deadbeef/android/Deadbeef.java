@@ -49,7 +49,7 @@ class Player {
 
     		short buffer[] = new short[minSize];
     		while (playing) {
-    			buffer = DeadbeefAPI.getBuffer(minSize, buffer);
+    			DeadbeefAPI.getBuffer(minSize, buffer);
  
     			audio.write(buffer, 0, minSize);
     			
@@ -148,14 +148,15 @@ public class Deadbeef extends ListActivity {
     private class ProgressThread extends Thread {
     	@Override
         public void run() {
-    		do {
+    		while (!terminate) {
     			try {
                     sleep(250);
                 } catch (InterruptedException e) {
                     Log.e(TAG, e.getMessage());
                 }
     			handler.post(UpdateInfoRunnable);
-    		} while (!terminate);
+    		}
+	    	Log.i(TAG, "progress terminated");
     	}
     };
     private ProgressThread progressThread;
@@ -199,9 +200,13 @@ public class Deadbeef extends ListActivity {
     
     @Override
     public void onDestroy() {
-    	ply.stop();
-    	ply = null;
     	terminate = true;
+    	try {
+    		progressThread.join ();
+	    } catch (InterruptedException e) {
+	    	Log.e(TAG, e.getMessage());
+	    }
+    	ply.stop();
         super.onDestroy();
     }
 
@@ -269,7 +274,13 @@ public class Deadbeef extends ListActivity {
 	        });
         }
         else if (id == R.id.menu_quit) {
-            ply.stop ();
+        	terminate = true;
+        	try {
+        		progressThread.join ();
+	        } catch (InterruptedException e) {
+	            Log.e(TAG, e.getMessage());
+	        }
+        	ply.stop();
             finish ();
         }
         return true;

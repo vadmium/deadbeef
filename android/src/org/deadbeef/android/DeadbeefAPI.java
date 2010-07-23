@@ -4,7 +4,7 @@ public class DeadbeefAPI
 {
 	public static native int start();
 	public static native int stop();
-	public static native short[] getBuffer(int size, short buffer[]);
+	public static native void getBuffer(int size, short buffer[]);
 	
 	// playlist access
 	public static native int pl_get_count ();
@@ -26,6 +26,13 @@ public class DeadbeefAPI
 	public static native float play_get_duration_seconds ();
 	public static native String play_get_duration_formatted ();
 	public static native void play_seek (float pos);
+	public static native void play_toggle_pause ();
+	public static native void play_play ();
+	public static native void play_pause ();
+	public static native void play_stop ();
+	public static native boolean play_is_paused ();
+	public static native boolean play_is_playing ();
+	
 
 	static {
 		System.loadLibrary("deadbeef");
