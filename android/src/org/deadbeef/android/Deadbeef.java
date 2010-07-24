@@ -30,6 +30,15 @@ public class Deadbeef extends ListActivity {
     int curr_track = -1;
     int curr_state = -1; // -1=unknown, 0 = paused/stopped, 1 = playing
     
+	private TextView current_pos_tv;
+	private TextView duration_tv;
+	private String current_pos_text = "-:--";
+	private String duration_text = "-:--";
+    private SeekBar seekbar;
+    private int seekbar_pos = -1;
+
+    private static final int REQUEST_ADD_FOLDER = 1;
+    
     private IMediaPlaybackService mPlaybackService;
     private boolean mIsBound;
     
@@ -94,18 +103,26 @@ public class Deadbeef extends ListActivity {
 	    			}
 	    		}
 		    	// update numbers
-		    	tv = (TextView)findViewById(R.id.current_pos_text);
-		    	tv.setText(DeadbeefAPI.play_get_pos_formatted ());
-		    	tv = (TextView)findViewById(R.id.duration_text);
-		    	tv.setText(DeadbeefAPI.play_get_duration_formatted ());
+	    		String new_pos_text = DeadbeefAPI.play_get_pos_formatted ();
+	    		if (!new_pos_text.equals (current_pos_text)) {
+	    			current_pos_text = new_pos_text;
+		    		current_pos_tv.setText(current_pos_text);
+	    		}
+	    		String new_duration_text = DeadbeefAPI.play_get_duration_formatted ();
+	    		if (!new_duration_text.equals (duration_text)) {
+	    			duration_text = new_duration_text;
+	    			duration_tv.setText (duration_text);
+	    		}
 		
 		    	// update seekbar
 		    	if (dontUpdatePlayPos) {
 		    		return;
 		    	}
-		        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
-		        float normpos = DeadbeefAPI.play_get_pos_normalized ();
-		        sb.setProgress ((int)(normpos * 1024));
+		    	int new_pos = (int)(DeadbeefAPI.play_get_pos_normalized () * 1024);
+		    	if (new_pos != seekbar_pos) {
+		    		seekbar_pos = new_pos;
+		        	seekbar.setProgress (seekbar_pos);
+		    	}
     		}
     		catch (RemoteException e) {
     			Log.e(TAG, "playback service error");
@@ -133,8 +150,6 @@ public class Deadbeef extends ListActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-		DeadbeefAPI.start();
-
         setContentView(R.layout.main);
         
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
@@ -160,7 +175,11 @@ public class Deadbeef extends ListActivity {
         SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
         sb.setMax(1024);
         sb.setOnSeekBarChangeListener(sbChangeListener);
-        
+
+		current_pos_tv = (TextView)findViewById(R.id.current_pos_text);
+		duration_tv = (TextView)findViewById(R.id.duration_text); 
+        seekbar = (SeekBar)findViewById(R.id.seekbar);
+
         doBindService();
 
         progressThread = new ProgressThread();
@@ -195,13 +214,21 @@ public class Deadbeef extends ListActivity {
 
     private OnClickListener mPrevListener = new OnClickListener() {
         public void onClick(View v) {
-        	DeadbeefAPI.play_prev ();
+        	try {
+        		mPlaybackService.prev();
+        	}
+        	catch (RemoteException e) {
+        	}
         }
     };
     
     private OnClickListener mNextListener = new OnClickListener() {
         public void onClick(View v) {
-        	DeadbeefAPI.play_next ();
+        	try {
+        		mPlaybackService.next();
+        	}
+        	catch (RemoteException e) {
+        	}
         }
     };
     
@@ -210,13 +237,13 @@ public class Deadbeef extends ListActivity {
         Intent i = new Intent (this, FileBrowser.class);
     	startActivityForResult(
         		i,
-                10);
+                REQUEST_ADD_FOLDER);
     }
 
     @Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
-    	if (requestCode == 10) {
+    	if (requestCode == REQUEST_ADD_FOLDER) {
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {

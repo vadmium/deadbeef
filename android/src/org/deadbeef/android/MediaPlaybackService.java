@@ -145,7 +145,7 @@ public class MediaPlaybackService extends Service {
         
         registerExternalStorageListener();
 
-        // Needs to be done in this thread, since otherwise ApplicationContext.getPowerManager() crashes.
+		DeadbeefAPI.start();
         mPlayer = new Player();
         mPlayer.setHandler(mMediaplayerHandler);
 
