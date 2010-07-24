@@ -3,20 +3,50 @@
       package="org.deadbeef.android"
       android:versionCode="1"
       android:versionName="1.0">
-    <application android:icon="@drawable/icon" android:label="@string/app_name" android:debuggable="true">
-        <activity android:name=".Deadbeef"
+    <application android:label="@string/app_name" android:debuggable="true" android:icon="@drawable/icon" android:testOnly="false">
+        <!-- activity android:name=".Deadbeef"
                   android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity-->
+        
+        <activity android:name="org.deadbeef.android.Deadbeef"
+                android:theme="@android:style/Theme.NoTitleBar"
+                android:label="@string/app_name"
+                android:taskAffinity=""
+                android:launchMode="singleTask"
+                android:clearTaskOnLaunch="true"
+                android:excludeFromRecents="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+                <data android:mimeType="audio/*"/>
+                <data android:mimeType="application/ogg"/>
+                <data android:mimeType="application/x-ogg"/>
+                <data android:mimeType="application/itunes"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="org.deadbeef.android.PLAYBACK_VIEWER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+        
 
     <activity android:name=".FileBrowser"
     	 android:label="@string/title_file_browser"
     	 android:launchMode="standard">
 	</activity>
+<service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/ddb_24" android:process="@string/app_name" android:enabled="true"></service>
 </application>
+
 
 
 </manifest> 

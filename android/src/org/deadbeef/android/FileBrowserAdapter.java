@@ -78,9 +78,7 @@ public class FileBrowserAdapter extends BaseAdapter {
 	   if (position == 0) {
 		   // step one folder up
 		   File clickedFile = new File(currentPath);
-		   if (clickedFile == null) {
-			   return;
-		   }
+
 		   clickedFile = clickedFile.getParentFile();
 		   if (clickedFile == null) {
 			   return;
@@ -93,9 +91,6 @@ public class FileBrowserAdapter extends BaseAdapter {
 			   pathName = pathName.substring (6, pathName.length()); 
 		   }
 		   File clickedFile = new File(currentPath+'/'+pathName);
-		   if (clickedFile == null) {
-			   return;
-		   }
 		   if (clickedFile.isDirectory ()) {
 			   setPath (clickedFile.getAbsolutePath());
 		   }

@@ -228,9 +228,7 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
     }
     else
     {
-        char out[100];
-        snprintf (out, sizeof (out), "stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
-        trace(out);
+        trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
     }
     (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
 }

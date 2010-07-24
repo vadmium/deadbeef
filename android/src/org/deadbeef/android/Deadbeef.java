@@ -1,14 +1,15 @@
 package org.deadbeef.android;
 
-import java.util.Timer;
-import java.util.TimerTask;
-
 import android.app.ListActivity;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -17,79 +18,9 @@ import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.SeekBar;
-import android.widget.BaseAdapter;
 import android.widget.TextView;
-import android.util.Log;
-import android.os.Handler;
-
-class Player {
-	public Player() {
-		PlayRunnable playRunnable = new PlayRunnable();
-		playThread = new Thread(playRunnable);
-		playThread.start();
-	}
-    private int minSize = AudioTrack.getMinBufferSize(44100,
-    		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
-    		AudioFormat.ENCODING_PCM_16BIT);
-    
-    private AudioTrack audio = new AudioTrack(
-    		AudioManager.STREAM_MUSIC, 44100,
-    		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
-    		AudioFormat.ENCODING_PCM_16BIT,
-    		minSize < 4096 ? 4096 : minSize,
-    		AudioTrack.MODE_STREAM);
-    public boolean paused = true;
-    public boolean playing = true;
-    private Thread playThread;
-
-    private class PlayRunnable implements Runnable {
-
-    	public void run() {
-    		audio.play();
-
-    		short buffer[] = new short[minSize];
-    		while (playing) {
-    			DeadbeefAPI.getBuffer(minSize, buffer);
- 
-    			audio.write(buffer, 0, minSize);
-    			
-		    	if (paused && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
-		    		audio.pause ();
-		    	}
-    			while (paused) {
-    				try {
-    					Thread.sleep(500);
-    				} catch (InterruptedException e) {
-    					break;
-    				}
-    			}
-    			
-		    	if (!paused && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
-		    		audio.play ();
-		    	}    			
-    		}
-
-    		audio.stop();
-    		DeadbeefAPI.stop();
-    	}
-    }
-    
-    public void stop () {
-    	playing = false;
-    	try {
-    		playThread.join();
-    	}
-    	catch (InterruptedException e) { }
-    }
-    
-    public void playpause () {
-    	paused = !paused;
-    }
-}
 
 public class Deadbeef extends ListActivity {
-	Player ply;
-	Timer sbTimer;
 	String TAG = "DDB";
 	Handler handler = new Handler();
 	boolean terminate = false;
@@ -99,49 +30,86 @@ public class Deadbeef extends ListActivity {
     int curr_track = -1;
     int curr_state = -1; // -1=unknown, 0 = paused/stopped, 1 = playing
     
+    private IMediaPlaybackService mPlaybackService;
+    private boolean mIsBound;
+    
+    private ServiceConnection mConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder obj) {
+        	mPlaybackService = IMediaPlaybackService.Stub.asInterface(obj);
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+        	mPlaybackService = null;
+        }
+    };
+    
+    void doBindService() {
+        // Establish a connection with the service.  We use an explicit
+        // class name because we want a specific service implementation that
+        // we know will be running in our own process (and thus won't be
+        // supporting component replacement by other applications).
+        bindService(new Intent(Deadbeef.this, 
+                MediaPlaybackService.class), mConnection, Context.BIND_AUTO_CREATE);
+        mIsBound = true;
+    }
+
+    void doUnbindService() {
+        if (mIsBound) {
+            // Detach our existing connection.
+            unbindService(mConnection);
+            mIsBound = false;
+        }
+    }
+    
+    
     final Runnable UpdateInfoRunnable = new Runnable() {
-    	public void run () {
-    		TextView tv;
-    		int track = DeadbeefAPI.pl_get_current_idx ();
-    		
-    		int new_state = ply.paused ? 0 : 1;
-    		if (new_state != curr_state) {
-    			curr_state = new_state;
-        		ImageButton button = (ImageButton)findViewById(R.id.play);
-        		if (curr_state == 0) {
-        			button.setImageResource (R.drawable.ic_media_play);
-        		}
-        		else {
-        			button.setImageResource (R.drawable.ic_media_pause);
-        		}
+    	public void run() {
+    		try {
+	    		TextView tv;
+	    		int track = DeadbeefAPI.pl_get_current_idx ();
+	    		
+	    		int new_state = mPlaybackService.isPaused() ? 0 : 1;
+	    		if (new_state != curr_state) {
+	    			curr_state = new_state;
+	        		ImageButton button = (ImageButton)findViewById(R.id.play);
+	        		if (curr_state == 0) {
+	        			button.setImageResource (R.drawable.ic_media_play);
+	        		}
+	        		else {
+	        			button.setImageResource (R.drawable.ic_media_pause);
+	        		}
+	    		}
+	    		
+	    		if (track != curr_track) {
+	    			curr_track = track;
+	    			
+	    			if (curr_track >= 0) {
+	    	    		// update album/artist/title
+	    	    		tv = (TextView)findViewById(R.id.np_album);
+	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "album"));
+	    	    		tv = (TextView)findViewById(R.id.np_artist);
+	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "artist"));
+	    	    		tv = (TextView)findViewById(R.id.np_title);
+	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "title"));
+	    			}
+	    		}
+		    	// update numbers
+		    	tv = (TextView)findViewById(R.id.current_pos_text);
+		    	tv.setText(DeadbeefAPI.play_get_pos_formatted ());
+		    	tv = (TextView)findViewById(R.id.duration_text);
+		    	tv.setText(DeadbeefAPI.play_get_duration_formatted ());
+		
+		    	// update seekbar
+		    	if (dontUpdatePlayPos) {
+		    		return;
+		    	}
+		        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
+		        float normpos = DeadbeefAPI.play_get_pos_normalized ();
+		        sb.setProgress ((int)(normpos * 1024));
     		}
-    		
-    		if (track != curr_track) {
-    			curr_track = track;
-    			
-    			if (curr_track >= 0) {
-    	    		// update album/artist/title
-    	    		tv = (TextView)findViewById(R.id.np_album);
-    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "album"));
-    	    		tv = (TextView)findViewById(R.id.np_artist);
-    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "artist"));
-    	    		tv = (TextView)findViewById(R.id.np_title);
-    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "title"));
-    			}
+    		catch (RemoteException e) {
+    			Log.e(TAG, "playback service error");
     		}
-	    	// update numbers
-	    	tv = (TextView)findViewById(R.id.current_pos_text);
-	    	tv.setText(DeadbeefAPI.play_get_pos_formatted ());
-	    	tv = (TextView)findViewById(R.id.duration_text);
-	    	tv.setText(DeadbeefAPI.play_get_duration_formatted ());
-	
-	    	// update seekbar
-	    	if (dontUpdatePlayPos) {
-	    		return;
-	    	}
-	        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
-	        float normpos = DeadbeefAPI.play_get_pos_normalized ();
-	        sb.setProgress ((int)(normpos * 1024));
     	}
     };
     
@@ -193,7 +161,8 @@ public class Deadbeef extends ListActivity {
         sb.setMax(1024);
         sb.setOnSeekBarChangeListener(sbChangeListener);
         
-        ply = new Player();     
+        doBindService();
+
         progressThread = new ProgressThread();
         progressThread.start();
    }
@@ -206,7 +175,6 @@ public class Deadbeef extends ListActivity {
 	    } catch (InterruptedException e) {
 	    	Log.e(TAG, e.getMessage());
 	    }
-    	ply.stop();
         super.onDestroy();
     }
 
@@ -280,25 +248,47 @@ public class Deadbeef extends ListActivity {
 	        } catch (InterruptedException e) {
 	            Log.e(TAG, e.getMessage());
 	        }
-        	ply.stop();
+	        try {
+	        	mPlaybackService.stop();
+	        }
+	        catch (RemoteException e) {
+	        	Log.e(TAG, "remote exception on quit");
+	        }
             finish ();
         }
         return true;
     };
     
     private void PlayPause () {
-    	ply.playpause ();
-    	if (!ply.paused) {
-    		int curr = DeadbeefAPI.pl_get_current_idx ();
-    		if (curr < 0) {
-    			DeadbeefAPI.play_idx (0);
+    	try {
+    		if (mPlaybackService.isPaused()) {
+    			mPlaybackService.play ();
+	    		ImageButton button = (ImageButton)findViewById(R.id.play);
+	            button.setImageResource (R.drawable.ic_media_pause);    		
     		}
-    		ImageButton button = (ImageButton)findViewById(R.id.play);
-            button.setImageResource (R.drawable.ic_media_pause);    		
+    		else {
+    			mPlaybackService.pause ();
+	    		ImageButton button = (ImageButton)findViewById(R.id.play);
+	            button.setImageResource (R.drawable.ic_media_play);    		
+    			
+    		}
+    		/*
+    		mPlaybackService.playpause ();
+	    	if (!mPlaybackService.isPaused()) {
+	    		int curr = DeadbeefAPI.pl_get_current_idx ();
+	    		if (curr < 0) {
+	    			DeadbeefAPI.play_idx (0);
+	    		}
+	    		ImageButton button = (ImageButton)findViewById(R.id.play);
+	            button.setImageResource (R.drawable.ic_media_pause);    		
+	    	}
+	    	else {
+	    		ImageButton button = (ImageButton)findViewById(R.id.play);
+	            button.setImageResource (R.drawable.ic_media_play);    		
+	    	}*/
     	}
-    	else {
-    		ImageButton button = (ImageButton)findViewById(R.id.play);
-            button.setImageResource (R.drawable.ic_media_play);    		
+    	catch (RemoteException e) {
+    		Log.e(TAG,"remote exception on PlayPause");
     	}
     }
 
@@ -311,13 +301,23 @@ public class Deadbeef extends ListActivity {
     @Override
     public void onListItemClick (ListView l, View v, int position, long id) {
    		DeadbeefAPI.play_idx (position);
-   		if (ply.paused) {
-   			ply.playpause();
+   		try {
+	   		if (mPlaybackService.isPaused ()) {
+	   			mPlaybackService.play ();
+	   		}
+   		}
+   		catch (RemoteException e) {
+   			Log.e(TAG,"remote exception in onListItemClick");
    		}
     };
     
 	void PlayerSeek (float value) {
-		DeadbeefAPI.play_seek (value);
+		try {
+	   		mPlaybackService.seek(value);
+   		}
+   		catch (RemoteException e) {
+   			Log.e(TAG,"remote exception in onListItemClick");
+   		}
 	}
 
 	float trackedPos = 0;
