@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.RemoteViews;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -40,11 +41,17 @@ public class Deadbeef extends ListActivity {
     private static final int REQUEST_ADD_FOLDER = 1;
     
     private IMediaPlaybackService mPlaybackService;
-    private boolean mIsBound;
+    private boolean mIsBound = false;
     
     private ServiceConnection mConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder obj) {
         	mPlaybackService = IMediaPlaybackService.Stub.asInterface(obj);
+	        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -77,6 +84,10 @@ public class Deadbeef extends ListActivity {
 	    		TextView tv;
 	    		int track = DeadbeefAPI.pl_get_current_idx ();
 	    		
+	    		if (mPlaybackService == null) {
+	    			return;
+	    		}
+	    		
 	    		int new_state = mPlaybackService.isPaused() ? 0 : 1;
 	    		if (new_state != curr_state) {
 	    			curr_state = new_state;
@@ -100,6 +111,8 @@ public class Deadbeef extends ListActivity {
 	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "artist"));
 	    	    		tv = (TextView)findViewById(R.id.np_title);
 	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "title"));
+	    	    		
+	    	    		mPlaybackService.refreshStatus();
 	    			}
 	    		}
 		    	// update numbers
@@ -152,9 +165,6 @@ public class Deadbeef extends ListActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         
-        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-        setListAdapter(adapter);
-        
         ImageButton button;
         
 /*        ImageButton button = (ImageButton)findViewById(R.id.quit);
@@ -182,6 +192,9 @@ public class Deadbeef extends ListActivity {
 
         doBindService();
 
+        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+        setListAdapter(adapter);
+        
         progressThread = new ProgressThread();
         progressThread.start();
    }
@@ -243,7 +256,7 @@ public class Deadbeef extends ListActivity {
     @Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
-    	if (requestCode == REQUEST_ADD_FOLDER) {
+    	if (requestCode == REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {

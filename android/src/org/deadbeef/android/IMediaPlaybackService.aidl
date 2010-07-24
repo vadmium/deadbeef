@@ -22,7 +22,6 @@ interface IMediaPlaybackService
     void stop();
     void pause();
     void play();
-    void playpause();
     boolean isPaused();
     void prev();
     void next();
@@ -32,5 +31,6 @@ interface IMediaPlaybackService
     String getTrackName();
     String getAlbumName();
     String getArtistName();
+    void refreshStatus();
 }
 

@@ -332,9 +332,24 @@ public class MediaPlaybackService extends Service {
 			DeadbeefAPI.play_idx (0);
 		}
     }
-
-    public void playpause () {
-    	mPlayer.paused = !mPlayer.paused;
+    
+    public void refreshStatus () {
+    	if (!mIsSupposedToBePlaying) {
+    		return;
+    	}
+		// update statusbar
+    	RemoteViews views = new RemoteViews(getPackageName(), R.layout.statusbar);
+    	views.setTextViewText(R.id.trackname, getTrackName());
+    	views.setTextViewText(R.id.artistalbum, getArtistName() + " - " + getAlbumName());
+    	views.setImageViewResource(R.id.icon, R.drawable.ddb_24);
+    	Notification status = new Notification();
+    	status.contentView = views;
+    	status.flags |= Notification.FLAG_ONGOING_EVENT;
+    	status.icon = R.drawable.ddb_24;
+    	status.contentIntent = PendingIntent.getActivity(this, 0,
+    			new Intent("org.deadbeef.android.PLAYBACK_VIEWER")
+    	.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 0);
+    	startForeground(PLAYBACKSERVICE_STATUS, status);
     }
 
     public boolean isPaused() {
@@ -478,11 +493,11 @@ public class MediaPlaybackService extends Service {
        public void seek(float pos) {
            mService.get().seek(pos);
        }
-       public void playpause () {
-           mService.get().playpause();
-       }
-       public boolean isPaused() {
+      public boolean isPaused() {
     	   return mService.get().isPaused();
+       }
+       public void refreshStatus () {
+    	   mService.get().refreshStatus();
        }
 
    }
