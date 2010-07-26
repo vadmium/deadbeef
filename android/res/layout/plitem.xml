@@ -3,31 +3,39 @@
   xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
-  android:orientation="horizontal">
+  android:orientation="horizontal"
+  >
 
 <LinearLayout
   xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
   android:orientation="vertical"
-  android:layout_weight="1">
+  android:layout_weight="1"
+  >
   
   <TextView android:id="@+id/title"
       android:textAppearance="?android:attr/textAppearanceMedium"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="Song Title"/>
+      android:text="Song Title"
+      android:textColor="@drawable/selector"
+      />
   <TextView android:id="@+id/artist"
       android:textAppearance="?android:attr/textAppearanceSmall"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="Song Artist"/>
+      android:text="Song Artist"
+      android:textColor="@drawable/selector"
+      />
 </LinearLayout>
 
   <TextView android:id="@+id/duration"
       android:textAppearance="?android:attr/textAppearanceMedium"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="0:00"/>
+      android:text="0:00"
+      android:textColor="@drawable/selector"
+      />
       
 </LinearLayout>

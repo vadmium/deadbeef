@@ -25,7 +25,6 @@ class Player {
     public boolean paused = true;
     public boolean playing = true;
     private Thread playThread;
-    Handler mHandler;
 
     private class PlayRunnable implements Runnable {
 
@@ -67,8 +66,5 @@ class Player {
     	}
     	catch (InterruptedException e) { }
     }
-    
-    void setHandler (Handler handler) {
-    	mHandler = handler;
-    }
+   
 }

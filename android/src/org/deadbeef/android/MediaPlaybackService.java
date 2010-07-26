@@ -147,7 +147,6 @@ public class MediaPlaybackService extends Service {
 
 		DeadbeefAPI.start();
         mPlayer = new Player();
-        mPlayer.setHandler(mMediaplayerHandler);
 
         IntentFilter commandFilter = new IntentFilter();
         commandFilter.addAction(SERVICECMD);

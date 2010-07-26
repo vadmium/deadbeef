@@ -3,13 +3,16 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
-              android:orientation="vertical" >
+              android:orientation="vertical"
+              android:background = "#FFFFFF"
+              >
 
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content" 
 	              android:orientation="vertical"
-	              android:layout_weight="1">
+	              android:layout_weight="1"
+                  >
 
     <ListView android:id="@id/android:list"
               android:layout_width="fill_parent"
@@ -21,8 +24,8 @@
     <TextView android:id="@id/android:empty"
                android:layout_width="fill_parent"
                android:layout_height="fill_parent"
-               android:background="#000000"
-               android:text="No data. Press Menu button and select Add Folder."/>
+               android:text="No data. Press Menu button and select Add Folder."
+               />
     
     </LinearLayout>
 	
@@ -98,22 +101,16 @@
 	              
 	    <ImageButton android:id="@+id/prev"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/ic_media_previous"/>
+	            android:layout_height="wrap_content"
+	            android:src="@drawable/ic_media_previous"/>
 	    <ImageButton android:id="@+id/play"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/ic_media_play"/>
+	            android:layout_height="wrap_content"
+	            android:src="@drawable/ic_media_play"/>
 	    <ImageButton android:id="@+id/next"
 	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/ic_media_next"/>
-	    <!-- ImageButton android:id="@+id/add"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/add"/-->
-	    <!-- ImageButton android:id="@+id/pause"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/pause"/-->
-	    <!-- ImageButton android:id="@+id/quit"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content" android:src="@drawable/quit"/-->
+	            android:layout_height="wrap_content"
+	            android:src="@drawable/ic_media_next"/>
 	</LinearLayout>
 	</RelativeLayout>
 	

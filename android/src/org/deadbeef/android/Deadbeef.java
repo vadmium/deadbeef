@@ -1,5 +1,8 @@
 package org.deadbeef.android;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import android.app.ListActivity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -17,7 +20,6 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.ListView;
-import android.widget.RemoteViews;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -131,7 +133,7 @@ public class Deadbeef extends ListActivity {
 		    	if (dontUpdatePlayPos) {
 		    		return;
 		    	}
-		    	int new_pos = (int)(DeadbeefAPI.play_get_pos_normalized () * 1024);
+		    	int new_pos = (int)(DeadbeefAPI.play_get_pos_normalized () * 100);
 		    	if (new_pos != seekbar_pos) {
 		    		seekbar_pos = new_pos;
 		        	seekbar.setProgress (seekbar_pos);
@@ -143,22 +145,15 @@ public class Deadbeef extends ListActivity {
     	}
     };
     
-    private class ProgressThread extends Thread {
-    	@Override
-        public void run() {
-    		while (!terminate) {
-    			try {
-                    sleep(250);
-                } catch (InterruptedException e) {
-                    Log.e(TAG, e.getMessage());
-                }
-    			handler.post(UpdateInfoRunnable);
-    		}
-	    	Log.i(TAG, "progress terminated");
+    private Timer mTimer;
+    private ProgressTask mTimerTask;
+    
+    private class ProgressTask extends TimerTask {
+    	public void run () {
+    		handler.post(UpdateInfoRunnable);
     	}
-    };
-    private ProgressThread progressThread;
-
+    }
+    
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -167,23 +162,17 @@ public class Deadbeef extends ListActivity {
         
         ImageButton button;
         
-/*        ImageButton button = (ImageButton)findViewById(R.id.quit);
-        button.setOnClickListener(mQuitListener);*/
-        
         button = (ImageButton)findViewById(R.id.prev);
         button.setOnClickListener(mPrevListener);
 
         button = (ImageButton)findViewById(R.id.next);
         button.setOnClickListener(mNextListener);
         
-/*        button = (ImageButton)findViewById(R.id.add);
-        button.setOnClickListener(mAddListener);*/
-
         button = (ImageButton)findViewById(R.id.play);
         button.setOnClickListener(mPlayPauseListener);
         
         SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
-        sb.setMax(1024);
+        sb.setMax(100);
         sb.setOnSeekBarChangeListener(sbChangeListener);
 
 		current_pos_tv = (TextView)findViewById(R.id.current_pos_text);
@@ -192,21 +181,22 @@ public class Deadbeef extends ListActivity {
 
         doBindService();
 
+        getListView().setBackgroundResource(android.R.color.background_light);
+
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
         setListAdapter(adapter);
         
-        progressThread = new ProgressThread();
-        progressThread.start();
+        mTimer = new Timer();
+        mTimerTask = new ProgressTask();
+        mTimer.schedule (mTimerTask, 250, 250);
    }
     
     @Override
     public void onDestroy() {
-    	terminate = true;
-    	try {
-    		progressThread.join ();
-	    } catch (InterruptedException e) {
-	    	Log.e(TAG, e.getMessage());
-	    }
+    	mTimerTask.cancel ();
+    	mTimer.cancel ();
+    	mTimerTask = null;
+    	mTimer = null;
         super.onDestroy();
     }
 
@@ -218,13 +208,6 @@ public class Deadbeef extends ListActivity {
     	return true;
     }
              
-/*    private OnClickListener mQuitListener = new OnClickListener() {
-        public void onClick(View v) {
-        	ply.stop ();
-        	finish ();
-        }
-    };*/
-
     private OnClickListener mPrevListener = new OnClickListener() {
         public void onClick(View v) {
         	try {
@@ -282,18 +265,16 @@ public class Deadbeef extends ListActivity {
 	        });
         }
         else if (id == R.id.menu_quit) {
-        	terminate = true;
-        	try {
-        		progressThread.join ();
-	        } catch (InterruptedException e) {
-	            Log.e(TAG, e.getMessage());
-	        }
-	        try {
+        	mTimerTask.cancel ();
+        	mTimer.cancel ();
+        	mTimerTask = null;
+        	mTimer = null;
+/*	        try {
 	        	mPlaybackService.stop();
 	        }
 	        catch (RemoteException e) {
 	        	Log.e(TAG, "remote exception on quit");
-	        }
+	        }*/
             finish ();
         }
         return true;
@@ -363,7 +344,7 @@ public class Deadbeef extends ListActivity {
 	float trackedPos = 0;
 	private SeekBar.OnSeekBarChangeListener sbChangeListener = new SeekBar.OnSeekBarChangeListener() { 
 		public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-			trackedPos = (float)((float)progress/1024.0);
+			trackedPos = (float)((float)progress/100.0);
 			if (dontUpdatePlayPos) {
 				return;
 			}
