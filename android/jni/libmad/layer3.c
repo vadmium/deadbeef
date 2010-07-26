@@ -2054,6 +2054,7 @@ void imdct36(mad_fixed_t const X[18], mad_fixed_t x[36])
 }
 #  endif
 
+#ifndef ASO_IMDCT
 /*
  * NAME:	III_imdct_l()
  * DESCRIPTION:	perform IMDCT and windowing for long blocks
@@ -2139,6 +2140,7 @@ void III_imdct_l(mad_fixed_t const X[18], mad_fixed_t z[36],
     break;
   }
 }
+#endif
 
 # endif  /* ASO_IMDCT */
 
