@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -38,16 +38,15 @@
 #include "playlist.h"
 #include "volume.h"
 #include "streamer.h"
-#include "playback.h"
 #include "common.h"
 #include "conf.h"
 #include "junklib.h"
 #include "vfs.h"
+#include "premix.h"
+#include "dsppreset.h"
 
-//extern void android_trace (const char *fmt, ...);
-//#define trace(...) { android_trace(__VA_ARGS__); }
-//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+//#define trace(fmt,...)
 
 #ifndef PATH_MAX
 #define PATH_MAX    1024    /* max # of characters in a path name */
@@ -70,12 +69,6 @@ static DB_functions_t deadbeef_api = {
     .md5_append = (void (*)(DB_md5_t *s, const uint8_t *daya, int nbytes))md5_append,
     .md5_finish = (void (*)(DB_md5_t *s, uint8_t digest[16]))md5_finish,
     .get_output = plug_get_output,
-    .playback_next = plug_playback_next,
-    .playback_prev = plug_playback_prev,
-    .playback_pause = plug_playback_pause,
-    .playback_stop = plug_playback_stop,
-    .playback_play = plug_playback_play,
-    .playback_random = plug_playback_random,
     .playback_get_pos = plug_playback_get_pos,
     .playback_set_pos = plug_playback_set_pos,
     // streamer access
@@ -90,13 +83,20 @@ static DB_functions_t deadbeef_api = {
     .streamer_get_apx_bitrate = streamer_get_apx_bitrate,
     .streamer_get_current_fileinfo = streamer_get_current_fileinfo,
     .streamer_get_current_playlist = streamer_get_current_playlist,
-    // process control
+    .streamer_get_dsp_chain = streamer_get_dsp_chain,
+    .streamer_set_dsp_chain = streamer_set_dsp_chain,
+    // folders
     .get_config_dir = plug_get_config_dir,
-    .quit = plug_quit,
+    .get_prefix = plug_get_prefix,
+    .get_doc_dir = plug_get_doc_dir,
+    .get_plugin_dir = plug_get_plugin_dir,
+    .get_pixmap_dir = plug_get_pixmap_dir,
     // threading
     .thread_start = thread_start,
     .thread_start_low_priority = thread_start_low_priority,
     .thread_join = thread_join,
+    .thread_detach = thread_detach,
+    .thread_exit = thread_exit,
     .mutex_create = mutex_create,
     .mutex_create_nonrecursive = mutex_create_nonrecursive,
     .mutex_free = mutex_free,
@@ -130,10 +130,13 @@ static DB_functions_t deadbeef_api = {
     .pl_item_copy = (void (*)(DB_playItem_t *, DB_playItem_t *))pl_item_copy,
     .pl_add_file = (int (*) (const char *, int (*cb)(DB_playItem_t *it, void *data), void *))pl_add_file,
     .pl_add_dir = (int (*) (const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_add_dir,
+    .pl_add_files_begin = pl_add_files_begin,
+    .pl_add_files_end = pl_add_files_end,
     .pl_insert_item = (DB_playItem_t *(*) (DB_playItem_t *after, DB_playItem_t *it))pl_insert_item,
     .pl_insert_dir = (DB_playItem_t *(*) (DB_playItem_t *after, const char *dirname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_insert_dir,
     .pl_insert_file = (DB_playItem_t *(*) (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_insert_file,
     .pl_get_idx_of = (int (*) (DB_playItem_t *it))pl_get_idx_of,
+    .pl_get_idx_of_iter = (int (*) (DB_playItem_t *it, int iter))pl_get_idx_of_iter,
     .pl_get_for_idx = (DB_playItem_t * (*)(int))pl_get_for_idx,
     .pl_get_for_idx_and_iter = (DB_playItem_t * (*) (int idx, int iter))pl_get_for_idx_and_iter,
     .pl_set_item_duration = (void (*) (DB_playItem_t *it, float duration))pl_set_item_duration,
@@ -162,6 +165,7 @@ static DB_functions_t deadbeef_api = {
     .pl_get_next = (DB_playItem_t *(*) (DB_playItem_t *, int))pl_get_next,
     .pl_get_prev = (DB_playItem_t *(*) (DB_playItem_t *, int))pl_get_prev,
     .pl_format_title = (int (*) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt))pl_format_title,
+    .pl_format_title_escaped = (int (*) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt))pl_format_title_escaped,
     .pl_format_time = pl_format_time,
     .pl_move_items = (void (*) (int iter, int plt_from, DB_playItem_t *drop_before, uint32_t *indexes, int count))pl_move_items,
     .pl_copy_items = (void (*) (int iter, int plt_from, DB_playItem_t *before, uint32_t *indices, int cnt))pl_copy_items,
@@ -204,7 +208,9 @@ static DB_functions_t deadbeef_api = {
     .junk_id3v2_remove_frames = junk_id3v2_remove_frames,
     .junk_id3v2_add_text_frame = junk_id3v2_add_text_frame,
     .junk_apev2_read = (int (*)(DB_playItem_t *it, DB_FILE *fp))junk_apev2_read,
+    .junk_apev2_read_mem = (int (*) (DB_playItem_t *it, char *mem, int size))junk_apev2_read_mem,
     .junk_apev2_read_full = (int (*) (DB_playItem_t *it, DB_apev2_tag_t *tag_store, DB_FILE *fp))junk_apev2_read_full,
+    .junk_apev2_read_full_mem = (int (*) (DB_playItem_t *it, DB_apev2_tag_t *tag_store, char *mem, int memsize))junk_apev2_read_full_mem,
     .junk_apev2_find = junk_apev2_find,
     .junk_apev2_remove_frames = junk_apev2_remove_frames,
     .junk_apev2_add_text_frame = junk_apev2_add_text_frame,
@@ -233,8 +239,10 @@ static DB_functions_t deadbeef_api = {
     .conf_get_str = conf_get_str,
     .conf_get_float = conf_get_float,
     .conf_get_int = conf_get_int,
+    .conf_get_int64 = conf_get_int64,
     .conf_set_str = conf_set_str,
     .conf_set_int = conf_set_int,
+    .conf_set_int64 = conf_set_int64,
     .conf_set_float = conf_set_float,
     .conf_find = conf_find,
     .conf_remove_items = conf_remove_items,
@@ -243,16 +251,23 @@ static DB_functions_t deadbeef_api = {
     .plug_get_decoder_list = plug_get_decoder_list,
     .plug_get_output_list = plug_get_output_list,
     .plug_get_dsp_list = plug_get_dsp_list,
+    .plug_get_playlist_list = plug_get_playlist_list,
     .plug_get_list = plug_get_list,
-    .plug_activate = plug_activate,
     .plug_get_decoder_id = plug_get_decoder_id,
     .plug_remove_decoder_id = plug_remove_decoder_id,
     .plug_get_for_id = plug_get_for_id,
     // plugin events
     .plug_trigger_event_trackchange = (void (*) (DB_playItem_t *from, DB_playItem_t *to))plug_trigger_event_trackchange,
     .plug_trigger_event_trackinfochanged = (void (*) (DB_playItem_t *track))plug_trigger_event_trackinfochanged,
+    .plug_trigger_event_playlistchanged = plug_trigger_event_playlistchanged,
     // misc utilities
     .is_local_file = plug_is_local_file,
+    // pcm utilities
+    .pcm_convert = pcm_convert,
+    // dsp preset management
+    .dsp_preset_load = dsp_preset_load,
+    .dsp_preset_save = dsp_preset_save,
+    .dsp_preset_free = dsp_preset_free
 };
 
 DB_functions_t *deadbeef = &deadbeef_api;
@@ -260,6 +275,26 @@ DB_functions_t *deadbeef = &deadbeef_api;
 const char *
 plug_get_config_dir (void) {
     return dbconfdir;
+}
+
+const char *
+plug_get_prefix (void) {
+    return dbinstalldir;
+}
+
+const char *
+plug_get_doc_dir (void) {
+    return dbdocdir;
+}
+
+const char *
+plug_get_plugin_dir (void) {
+    return dbplugindir;
+}
+
+const char *
+plug_get_pixmap_dir (void) {
+    return dbpixmapdir;
 }
 
 void
@@ -288,6 +323,9 @@ DB_dsp_t *g_dsp_plugins[MAX_DSP_PLUGINS+1];
 #define MAX_OUTPUT_PLUGINS 10
 DB_output_t *g_output_plugins[MAX_OUTPUT_PLUGINS+1];
 DB_output_t *output_plugin = NULL;
+
+#define MAX_PLAYLIST_PLUGINS 10
+DB_playlist_t *g_playlist_plugins[MAX_PLAYLIST_PLUGINS+1];
 
 void
 plug_md5 (uint8_t sig[16], const char *in, int len) {
@@ -361,36 +399,6 @@ plug_ev_unsubscribe (DB_plugin_t *plugin, int ev, DB_callback_t callback, uintpt
     mutex_unlock (mutex);
 }
 
-void
-plug_playback_next (void) {
-    messagepump_push (M_NEXTSONG, 0, 0, 0);
-}
-
-void
-plug_playback_prev (void) {
-    messagepump_push (M_PREVSONG, 0, 0, 0);
-}
-
-void
-plug_playback_pause (void) {
-    messagepump_push (M_PAUSESONG, 0, 0, 0);
-}
-
-void 
-plug_playback_stop (void) {
-    messagepump_push (M_STOPSONG, 0, 0, 0);
-}
-
-void 
-plug_playback_play (void) {
-    messagepump_push (M_PLAYSONG, 0, 0, 0);
-}
-
-void 
-plug_playback_random (void) {
-    messagepump_push (M_PLAYRANDOM, 0, 0, 0);
-}
-
 float
 plug_playback_get_pos (void) {
     playItem_t *trk = streamer_get_playing_track ();
@@ -422,12 +430,6 @@ plug_playback_set_pos (float pos) {
     streamer_set_seek (t);
 }
 
-void 
-plug_quit (void) {
-    // FIXME progress_abort ();
-    messagepump_push (M_TERMINATE, 0, 0, 0);
-}
-
 /////// non-api functions (plugin support)
 void
 plug_event_call (DB_event_t *ev) {
@@ -439,7 +441,7 @@ plug_event_call (DB_event_t *ev) {
     mutex_lock (mutex);
 
     for (int i = 0; i < MAX_HANDLERS; i++) {
-        if (handlers[ev->event][i].plugin && !handlers[ev->event][i].plugin->inactive) {
+        if (handlers[ev->event][i].plugin) {
             handlers[ev->event][i].callback (ev, handlers[ev->event][i].data);
         }
     }
@@ -551,6 +553,41 @@ static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
     return strcmp ((*a)->d_name, (*b)->d_name);
 }
 
+void
+plug_remove_plugin (void *p) {
+    int i;
+    for (i = 0; g_plugins[i]; i++) {
+        if (g_plugins[i] == p) {
+            memmove (&g_plugins[i], &g_plugins[i+1], (MAX_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+    for (i = 0; g_decoder_plugins[i]; i++) {
+        if (g_decoder_plugins[i] == p) {
+            memmove (&g_decoder_plugins[i], &g_decoder_plugins[i+1], (MAX_DECODER_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+    for (i = 0; g_vfs_plugins[i]; i++) {
+        if (g_vfs_plugins[i] == p) {
+            memmove (&g_vfs_plugins[i], &g_vfs_plugins[i+1], (MAX_VFS_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+    for (i = 0; g_dsp_plugins[i]; i++) {
+        if (g_dsp_plugins[i] == p) {
+            memmove (&g_dsp_plugins[i], &g_dsp_plugins[i+1], (MAX_DSP_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+    for (i = 0; g_output_plugins[i]; i++) {
+        if (g_output_plugins[i] == p) {
+            memmove (&g_output_plugins[i], &g_output_plugins[i+1], (MAX_OUTPUT_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+    for (i = 0; g_playlist_plugins[i]; i++) {
+        if (g_playlist_plugins[i] == p) {
+            memmove (&g_playlist_plugins[i], &g_playlist_plugins[i+1], (MAX_PLAYLIST_PLUGINS+1-i-1) * sizeof (void*));
+        }
+    }
+}
+
 int
 plug_load_all (void) {
 #if DISABLE_VERSIONCHECK
@@ -561,7 +598,7 @@ plug_load_all (void) {
     const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
     trace ("plug: mutex_create\n");
     mutex = mutex_create ();
-    const char *dirname = LIBDIR "/deadbeef";
+    const char *dirname = deadbeef->get_plugin_dir ();
     struct dirent **namelist = NULL;
 
     char *xdg_local_home = getenv ("XDG_LOCAL_HOME");
@@ -609,8 +646,8 @@ plug_load_all (void) {
             int i;
             for (i = 0; i < n; i++)
             {
-                // no hidden files
-                while (namelist[i]->d_name[0] != '.')
+                // skip hidden files and fallback plugins
+                while (namelist[i]->d_name[0] != '.' && !strstr (namelist[i]->d_name, ".fallback."))
                 {
                     int l = strlen (namelist[i]->d_name);
                     if (l < 3) {
@@ -649,10 +686,18 @@ plug_load_all (void) {
                     void *handle = dlopen (fullname, RTLD_NOW);
                     if (!handle) {
                         trace ("dlopen error: %s\n", dlerror ());
-                        break;
+                        strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
+                        trace ("trying %s...\n", fullname);
+                        handle = dlopen (fullname, RTLD_NOW);
+                        if (!handle) {
+                            trace ("dlopen error: %s\n", dlerror ());
+                            break;
+                        }
+                        else {
+                            fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
+                        }
                     }
                     d_name[l-3] = 0;
-                    trace ("module name is %s\n", d_name);
                     strcat (d_name, "_load");
                     DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
                     if (!plug_load) {
@@ -697,6 +742,7 @@ plug_load_all (void) {
     int numvfs = 0;
     int numoutput = 0;
     int numdsp = 0;
+    int numplaylist = 0;
     for (plug = plugins; plug; plug = plug->next) {
         g_plugins[numplugins++] = plug->plugin;
         if (plug->plugin->type == DB_PLUGIN_DECODER) {
@@ -727,14 +773,40 @@ plug_load_all (void) {
             }
             g_dsp_plugins[numdsp++] = (DB_dsp_t *)plug->plugin;
         }
+        else if (plug->plugin->type == DB_PLUGIN_PLAYLIST) {
+            if (numplaylist >= MAX_PLAYLIST_PLUGINS) {
+                break;
+            }
+            g_playlist_plugins[numplaylist++] = (DB_playlist_t *)plug->plugin;
+        }
     }
     // start plugins
-    for (plug = plugins; plug; plug = plug->next) {
+    plugin_t *prev = NULL;
+    for (plug = plugins; plug;) {
         if (plug->plugin->start) {
             if (plug->plugin->start () < 0) {
-                plug->plugin->inactive = 1;
+                fprintf (stderr, "plugin %s failed to start, deactivated.\n", plug->plugin->name);
+                if (plug->plugin->stop) {
+                    plug->plugin->stop ();
+                }
+                if (plug->handle) {
+                    dlclose (plug->handle);
+                }
+                plug_remove_plugin (plug->plugin);
+                if (prev) {
+                    prev->next = plug->next;
+                }
+                else {
+                    plugins = plug->next;
+                }
+                plugin_t *next = plug->next;
+                free (plug);
+                plug = next;
+                continue;
             }
         }
+        prev = plug;
+        plug = plug->next;
     }
 
 //    trace ("numplugins: %d, numdecoders: %d, numvfs: %d\n", numplugins, numdecoders, numvfs);
@@ -742,6 +814,8 @@ plug_load_all (void) {
     g_decoder_plugins[numdecoders] = NULL;
     g_vfs_plugins[numvfs] = NULL;
     g_output_plugins[numoutput] = NULL;
+    g_dsp_plugins[numdsp] = NULL;
+    g_playlist_plugins[numplaylist] = NULL;
 
     // select output plugin
     if (plug_select_output () < 0) {
@@ -749,6 +823,41 @@ plug_load_all (void) {
         return -1;
     }
     return 0;
+}
+
+void
+plug_connect_all (void) {
+    plugin_t *plug;
+    plugin_t *prev = NULL;
+    for (plug = plugins; plug;) {
+        if (plug->plugin->connect) {
+            if (plug->plugin->connect () < 0) {
+                fprintf (stderr, "plugin %s failed to connect to dependencies, deactivated.\n", plug->plugin->name);
+
+                if (plug->plugin->stop) {
+                    plug->plugin->stop ();
+                }
+                if (plug->handle) {
+                    dlclose (plug->handle);
+                }
+                plug_remove_plugin (plug->plugin);
+
+                if (prev) {
+                    prev->next = plug->next;
+                }
+                else {
+                    plugins = plug->next;
+                }
+                plugin_t *next = plug->next;
+                free (plug);
+                plug = next;
+                continue;
+            }
+        }
+        prev = plug;
+        plug = plug->next;
+    }
+
 }
 
 void
@@ -806,49 +915,14 @@ plug_get_dsp_list (void) {
     return g_dsp_plugins;
 }
 
+struct DB_playlist_s **
+plug_get_playlist_list (void) {
+    return g_playlist_plugins;
+}
+
 struct DB_plugin_s **
 plug_get_list (void) {
     return g_plugins;
-}
-
-int
-plug_activate (DB_plugin_t *plug, int activate) {
-    if (plug->inactive && !activate) {
-        return -1;
-    }
-    if (!plug->inactive && activate) {
-        return -1;
-    }
-    if (activate) {
-        if (plug->start) {
-            if (!plug->start ()) {
-                plug->inactive = 0;
-            }
-            else {
-                trace ("failed to start plugin %s\n", plug->name);
-                return -1;
-            }
-            return 0;
-        }
-        else {
-            return -1;
-        }
-    }
-    else {
-        if (plug->stop) {
-            if (!plug->stop ()) {
-                plug->inactive = 1;
-            }
-            else {
-                trace ("failed to stop plugin %s\n", plug->name);
-                return -1;
-            }
-            return 0;
-        }
-        else {
-            return -1;
-        }
-    }
 }
 
 DB_output_t *
@@ -883,24 +957,28 @@ plug_select_output (void) {
 
 void
 plug_reinit_sound (void) {
-    int state = p_get_state ();
-
-    p_free ();
-
     DB_output_t *prev = plug_get_output ();
+    int state = OUTPUT_STATE_STOPPED;
+
+    if (prev) {
+        state = prev->state ();
+        prev->free ();
+    }
+
     if (plug_select_output () < 0) {
         const char *outplugname = conf_get_str ("output_plugin", "ALSA output plugin");
         trace ("failed to select output plugin %s\nreverted to %s\n", outplugname, prev->plugin.name);
         output_plugin = prev;
     }
-    streamer_reset (1);
-    if (p_init () < 0) {
+    DB_output_t *output = plug_get_output ();
+    if (output->init () < 0) {
+        streamer_reset (1);
         streamer_set_nextsong (-2, 0);
         return;
     }
 
     if (state != OUTPUT_STATE_PAUSED && state != OUTPUT_STATE_STOPPED) {
-        if (p_play () < 0) {
+        if (output->play () < 0) {
             trace ("failed to reinit sound output\n");
             streamer_set_nextsong (-2, 0);
         }

@@ -849,7 +849,6 @@ WM_LoadConfig (const char *config_file, const char *top_config_dir) {
 				strcpy(config_dir, &line_buffer[4]);
 				strcat(config_dir,"/");
 			}
-            printf ("wildmidi config_dir: %s\n", config_dir);
 			continue;
 		} else if (strncasecmp(line_buffer, "source ", 7) == 0) {
 			if (config_dir != NULL && line_buffer[7] != '/') {
@@ -877,7 +876,6 @@ WM_LoadConfig (const char *config_file, const char *top_config_dir) {
 				}
 				strcpy(new_config, &line_buffer[7]);
 			}
-            printf ("wildmidi load new_config: %s\n", new_config);
 			if (WM_LoadConfig(new_config, config_dir) == -1) {
 				free (new_config);
 				free (line_buffer);
@@ -889,7 +887,6 @@ WM_LoadConfig (const char *config_file, const char *top_config_dir) {
 			free (new_config);
 			continue;
 		} else if (strncasecmp(line_buffer, "bank ", 5) == 0) {
-            printf ("loading bank, config_dir: %s\n", config_dir);
 			if (!isdigit(line_buffer[5])) {
 				WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_INVALID, "(syntax error in bank line)", 0);
 				WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_LOAD, config_file, 0);
@@ -3651,7 +3648,7 @@ WM_ParseNewMidi(unsigned char *mididata, unsigned long int midisize ) {
 	mdi->samples_per_delta = (WM_SampleRate << 10) / (2 * mdi->divisions);
 	mdi->recalc_samples = 1;
 	mdi->last_note = mdi->note;
-	if (mdi->info.mixer_options & WM_MO_LINEAR_VOLUME) {
+	if ((mdi->info.mixer_options & WM_MO_LINEAR_VOLUME) || !mdi->log_max_vol) {
 		mdi->amp = 281;
 	} else {
 		mdi->amp = 281 * mdi->lin_max_vol / mdi->log_max_vol;
@@ -3848,6 +3845,11 @@ WildMidi_Close (midi * handle) {
 	}
 	if (mdi->index != NULL) 
 		free (mdi->index);
+
+	for (i = 0; i < 4; i++) {
+		free (mdi->filter.delay[i][0]);
+		free (mdi->filter.delay[i][1]);
+    }
 	free (mdi);
 	// no need to unlock cause the struct containing the lock no-longer exists;
 	return 0;

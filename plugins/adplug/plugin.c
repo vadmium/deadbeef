@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -26,13 +26,13 @@ extern const char *adplug_exts[];
 extern const char *adplug_filetypes[];
 
 DB_fileinfo_t *
-adplug_open (void);
+adplug_open (uint32_t hints);
 int
 adplug_init (DB_fileinfo_t *_info, DB_playItem_t *it);
 void
 adplug_free (DB_fileinfo_t *);
 int
-adplug_read_int16 (DB_fileinfo_t *, char *bytes, int size);
+adplug_read (DB_fileinfo_t *, char *bytes, int size);
 int
 adplug_seek_sample (DB_fileinfo_t *, int sample);
 int
@@ -47,8 +47,8 @@ adplug_stop (void);
 // define plugin interface
 DB_decoder_t adplug_plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "adplug",
     .plugin.name = "Adplug player",
@@ -61,7 +61,7 @@ DB_decoder_t adplug_plugin = {
     .open = adplug_open,
     .init = adplug_init,
     .free = adplug_free,
-    .read_int16 = adplug_read_int16,
+    .read = adplug_read,
     .seek = adplug_seek,
     .seek_sample = adplug_seek_sample,
     .insert = adplug_insert,

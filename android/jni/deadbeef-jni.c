@@ -45,7 +45,6 @@
 #endif
 #include <math.h>
 #include "playlist.h"
-#include "playback.h"
 #include "unistd.h"
 #include "threading.h"
 #include "messagepump.h"
@@ -68,8 +67,13 @@ android_trace (const char *fmt, ...) {
 }
 
 // some common global variables
-char confdir[1024]; // $HOME/.config
-char dbconfdir[1024]; // $HOME/.config/deadbeef
+char sys_install_path[PATH_MAX]; // see deadbeef->get_prefix
+char confdir[PATH_MAX]; // $HOME/.config
+char dbconfdir[PATH_MAX]; // $HOME/.config/deadbeef
+char dbinstalldir[PATH_MAX]; // see deadbeef->get_prefix
+char dbdocdir[PATH_MAX]; // see deadbeef->get_doc_dir
+char dbplugindir[PATH_MAX]; // see deadbeef->get_plugin_dir
+char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 
 // fake output plugin
 static int jni_out_state = OUTPUT_STATE_STOPPED;
@@ -112,45 +116,18 @@ static int jni_out_unpause(void)
     return 0;
 }
 
-static int jni_out_change_rate(int rate)
-{
-    return 44100;
-}
-
-static int jni_out_get_rate(void)
-{
-    return 44100;
-}
-
-static int jni_out_get_bps(void)
-{
-    return 16;
-}
-
-static int jni_out_get_channels(void)
-{
-    return 2;
-}
-
-static int jni_out_get_endianness(void)
-{
-#if WORDS_BIGENDIAN
-    return 1;
-#else
-    return 0;
-#endif
-}
-
 static int jni_out_get_state(void)
 {
     return jni_out_state;
 }
 
+static int
+jni_setformat(ddb_waveformat_t *fmt);
+
 static DB_output_t jni_out = {
     DB_PLUGIN_SET_API_VERSION
     .plugin.version_major = 0,
     .plugin.version_minor = 1,
-    .plugin.nostop = 1,
     .plugin.type = DB_PLUGIN_OUTPUT,
     .plugin.name = "Dummy output plugin",
     .plugin.descr = "Allows to run without real output plugin",
@@ -159,17 +136,21 @@ static DB_output_t jni_out = {
     .plugin.website = "http://deadbeef.sf.net",
     .init = jni_out_init,
     .free = jni_out_free,
-    .change_rate = jni_out_change_rate,
+    .setformat = jni_setformat,
     .play = jni_out_play,
     .stop = jni_out_stop,
     .pause = jni_out_pause,
     .unpause = jni_out_unpause,
     .state = jni_out_get_state,
-    .samplerate = jni_out_get_rate,
-    .bitspersample = jni_out_get_bps,
-    .channels = jni_out_get_channels,
-    .endianness = jni_out_get_endianness,
 };
+
+
+static int
+jni_setformat(ddb_waveformat_t *fmt)
+{
+    memcpy (&jni_out.fmt, fmt, sizeof (ddb_waveformat_t));
+    return 0;
+}
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
   (JNIEnv *env, jclass cls) {

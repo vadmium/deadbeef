@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -64,6 +64,9 @@ main_get_cursor (void) {
 
 static void
 main_set_cursor (int cursor) {
+    char conf[100];
+    snprintf (conf, sizeof (conf), "playlist.cursor.%d", deadbeef->plt_get_curr ());
+    deadbeef->conf_set_int (conf, cursor);
     return deadbeef->pl_set_cursor (PL_MAIN, cursor);
 }
 
@@ -140,12 +143,17 @@ main_col_sort (int col, int sort_order, void *user_data) {
     deadbeef->pl_sort (PL_MAIN, c->id, c->format, sort_order-1);
 }
 void main_handle_doubleclick (DdbListview *listview, DdbListviewIter iter, int idx) {
-    deadbeef->sendmessage (M_PLAYSONGNUM, 0, idx, 0);
+    deadbeef->sendmessage (M_PLAY_NUM, 0, idx, 0);
 }
 
 void main_selection_changed (DdbListviewIter it, int idx) {
     DdbListview *search = DDB_LISTVIEW (lookup_widget (searchwin, "searchlist"));
-    ddb_listview_draw_row (search, search_get_idx ((DB_playItem_t *)it), it);
+    if (idx == -1) {
+        ddb_listview_refresh (search, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    }
+    else {
+        ddb_listview_draw_row (search, search_get_idx ((DB_playItem_t *)it), it);
+    }
 }
 
 void main_draw_group_title (DdbListview *listview, GdkDrawable *drawable, DdbListviewIter it, int x, int y, int width, int height) {

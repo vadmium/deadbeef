@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@
 #include "playlist.h"
 #include "streamer.h"
 #include "messagepump.h"
-#include "playback.h"
 #include "plugins.h"
 #include "junklib.h"
 #include "vfs.h"
@@ -66,7 +65,7 @@
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
 
-#define SKIP_BLANK_CUE_TRACKS 1
+#define SKIP_BLANK_CUE_TRACKS 0
 
 #define min(x,y) ((x)<(y)?(x):(y))
 
@@ -94,6 +93,23 @@ static uintptr_t mutex_plt;
 #define GLOBAL_UNLOCK {pl_global_unlock();}
 
 static playlist_t dummy_playlist; // used at startup to prevent crashes
+
+static int pl_order; // mirrors "playback.order" config variable
+
+void
+pl_set_order (int order) {
+    if (pl_order != order) {
+        pl_order = order;
+        for (playlist_t *plt = playlists_head; plt; plt = plt->next) {
+            plt_reshuffle (plt, NULL, NULL);
+        }
+    }
+}
+
+int
+pl_get_order (void) {
+    return pl_order;
+}
 
 int
 pl_init (void) {
@@ -213,6 +229,17 @@ plt_get_curr_ptr (void) {
     return playlist;
 }
 
+playlist_t *
+plt_get (int idx) {
+    playlist_t *p = playlists_head;
+    for (int i = 0; p && i <= idx; i++, p = p->next) {
+        if (i == idx) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
 int
 plt_get_count (void) {
     return playlists_count;
@@ -319,7 +346,7 @@ plt_add (int before, const char *title) {
     plt_gen_conf ();
     if (!plt_loading) {
         pl_save_n (before);
-        deadbeef->conf_save ();
+        conf_save ();
         plug_trigger_event (DB_EV_PLAYLISTSWITCH, 0);
     }
     return playlists_count-1;
@@ -328,6 +355,7 @@ plt_add (int before, const char *title) {
 // NOTE: caller must ensure that configuration is saved after that call
 void
 plt_remove (int plt) {
+    trace ("plt_remove %d\n", plt);
     int i;
     assert (plt >= 0 && plt < playlists_count);
     PLT_LOCK;
@@ -368,6 +396,8 @@ plt_remove (int plt) {
         playlist->title = strdup (_("Default"));
         PLT_UNLOCK;
         plt_gen_conf ();
+        conf_save ();
+        pl_save_n (0);
         plug_trigger_event (DB_EV_PLAYLISTSWITCH, 0);
         return;
     }
@@ -395,9 +425,22 @@ plt_remove (int plt) {
     PLT_UNLOCK;
 
     plt_gen_conf ();
+    conf_save ();
     if (!plt_loading) {
         plug_trigger_event (DB_EV_PLAYLISTSWITCH, 0);
     }
+}
+
+int
+plt_find (const char *name) {
+    playlist_t *p = playlists_head;
+    int i = -1;
+    for (i = 0; p; i++, p = p->next) {
+        if (!strcmp (p->title, name)) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 void
@@ -408,13 +451,6 @@ plt_set_curr (int plt) {
     for (i = 0; p && p->next && i < plt; i++) {
         p = p->next;
     }
-#if 0
-    if (i != plt) {
-        PLT_UNLOCK;
-        trace ("plt_set_curr %d failed\n", plt);
-        return;
-    }
-#endif
     if (p != playlist) {
         playlist = p;
         if (!plt_loading) {
@@ -497,6 +533,7 @@ plt_set_title (int plt, const char *title) {
     }
     PLT_UNLOCK;
     plt_gen_conf ();
+    conf_save ();
     if (!plt_loading) {
         plug_trigger_event (DB_EV_PLAYLISTSWITCH, 0);
     }
@@ -660,7 +697,7 @@ plt_move (int from, int to) {
 
     PLT_UNLOCK;
     plt_gen_conf ();
-    deadbeef->conf_save ();
+    conf_save ();
 }
 
 void
@@ -728,6 +765,9 @@ pl_get_value_from_cue (const char *p, int sz, char *out) {
         sz--;
         *out++ = *p++;
     }
+    while (out > p && (*(out-1) == 0x20 || *(out-1) == 0x8)) {
+        out--;
+    }
     *out = 0;
 }
 
@@ -735,7 +775,7 @@ static float
 pl_cue_parse_time (const char *p) {
     char *endptr;
     long mins = strtol(p, &endptr, 10);
-    if (endptr - p < 2 || *endptr != ':') {
+    if (endptr - p < 1 || *endptr != ':') {
         return -1;
     }
     p = endptr + 1;
@@ -1233,7 +1273,6 @@ pl_insert_pls (playItem_t *after, const char *fname, int *pabort, int (*cb)(play
             n = e-p;
             n = min (n, sizeof (length)-1);
             memcpy (length, p, n);
-            break;
         }
         else {
             trace ("invalid entry in pls file: %s\n", p);
@@ -1268,11 +1307,19 @@ pl_insert_file (playItem_t *after, const char *fname, int *pabort, int (*cb)(pla
     }
 
     // detect decoder
-    const char *eol = fname + strlen (fname) - 1;
-    while (eol > fname && *eol != '.') {
-        eol--;
+    const char *eol = strrchr (fname, '.');
+    if (!eol) {
+        return NULL;
     }
     eol++;
+
+    const char *fn = strrchr (fname, '/');
+    if (!fn) {
+        fn = fname;
+    }
+    else {
+        fn++;
+    }
 
     // detect pls/m3u files
     // they must be handled before checking for http://,
@@ -1349,6 +1396,20 @@ pl_insert_file (playItem_t *after, const char *fname, int *pabort, int (*cb)(pla
                 }
             }
         }
+        if (decoders[i]->prefixes && decoders[i]->insert) {
+            const char **prefixes = decoders[i]->prefixes;
+            for (int e = 0; prefixes[e]; e++) {
+                if (!strncasecmp (prefixes[e], fn, strlen(prefixes[e])) && *(fn + strlen (prefixes[e])) == '.') {
+                    playItem_t *inserted = (playItem_t *)decoders[i]->insert (DB_PLAYITEM (after), fname);
+                    if (inserted != NULL) {
+                        if (cb && cb (inserted, user_data) < 0) {
+                            *pabort = 1;
+                        }
+                        return inserted;
+                    }
+                }
+            }
+        }
     }
     trace ("no decoder found for %s\n", fname);
     return NULL;
@@ -1358,15 +1419,19 @@ static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
     return strcmp ((*a)->d_name, (*b)->d_name);
 }
 
+static int follow_symlinks = 0;
+
 playItem_t *
-pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
+pl_insert_dir_int (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
     if (!memcmp (dirname, "file://", 7)) {
         dirname += 7;
     }
-    struct stat buf;
-    lstat (dirname, &buf);
-    if (S_ISLNK(buf.st_mode)) {
-        return NULL;
+    if (!follow_symlinks) {
+        struct stat buf;
+        lstat (dirname, &buf);
+        if (S_ISLNK(buf.st_mode)) {
+            return NULL;
+        }
     }
     struct dirent **namelist = NULL;
     int n;
@@ -1388,7 +1453,7 @@ pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(pl
             {
                 char fullname[PATH_MAX];
                 snprintf (fullname, sizeof (fullname), "%s/%s", dirname, namelist[i]->d_name);
-                playItem_t *inserted = pl_insert_dir (after, fullname, pabort, cb, user_data);
+                playItem_t *inserted = pl_insert_dir_int (after, fullname, pabort, cb, user_data);
                 if (!inserted) {
                     inserted = pl_insert_file (after, fullname, pabort, cb, user_data);
                 }
@@ -1404,6 +1469,12 @@ pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(pl
         free (namelist);
     }
     return after;
+}
+
+playItem_t *
+pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
+    follow_symlinks = conf_get_int ("add_folders_follow_symlinks", 0);
+    return pl_insert_dir_int (after, dirname, pabort, cb, user_data);
 }
 
 int
@@ -1426,6 +1497,14 @@ pl_add_dir (const char *dirname, int (*cb)(playItem_t *it, void *data), void *us
         return 0;
     }
     return -1;
+}
+
+void
+pl_add_files_begin (void) {
+}
+
+void
+pl_add_files_end (void) {
 }
 
 int
@@ -1519,11 +1598,16 @@ pl_get_for_idx (int idx) {
 
 int
 pl_get_idx_of (playItem_t *it) {
+    return pl_get_idx_of_iter (it, PL_MAIN);
+}
+
+int
+pl_get_idx_of_iter (playItem_t *it, int iter) {
     LOCK;
-    playItem_t *c = playlist->head[PL_MAIN];
+    playItem_t *c = playlist->head[iter];
     int idx = 0;
     while (c && c != it) {
-        c = c->next[PL_MAIN];
+        c = c->next[iter];
         idx++;
     }
     if (!c) {
@@ -1565,7 +1649,13 @@ plt_insert_item (playlist_t *playlist, playItem_t *after, playItem_t *it) {
     playlist->count[PL_MAIN]++;
 
     // shuffle
-    it->shufflerating = rand ();
+    playItem_t *prev = it->prev[PL_MAIN];
+    if (pl_order == PLAYBACK_ORDER_SHUFFLE_ALBUMS && prev && pl_find_meta (prev, "album") == pl_find_meta (it, "album") && pl_find_meta (prev, "artist") == pl_find_meta (it, "artist")) {
+        it->shufflerating = prev->shufflerating;
+    }
+    else {
+        it->shufflerating = rand ();
+    }
     it->played = 0;
 
     // totaltime
@@ -1608,6 +1698,7 @@ pl_item_copy (playItem_t *out, playItem_t *it) {
     DB_metaInfo_t *meta = it->meta;
     while (meta) {
         DB_metaInfo_t *m = malloc (sizeof (DB_metaInfo_t));
+        memset (m, 0, sizeof (DB_metaInfo_t));
         m->key = metacache_add_string (meta->key);
         m->value = metacache_add_string (meta->value);
         m->next = NULL;
@@ -1679,6 +1770,7 @@ void
 pl_add_meta (playItem_t *it, const char *key, const char *value) {
     LOCK;
     // check if it's already set
+    DB_metaInfo_t *tail = NULL;
     DB_metaInfo_t *m = it->meta;
     while (m) {
         if (!strcasecmp (key, m->key)) {
@@ -1686,6 +1778,7 @@ pl_add_meta (playItem_t *it, const char *key, const char *value) {
             UNLOCK;
             return;
         }
+        tail = m;
         m = m->next;
     }
     // add
@@ -1714,10 +1807,16 @@ pl_add_meta (playItem_t *it, const char *key, const char *value) {
         }
     }
     m = malloc (sizeof (DB_metaInfo_t));
+    memset (m, 0, sizeof (DB_metaInfo_t));
     m->key = metacache_add_string (key); //key;
     m->value = metacache_add_string (value); //strdup (value);
-    m->next = it->meta;
-    it->meta = m;
+
+    if (tail) {
+        tail->next = m;
+    }
+    else {
+        it->meta = m;
+    }
     UNLOCK;
 }
 
@@ -1923,12 +2022,19 @@ pl_save (const char *fname) {
         int16_t nm = 0;
         DB_metaInfo_t *m;
         for (m = it->meta; m; m = m->next) {
+            if (m->key[0] == '_') {
+                continue; // skip reserved names
+            }
             nm++;
         }
         if (fwrite (&nm, 1, 2, fp) != 2) {
             goto save_fail;
         }
         for (m = it->meta; m; m = m->next) {
+            if (m->key[0] == '_') {
+                continue; // skip reserved names
+            }
+
             l = strlen (m->key);
             if (fwrite (&l, 1, 2, fp) != 2) {
                 goto save_fail;
@@ -1978,7 +2084,12 @@ pl_save_n (int n) {
         PLT_UNLOCK;
         return -1;
     }
+
+    playlist_t *orig = playlist;
+    int i;
+    for (i = 0, playlist = playlists_head; playlist && i < n; i++, playlist = playlist->next);
     err = pl_save (path);
+    playlist = orig;
     plt_loading = 0;
     PLT_UNLOCK;
     return err;
@@ -2034,6 +2145,26 @@ pl_load (const char *fname) {
     }
     GLOBAL_LOCK;
     pl_clear ();
+
+    // try plugins 1st
+    const char *ext = strrchr (fname, '.');
+    if (ext) {
+        ext++;
+        DB_playlist_t **plug = plug_get_playlist_list ();
+        int p, e;
+        for (p = 0; plug[p]; p++) {
+            for (e = 0; plug[p]->extensions[e]; e++) {
+                if (plug[p]->load && !strcasecmp (ext, plug[p]->extensions[e])) {
+                    DB_playItem_t *it = plug[p]->load (it, fname, NULL, NULL, NULL);
+                    if (it) {
+                        GLOBAL_UNLOCK;
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+
     uint8_t majorver;
     uint8_t minorver;
     playItem_t *it = NULL;
@@ -2298,8 +2429,14 @@ plt_reshuffle (playlist_t *playlist, playItem_t **ppmin, playItem_t **ppmax) {
     GLOBAL_LOCK;
     playItem_t *pmin = NULL;
     playItem_t *pmax = NULL;
+    playItem_t *prev = NULL;
     for (playItem_t *it = playlist->head[PL_MAIN]; it; it = it->next[PL_MAIN]) {
-        it->shufflerating = rand ();
+        if (pl_order == PLAYBACK_ORDER_SHUFFLE_ALBUMS && prev && pl_find_meta (prev, "album") == pl_find_meta (it, "album") && pl_find_meta (prev, "artist") == pl_find_meta (it, "artist")) {
+            it->shufflerating = prev->shufflerating;
+        }
+        else {
+            it->shufflerating = rand ();
+        }
         if (!pmin || it->shufflerating < pmin->shufflerating) {
             pmin = it;
         }
@@ -2307,6 +2444,7 @@ plt_reshuffle (playlist_t *playlist, playItem_t **ppmin, playItem_t **ppmax) {
             pmax = it;
         }
         it->played = 0;
+        prev = it;
     }
     if (ppmin) {
         *ppmin = pmin;
@@ -2365,12 +2503,58 @@ pl_get_item_duration (playItem_t *it) {
 int
 pl_format_item_queue (playItem_t *it, char *s, int size) {
     *s = 0;
+    int initsize = size;
+    const char *val = pl_find_meta (it, "_playing");
+    while (val && *val) {
+        while (*val && *val != '=') {
+            val++;
+        }
+        if (*val == '=') {
+            // found value
+            val++;
+            if (!(*val)) {
+                break;
+            }
+            const char *e = NULL;
+            if (*val == '"') {
+                val++;
+                e = val;
+                while (*e && *e != '"') {
+                    e++;
+                }
+            }
+            else {
+                e = val;
+                while (*e && *e != ' ') {
+                    e++;
+                }
+            }
+            int n = e - val;
+            if (n > size-1) {
+                n = size-1;
+            }
+            strncpy (s, val, n);
+            s += n;
+            *s++ = ' ';
+            *s = 0;
+            size -= n+1;
+            val = e;
+            if (*val) {
+                val++;
+            }
+            while (*val && *val == ' ') {
+                val++;
+            }
+        }
+    }
+
     if (!playqueue_count) {
         return 0;
     }
     LOCK;
+
+    int qinitsize = size;
     int init = 1;
-    int initsize = size;
     int len;
     for (int i = 0; i < playqueue_count; i++) {
         if (size <= 0) {
@@ -2391,7 +2575,7 @@ pl_format_item_queue (playItem_t *it, char *s, int size) {
             size -= len;
         }
     }
-    if (size != initsize && size > 0) {
+    if (size != qinitsize && size > 0) {
         len = snprintf (s, size, ")");
         s += len;
         size -= len;
@@ -2438,20 +2622,22 @@ pl_format_elapsed (const char *ret, char *elapsed, int size) {
     return elapsed;
 }
 
-int
-pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char *fmt) {
+// this function allows to escape special chars substituted for conversions
+// @escape_chars: list of escapable characters terminated with 0, or NULL if none
+static int
+pl_format_title_int (const char *escape_chars, playItem_t *it, int idx, char *s, int size, int id, const char *fmt) {
     char dur[50];
     char elp[50];
     char fno[50];
     char tags[200];
-    char artistalbum[1024];
+    char dirname[PATH_MAX];
     const char *duration = NULL;
     const char *elapsed = NULL;
 
     char *ss = s;
 
     LOCK;
-    if (id != -1) {
+    if (id != -1 && it) {
         const char *text = NULL;
         switch (id) {
         case DB_COLUMN_FILENUMBER:
@@ -2482,7 +2668,7 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
         return 0;
     }
     int n = size-1;
-    while (*fmt && n) {
+    while (*fmt && n > 0) {
         if (*fmt != '%') {
             *s++ = *fmt;
             n--;
@@ -2492,6 +2678,28 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
             const char *meta = NULL;
             if (*fmt == 0) {
                 break;
+            }
+            else if (!it && *fmt != 'V') {
+                // only %V (version) works without track pointer
+            }
+            else if (*fmt == '@') {
+                const char *e = fmt;
+                e++;
+                while (*e && *e != '@') {
+                    e++;
+                }
+                if (*e == '@') {
+                    char nm[100];
+                    int l = e-fmt-1;
+                    l = min (l, sizeof (nm)-1);
+                    strncpy (nm, fmt+1, l);
+                    nm[l] = 0;
+                    meta = pl_find_meta (it, nm);
+                    if (!meta) {
+                        meta = "<INVALID CONVERSION>";
+                    }
+                    fmt = e;
+                }
             }
             else if (*fmt == 'a') {
                 meta = pl_find_meta (it, "artist");
@@ -2559,6 +2767,9 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
                     meta++;
                 }
             }
+            else if (*fmt == 'F') {
+                meta = it->fname;
+            }
             else if (*fmt == 'T') {
                 char *t = tags;
                 char *e = tags + sizeof (tags);
@@ -2602,6 +2813,55 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
                 }
                 meta = tags;
             }
+            else if (*fmt == 'd') {
+                // directory
+                const char *end = it->fname + strlen (it->fname) - 1;
+                while (end > it->fname && (*end) != '/') {
+                    end--;
+                }
+                if (*end != '/') {
+                    meta = ""; // got relative path without folder (should not happen)
+                }
+                else {
+                    const char *start = end;
+                    start--;
+                    while (start > it->fname && (*start != '/')) {
+                        start--;
+                    }
+
+                    if (*start == '/') {
+                        start++;
+                    }
+
+                    // copy
+                    int len = end-start;
+                    len = min (len, sizeof (dirname)-1);
+                    strncpy (dirname, start, len);
+                    dirname[len] = 0;
+                    meta = dirname;
+                }
+            }
+            else if (*fmt == 'D') {
+                // directory with path
+                const char *end = it->fname + strlen (it->fname) - 1;
+                while (end > it->fname && (*end) != '/') {
+                    end--;
+                }
+                if (*end != '/') {
+                    meta = ""; // got relative path without folder (should not happen)
+                }
+                else {
+                    // copy
+                    int len = end - it->fname;
+                    len = min (len, sizeof (dirname)-1);
+                    strncpy (dirname, it->fname, len);
+                    dirname[len] = 0;
+                    meta = dirname;
+                }
+            }
+            else if (*fmt == 'V') {
+                meta = VERSION;
+            }
             else {
                 *s++ = *fmt;
                 n--;
@@ -2609,16 +2869,53 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
 
             if (meta) {
                 const char *value = meta;
-                while (n > 0 && *value) {
-                    *s++ = *value++;
+                if (escape_chars) {
+                    // need space for at least 2 single-quotes
+                    if (n < 2) {
+                        goto error;
+                    }
+                    *s++ = '\'';
                     n--;
+                    while (n > 2 && *value) {
+                        const char *e = escape_chars;
+                        for (; *e; e++) {
+                            if (*value == *e) {
+                                if (n < 2) {
+                                    // doesn't fit into output buffer, return
+                                    // empty string and error code
+                                    *ss = 0;
+                                    return -1;
+                                }
+                                *s++ = '\\';
+                                n--;
+                                *s++ = *value++;
+                                n--;
+                            }
+                            else {
+                                *s++ = *value++;
+                            }
+                        }
+                    }
+                    if (n < 1) {
+                        fprintf (stderr, "pl_format_title_int: got unpredicted state while formatting escaped string. please report a bug.\n");
+                        *ss = 0; // should never happen
+                        return -1; 
+                    }
+                    *s++ = '\'';
+                    n--;
+                }
+                else {
+                    while (n > 0 && *value) {
+                        *s++ = *value++;
+                        n--;
+                    }
                 }
             }
         }
         fmt++;
     }
+error:
     *s = 0;
-
     UNLOCK;
 
     // replace all \n with ;
@@ -2632,6 +2929,16 @@ pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char 
     return size - n - 1;
 }
 
+int
+pl_format_title (playItem_t *it, int idx, char *s, int size, int id, const char *fmt) {
+    return pl_format_title_int (NULL, it, idx, s, size, id, fmt);
+}
+
+int
+pl_format_title_escaped (playItem_t *it, int idx, char *s, int size, int id, const char *fmt) {
+    return pl_format_title_int ("'", it, idx, s, size, id, fmt);
+}
+
 static int pl_sort_is_duration;
 static int pl_sort_is_track;
 static int pl_sort_ascending;
@@ -2641,7 +2948,7 @@ static const char *pl_sort_format;
 static int
 pl_sort_compare_str (playItem_t *a, playItem_t *b) {
     if (pl_sort_is_duration) {
-        return pl_sort_ascending ? b->_duration * 100000 - a->_duration * 100000 : a->_duration * 100000  - b->_duration * 100000;
+        return !pl_sort_ascending ? b->_duration * 100000 - a->_duration * 100000 : a->_duration * 100000  - b->_duration * 100000;
     }
     else if (pl_sort_is_track) {
         int t1;
@@ -2661,14 +2968,14 @@ pl_sort_compare_str (playItem_t *a, playItem_t *b) {
         else {
             t2 = t ? atoi (t) : -1;
         }
-        return pl_sort_ascending ? t2 - t1 : t1 - t2;
+        return !pl_sort_ascending ? t2 - t1 : t1 - t2;
     }
     else {
         char tmp1[1024];
         char tmp2[1024];
         pl_format_title (a, -1, tmp1, sizeof (tmp1), pl_sort_id, pl_sort_format);
         pl_format_title (b, -1, tmp2, sizeof (tmp2), pl_sort_id, pl_sort_format);
-        return pl_sort_ascending ? strcmp (tmp2, tmp1) : strcmp (tmp1, tmp2);
+        return !pl_sort_ascending ? strcmp (tmp2, tmp1) : strcmp (tmp1, tmp2);
     }
 }
 
@@ -3064,8 +3371,21 @@ pl_playqueue_getcount (void) {
 void
 pl_items_copy_junk (playItem_t *from, playItem_t *first, playItem_t *last) {
     LOCK;
+    DB_metaInfo_t *meta = from->meta;
+    while (meta) {
+        playItem_t *i;
+        for (i = first; ; i = i->next[PL_MAIN]) {
+            i->_flags = from->_flags;
+            pl_add_meta (i, meta->key, meta->value);
+            if (i == last) {
+                break;
+            }
+        }
+        meta = meta->next;
+    }
+#if 0
     const char *metainfo[] = {
-        "year", "genre", "copyright", "vendor", "comment", "tags", "numtracks", "band", "performer", "composer", "disc", NULL
+        "year", "genre", "copyright", "vendor", "comment", "tags", "numtracks", "band", "performer", "composer", "disc", "title", "artist", "album", NULL
     };
     for (int m = 0; metainfo[m]; m++) {
         const char *data = pl_find_meta (from, metainfo[m]);
@@ -3080,6 +3400,7 @@ pl_items_copy_junk (playItem_t *from, playItem_t *first, playItem_t *last) {
             }
         }
     }
+#endif
     UNLOCK;
 }
 

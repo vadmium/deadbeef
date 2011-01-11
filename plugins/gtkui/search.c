@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -176,7 +176,8 @@ on_searchwin_key_press_event           (GtkWidget       *widget,
             int row = deadbeef->pl_get_cursor (PL_SEARCH);
             DB_playItem_t *it = deadbeef->pl_get_for_idx_and_iter (max (row, 0), PL_SEARCH);
             if (it) {
-                deadbeef->sendmessage (M_PLAYSONGNUM, 0, deadbeef->pl_get_idx_of (it), 0);
+                deadbeef->sendmessage (M_PLAY_NUM, 0, deadbeef->pl_get_idx_of (it), 0);
+                deadbeef->pl_item_unref (it);
             }
         }
     }
@@ -363,12 +364,17 @@ void search_col_free_user_data (void *data) {
 }
 
 void search_handle_doubleclick (DdbListview *listview, DdbListviewIter iter, int idx) {
-    deadbeef->sendmessage (M_PLAYSONGNUM, 0, deadbeef->pl_get_idx_of ((DB_playItem_t *)iter), 0);
+    deadbeef->sendmessage (M_PLAY_NUM, 0, deadbeef->pl_get_idx_of ((DB_playItem_t *)iter), 0);
 }
 
 void search_selection_changed (DdbListviewIter it, int idx) {
     DdbListview *main = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
-    ddb_listview_draw_row (main, main_get_idx ((DB_playItem_t *)it), it);
+    if (idx == -1) {
+        ddb_listview_refresh (main, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    }
+    else {
+        ddb_listview_draw_row (main, main_get_idx ((DB_playItem_t *)it), it);
+    }
 }
 
 void

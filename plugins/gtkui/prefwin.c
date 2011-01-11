@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -33,6 +33,9 @@
 #include "../hotkeys/hotkeys.h"
 #include "support.h"
 #include "eq.h"
+#include "ddblistview.h"
+#include "pluginconf.h"
+#include "dspconfig.h"
 
 #define GLADE_HOOKUP_OBJECT(component,widget,name) \
   g_object_set_data_full (G_OBJECT (component), name, \
@@ -65,27 +68,6 @@ gtk_enum_sound_callback (const char *name, const char *desc, void *userdata) {
 }
 
 void
-on_plugin_active_toggled (GtkCellRendererToggle *cell_renderer, gchar *path, GtkTreeModel *model) {
-    GtkTreePath *p = gtk_tree_path_new_from_string (path);
-    if (p) {
-        int *indices = gtk_tree_path_get_indices (p);
-        //gtk_tree_path_free (p); // wtf?? gtk crashes on this
-        if (indices) {
-            DB_plugin_t **plugins = deadbeef->plug_get_list ();
-            DB_plugin_t *plug = plugins[*indices];
-            gboolean state;
-            GtkTreeIter iter;
-            gtk_tree_model_get_iter (model, &iter, p);
-            gtk_tree_model_get (model, &iter, 0, &state, -1);
-            if (!deadbeef->plug_activate (plug, !state)) {
-                gtk_list_store_set (GTK_LIST_STORE (model), &iter, 0, !state, -1);
-            }
-        }
-        g_free (indices);
-    }
-}
-
-void
 preferences_fill_soundcards (void) {
     if (!prefwin) {
         return;
@@ -110,24 +92,11 @@ preferences_fill_soundcards (void) {
     }
 }
 
-void
-on_hk_slot_edited (GtkCellRendererText *renderer, gchar *path, gchar *new_text, gpointer user_data) {
-    if (!new_text || !new_text[0]) {
-        return;
-    }
-    GtkListStore *store = GTK_LIST_STORE (user_data);
-    GtkTreePath *treepath = gtk_tree_path_new_from_string (path);
-    GtkTreeIter iter;
-    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, treepath);
-    gtk_tree_path_free (treepath);
-    gtk_list_store_set (store, &iter, 0, new_text, -1);
-}
-
 static gboolean
 add_hotkey_to_config (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data) {
     int *counter = (int *)data;
     GValue key = {0,}, value = {0,};
-    gtk_tree_model_get_value (model, iter, 0, &key);
+    gtk_tree_model_get_value (model, iter, 2, &key);
     gtk_tree_model_get_value (model, iter, 1, &value);
     const char *skey = g_value_get_string (&key);
     const char *svalue = g_value_get_string (&value);
@@ -138,6 +107,10 @@ add_hotkey_to_config (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter,
     (*counter)++;
     snprintf (conf_value, sizeof (conf_value), "%s: %s", svalue, skey);
     deadbeef->conf_set_str (conf_name, conf_value);
+
+    g_value_unset (&key);
+    g_value_unset (&value);
+
     return FALSE;
 }
 
@@ -152,6 +125,46 @@ hotkeys_apply (GtkTreeModel *model) {
 
         ((DB_hotkeys_plugin_t *)hotkeys)->reset ();
     }
+}
+
+#if 0 // this doesn't work well with combobox cells
+void
+on_hk_slot_edited (GtkCellRendererText *renderer, gchar *path, gchar *new_text, gpointer user_data) {
+    if (!new_text || !new_text[0]) {
+        return;
+    }
+    GtkListStore *store = GTK_LIST_STORE (user_data);
+    GtkTreePath *treepath = gtk_tree_path_new_from_string (path);
+    GtkTreeIter iter;
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, treepath);
+    gtk_tree_path_free (treepath);
+    gtk_list_store_set (store, &iter, 0, new_text, -1);
+}
+#endif
+
+void
+on_hk_slot_changed (GtkCellRendererCombo *combo, gchar *path, GtkTreeIter *new_iter, gpointer user_data) {
+
+    GtkTreeModel *combo_model = NULL;
+    g_object_get (combo, "model", &combo_model, NULL);
+    GValue gtitle = {0,}, gname = {0,};
+    gtk_tree_model_get_value (combo_model, new_iter, 0, &gtitle);
+    gtk_tree_model_get_value (combo_model, new_iter, 1, &gname);
+
+    const char *title = g_value_get_string (&gtitle);
+    const char *name = g_value_get_string (&gname);
+
+    GtkListStore *store = GTK_LIST_STORE (user_data);
+    GtkTreePath *treepath = gtk_tree_path_new_from_string (path);
+    GtkTreeIter iter;
+    gtk_tree_model_get_iter (GTK_TREE_MODEL (store), &iter, treepath);
+    gtk_tree_path_free (treepath);
+
+    gtk_list_store_set (store, &iter, 0, title, 2, name, -1);
+
+    g_value_unset (&gtitle);
+    g_value_unset (&gname);
+    hotkeys_apply (GTK_TREE_MODEL (store));
 }
 
 void
@@ -193,7 +206,23 @@ on_addhotkey_clicked                     (GtkButton *button, gpointer user_data)
     GtkListStore *store = GTK_LIST_STORE (user_data);
     GtkTreeIter iter;
     gtk_list_store_append (store, &iter);
-    gtk_list_store_set (store, &iter, 0, "toggle_pause", 1, "", -1);
+    DB_plugin_t **plugins = deadbeef->plug_get_list ();
+    for (int i = 0; plugins[i]; i++) {
+        DB_plugin_t *p = plugins[i];
+        if (p->get_actions) {
+            DB_plugin_action_t *actions = plugins[i]->get_actions (NULL);
+            while (actions) {
+                if (actions->name && actions->title) { // only add actions with both the name and the title
+                    gtk_list_store_set (store, &iter, 0, actions->title, 1, "", 2, actions->name, -1);
+                    break;
+                }
+                actions = actions->next;
+            }
+            if (actions) {
+                break;
+            }
+        }
+    }
 }
 
 void
@@ -229,6 +258,20 @@ prefwin_init_theme_colors (void) {
     gtk_color_button_set_color (GTK_COLOR_BUTTON (lookup_widget (prefwin, "listview_cursor")), (gtkui_get_listview_cursor_color (&clr), &clr));
 }
 
+static void
+unescape_forward_slash (const char *src, char *dst, int size) {
+    char *start = dst;
+    while (*src) {
+        if (dst - start >= size - 1) {
+            break;
+        }
+        if (*src == '\\' && *(src+1) == '/') {
+            src++;
+        }
+        *dst++ = *src++;
+    }
+    *dst = 0;
+}
 
 // this should be in separate plugin
 void
@@ -284,41 +327,48 @@ prefwin_add_hotkeys_tab (GtkWidget *prefwin) {
     GLADE_HOOKUP_OBJECT (prefwin, removehotkey, "removehotkey");
 
     GtkTreeView *hktree = GTK_TREE_VIEW (lookup_widget (prefwin, "hotkeystree"));
-    GtkListStore *hkstore = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+    GtkListStore *hkstore = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     GtkCellRenderer *rend_hk_slot = gtk_cell_renderer_combo_new ();
 
     g_signal_connect ((gpointer)addhotkey, "clicked", G_CALLBACK (on_addhotkey_clicked), hkstore);
     g_signal_connect ((gpointer)removehotkey, "clicked", G_CALLBACK (on_removehotkey_clicked), hktree);
 
-    // model for hotkey slots
-    const char *slots[] = {
-        "toggle_pause",
-        "play",
-        "prev",
-        "next",
-        "stop",
-        "play_random",
-        "seek_fwd",
-        "seek_back",
-        "volume_up",
-        "volume_down",
-        "toggle_stop_after_current",
-        NULL
-    };
-    GtkListStore *slots_store = gtk_list_store_new (1, G_TYPE_STRING);
-    for (int i = 0; slots[i]; i++) {
-        GtkTreeIter iter;
-        gtk_list_store_append (slots_store, &iter);
-        gtk_list_store_set (slots_store, &iter, 0, slots[i], -1);
+    GtkListStore *slots_store = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+    // traverse all plugins and collect all exported actions to dropdown
+    // column0: title
+    // column1: name (invisible)
+    DB_plugin_t **plugins = deadbeef->plug_get_list ();
+    for (int i = 0; plugins[i]; i++) {
+        DB_plugin_t *p = plugins[i];
+        if (p->get_actions) {
+            DB_plugin_action_t *actions = p->get_actions (NULL);
+            while (actions) {
+                if (actions->name && actions->title) { // only add actions with both the name and the title
+                    GtkTreeIter iter;
+                    gtk_list_store_append (slots_store, &iter);
+                    char title[100];
+                    unescape_forward_slash (actions->title, title, sizeof (title));
+                    gtk_list_store_set (slots_store, &iter, 0, title, 1, actions->name, -1);
+                }
+                else {
+//                    fprintf (stderr, "WARNING: action %s/%s from plugin %s is missing name and/or title\n", actions->name, actions->title, p->name);
+                }
+                actions = actions->next;
+            }
+        }
     }
+
     g_object_set (G_OBJECT (rend_hk_slot), "mode", GTK_CELL_RENDERER_MODE_EDITABLE, NULL);
     g_object_set (G_OBJECT (rend_hk_slot), "has-entry", FALSE, NULL);
     g_object_set (G_OBJECT (rend_hk_slot), "text-column", 0, NULL);
     g_object_set (G_OBJECT (rend_hk_slot), "model", slots_store, NULL);
     g_object_set (G_OBJECT (rend_hk_slot), "editable", TRUE, NULL);
 
-    g_signal_connect ((gpointer)rend_hk_slot, "edited",
-            G_CALLBACK (on_hk_slot_edited),
+//    g_signal_connect ((gpointer)rend_hk_slot, "edited",
+//            G_CALLBACK (on_hk_slot_edited),
+//            hkstore);
+    g_signal_connect ((gpointer)rend_hk_slot, "changed",
+            G_CALLBACK (on_hk_slot_changed),
             hkstore);
 
     GtkCellRenderer *rend_hk_binding = gtk_cell_renderer_accel_new ();
@@ -334,7 +384,11 @@ prefwin_add_hotkeys_tab (GtkWidget *prefwin) {
     gtk_tree_view_append_column (hktree, hk_col1);
     gtk_tree_view_append_column (hktree, hk_col2);
 
-    // fetch hotkeys from config
+    // fetch hotkeys from config, and add them to list
+    // model:
+    //   column0: title of action
+    //   column1: key combination
+    //   column2 (hidden): name of action
     DB_conf_item_t *item = deadbeef->conf_find ("hotkeys.", NULL);
     while (item) {
         size_t l = strlen (item->value);
@@ -353,9 +407,38 @@ prefwin_add_hotkeys_tab (GtkWidget *prefwin) {
             command++;
         }
         if (*command) {
-            GtkTreeIter iter;
-            gtk_list_store_append (hkstore, &iter);
-            gtk_list_store_set (hkstore, &iter, 0, command, 1, param, -1);
+            // find action with this name, and add to list
+            DB_plugin_action_t *actions = NULL;
+            DB_plugin_t **plugins = deadbeef->plug_get_list ();
+            for (int i = 0; plugins[i]; i++) {
+                DB_plugin_t *p = plugins[i];
+                if (p->get_actions) {
+                    actions = p->get_actions (NULL);
+                    while (actions) {
+                        if (actions->name && actions->title && !strcasecmp (actions->name, command)) { // only add actions with both the name and the title
+                            GtkTreeIter iter;
+                            gtk_list_store_append (hkstore, &iter);
+                            char title[100];
+                            unescape_forward_slash (actions->title, title, sizeof (title));
+                            gtk_list_store_set (hkstore, &iter, 0, title, 1, param, 2, actions->name, -1);
+                            break; // found
+                        }
+                        actions = actions->next;
+                    }
+                    if (actions) {
+                        break;
+                    }
+                }
+            }
+
+            if (!actions) {
+                // not found, add anyway to avoid removal from config file
+                // (might be missing plugin)
+                GtkTreeIter iter;
+                gtk_list_store_append (hkstore, &iter);
+                gtk_list_store_set (hkstore, &iter, 0, command, 1, param, 2, command, -1);
+            }
+
             item = deadbeef->conf_find ("hotkeys.", item);
         }
     }
@@ -398,13 +481,6 @@ on_preferences_activate                (GtkMenuItem     *menuitem,
             G_CALLBACK (on_pref_soundcard_changed),
             NULL);
 
-    // alsa resampling
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "pref_dynsamplerate")), deadbeef->conf_get_int ("playback.dynsamplerate", 0));
-
-    // src_quality
-    combobox = GTK_COMBO_BOX (lookup_widget (w, "pref_src_quality"));
-    gtk_combo_box_set_active (combobox, deadbeef->conf_get_int ("src_quality", 2));
-
     // replaygain_mode
     combobox = GTK_COMBO_BOX (lookup_widget (w, "pref_replaygain_mode"));
     gtk_combo_box_set_active (combobox, deadbeef->conf_get_int ("replaygain_mode", 0));
@@ -412,11 +488,39 @@ on_preferences_activate                (GtkMenuItem     *menuitem,
     // replaygain_scale
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "pref_replaygain_scale")), deadbeef->conf_get_int ("replaygain_scale", 1));
 
+    // dsp
+    dsp_setup_init (prefwin);
+
     // close_send_to_tray
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "pref_close_send_to_tray")), deadbeef->conf_get_int ("close_send_to_tray", 0));
 
+    // hide tray icon
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "hide_tray_icon")), deadbeef->conf_get_int ("gtkui.hide_tray_icon", 0));
+
     // mmb_delete_playlist
-    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "mmb_delete_playlist")), deadbeef->conf_get_int ("gtkui.mmb_delete_playlist", 0));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "mmb_delete_playlist")), deadbeef->conf_get_int ("gtkui.mmb_delete_playlist", 1));
+
+    // embolden current track
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "embolden_current")), deadbeef->conf_get_int ("gtkui.embolden_current_track", 0));
+
+    // hide_delete_from_disk
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "hide_delete_from_disk")), deadbeef->conf_get_int ("gtkui.hide_remove_from_disk", 0));
+
+    // auto-rename playlist from folder name
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "auto_name_playlist_from_folder")), deadbeef->conf_get_int ("gtkui.name_playlist_from_folder", 0));
+
+    // titlebar text
+    gtk_entry_set_text (GTK_ENTRY (lookup_widget (w, "titlebar_format_playing")), deadbeef->conf_get_str ("gtkui.titlebar_playing", "%a - %t - DeaDBeeF-%V"));
+    gtk_entry_set_text (GTK_ENTRY (lookup_widget (w, "titlebar_format_stopped")), deadbeef->conf_get_str ("gtkui.titlebar_stopped", "DeaDBeeF-%V"));
+
+    // cli playlist
+    int active = deadbeef->conf_get_int ("cli_add_to_specific_playlist", 1);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (prefwin, "cli_add_to_playlist")), active);
+    gtk_widget_set_sensitive (lookup_widget (prefwin, "cli_playlist_name"), active);
+    gtk_entry_set_text (GTK_ENTRY (lookup_widget (prefwin, "cli_playlist_name")), deadbeef->conf_get_str ("cli_add_playlist_name", "Default"));
+
+    // resume last session
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (w, "resume_last_session")), deadbeef->conf_get_int ("resume_last_session", 0));
 
     // override bar colors
     int override = deadbeef->conf_get_int ("gtkui.override_bar_colors", 0);
@@ -542,6 +646,7 @@ on_preferences_activate                (GtkMenuItem     *menuitem,
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (lookup_widget (prefwin, "wv_write_id3v1")), wv_write_id3v1);
 
     gtk_dialog_run (GTK_DIALOG (prefwin));
+    dsp_setup_free ();
     gtk_widget_destroy (prefwin);
     deadbeef->conf_save ();
     prefwin = NULL;
@@ -557,7 +662,7 @@ on_pref_soundcard_changed              (GtkComboBox     *combobox,
         const char *soundcard = deadbeef->conf_get_str ("alsa_soundcard", "default");
         if (strcmp (soundcard, alsa_device_names[active])) {
             deadbeef->conf_set_str ("alsa_soundcard", alsa_device_names[active]);
-            deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+            deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
         }
     }
 }
@@ -594,32 +699,12 @@ on_pref_output_plugin_changed          (GtkComboBox     *combobox,
 }
 
 void
-on_pref_dynsamplerate_clicked        (GtkButton       *button,
-                                        gpointer         user_data)
-{
-    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button));
-    deadbeef->conf_set_int ("playback.dynsamplerate", active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
-}
-
-
-void
-on_pref_src_quality_changed            (GtkComboBox     *combobox,
-                                        gpointer         user_data)
-{
-    int active = gtk_combo_box_get_active (combobox);
-    deadbeef->conf_set_int ("src_quality", active == -1 ? 2 : active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
-}
-
-
-void
 on_pref_replaygain_mode_changed        (GtkComboBox     *combobox,
                                         gpointer         user_data)
 {
     int active = gtk_combo_box_get_active (combobox);
     deadbeef->conf_set_int ("replaygain_mode", active == -1 ? 0 : active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
 }
 
 void
@@ -628,7 +713,7 @@ on_pref_replaygain_scale_clicked       (GtkButton       *button,
 {
     int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button));
     deadbeef->conf_set_int ("replaygain_scale", active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
 }
 
 
@@ -638,7 +723,16 @@ on_pref_close_send_to_tray_clicked     (GtkButton       *button,
 {
     int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (button));
     deadbeef->conf_set_int ("close_send_to_tray", active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+}
+
+void
+on_hide_tray_icon_toggled              (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (togglebutton);
+    deadbeef->conf_set_int ("gtkui.hide_tray_icon", active);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
 }
 
 void
@@ -679,6 +773,12 @@ on_pref_pluginlist_cursor_changed      (GtkTreeView     *treeview,
 }
 
 void
+gtkui_conf_get_str (const char *key, char *value, int len, const char *def) {
+    // FIXME: conf_get_str must be changed
+    strcpy (value, deadbeef->conf_get_str (key, def));
+}
+
+void
 on_configure_plugin_clicked            (GtkButton       *button,
                                         gpointer         user_data)
 {
@@ -695,7 +795,25 @@ on_configure_plugin_clicked            (GtkButton       *button,
     DB_plugin_t **plugins = deadbeef->plug_get_list ();
     DB_plugin_t *p = plugins[*indices];
     if (p->configdialog) {
-        plugin_configure (prefwin, p);
+        ddb_dialog_t conf = {
+            .title = p->name,
+            .layout = p->configdialog,
+            .set_param = deadbeef->conf_set_str,
+            .get_param = gtkui_conf_get_str,
+        };
+        gtkui_run_dialog (prefwin, &conf, 0, NULL, NULL);
+    }
+}
+
+static void
+redraw_headers (void) {
+    DdbListview *playlist = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    DdbListview *search = DDB_LISTVIEW (lookup_widget (searchwin, "searchlist"));
+    if (playlist) {
+        ddb_listview_refresh (playlist, DDB_REFRESH_COLUMNS | DDB_EXPOSE_COLUMNS);
+    }
+    if (search) {
+        ddb_listview_refresh (search, DDB_REFRESH_COLUMNS | DDB_EXPOSE_COLUMNS);
     }
 }
 
@@ -708,8 +826,9 @@ on_tabstrip_light_color_set            (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.tabstrip_light", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
+    redraw_headers ();
     tabstrip_redraw ();
 }
 
@@ -723,8 +842,9 @@ on_tabstrip_mid_color_set              (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.tabstrip_mid", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
+    redraw_headers ();
     tabstrip_redraw ();
 }
 
@@ -738,8 +858,9 @@ on_tabstrip_dark_color_set             (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.tabstrip_dark", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
+    redraw_headers ();
     tabstrip_redraw ();
 }
 
@@ -752,8 +873,9 @@ on_tabstrip_base_color_set             (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.tabstrip_base", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
+    redraw_headers ();
     tabstrip_redraw ();
 }
 
@@ -767,7 +889,7 @@ on_bar_foreground_color_set            (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.bar_foreground", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     seekbar_redraw ();
     volumebar_redraw ();
@@ -784,7 +906,7 @@ on_bar_background_color_set            (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.bar_background", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     seekbar_redraw ();
     volumebar_redraw ();
@@ -798,7 +920,7 @@ on_override_listview_colors_toggled    (GtkToggleButton *togglebutton,
     int active = gtk_toggle_button_get_active (togglebutton);
     deadbeef->conf_set_int ("gtkui.override_listview_colors", active);
     gtk_widget_set_sensitive (lookup_widget (prefwin, "listview_colors_group"), active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     prefwin_init_theme_colors ();
     playlist_refresh ();
@@ -814,7 +936,7 @@ on_listview_even_row_color_set         (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_even_row", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -828,7 +950,7 @@ on_listview_odd_row_color_set          (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_odd_row", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -842,7 +964,7 @@ on_listview_selected_row_color_set     (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_selection", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -856,7 +978,7 @@ on_listview_text_color_set             (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_text", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -871,7 +993,7 @@ on_listview_selected_text_color_set    (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_selected_text", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -885,7 +1007,7 @@ on_listview_cursor_color_set           (GtkColorButton  *colorbutton,
     char str[100];
     snprintf (str, sizeof (str), "%d %d %d", clr.red, clr.green, clr.blue);
     deadbeef->conf_set_str ("gtkui.color.listview_cursor", str);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     playlist_refresh ();
 }
@@ -898,14 +1020,13 @@ on_override_bar_colors_toggled         (GtkToggleButton *togglebutton,
     int active = gtk_toggle_button_get_active (togglebutton);
     deadbeef->conf_set_int ("gtkui.override_bar_colors", active);
     gtk_widget_set_sensitive (lookup_widget (prefwin, "bar_colors_group"), active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     prefwin_init_theme_colors ();
     seekbar_redraw ();
     volumebar_redraw ();
     eq_redraw ();
 }
-
 
 void
 on_override_tabstrip_colors_toggled    (GtkToggleButton *togglebutton,
@@ -914,9 +1035,10 @@ on_override_tabstrip_colors_toggled    (GtkToggleButton *togglebutton,
     int active = gtk_toggle_button_get_active (togglebutton);
     deadbeef->conf_set_int ("gtkui.override_tabstrip_colors", active);
     gtk_widget_set_sensitive (lookup_widget (prefwin, "tabstrip_colors_group"), active);
-    deadbeef->sendmessage (M_CONFIGCHANGED, 0, 0, 0);
+    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
     gtkui_init_theme_colors ();
     prefwin_init_theme_colors ();
+    redraw_headers ();
     tabstrip_redraw ();
 }
 
@@ -1132,5 +1254,76 @@ on_prefwin_key_press_event             (GtkWidget       *widget,
         gtk_widget_destroy (widget);
     }
     return FALSE;
+}
+
+
+void
+on_embolden_current_toggled            (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (togglebutton));
+    deadbeef->conf_set_int ("gtkui.embolden_current_track", active);
+    gtkui_embolden_current_track = active;
+    playlist_refresh ();
+}
+
+void
+on_hide_delete_from_disk_toggled       (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (togglebutton));
+    deadbeef->conf_set_int ("gtkui.hide_remove_from_disk", active);
+}
+
+void
+on_titlebar_format_playing_changed     (GtkEditable     *editable,
+                                        gpointer         user_data)
+{
+    deadbeef->conf_set_str ("gtkui.titlebar_playing", gtk_entry_get_text (GTK_ENTRY (editable)));
+    gtkui_set_titlebar (NULL);
+}
+
+
+void
+on_titlebar_format_stopped_changed     (GtkEditable     *editable,
+                                        gpointer         user_data)
+{
+    deadbeef->conf_set_str ("gtkui.titlebar_stopped", gtk_entry_get_text (GTK_ENTRY (editable)));
+    gtkui_set_titlebar (NULL);
+}
+
+void
+on_cli_add_to_playlist_toggled         (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (togglebutton));
+    deadbeef->conf_set_int ("cli_add_to_specific_playlist", active);
+    gtk_widget_set_sensitive (lookup_widget (prefwin, "cli_playlist_name"), active);
+}
+
+
+void
+on_cli_playlist_name_changed           (GtkEditable     *editable,
+                                        gpointer         user_data)
+{
+    deadbeef->conf_set_str ("cli_add_playlist_name", gtk_entry_get_text (GTK_ENTRY (editable)));
+}
+
+void
+on_resume_last_session_toggled         (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (togglebutton));
+    deadbeef->conf_set_int ("resume_last_session", active);
+}
+
+
+void
+on_auto_name_playlist_from_folder_toggled
+                                        (GtkToggleButton *togglebutton,
+                                        gpointer         user_data)
+{
+    int active = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (togglebutton));
+    deadbeef->conf_set_int ("gtkui.name_playlist_from_folder", active);
 }
 

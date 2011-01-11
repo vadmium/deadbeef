@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -364,10 +364,6 @@ on_searchhscroll_value_changed         (GtkRange        *range,
 gboolean
 on_helpwindow_key_press_event          (GtkWidget       *widget,
                                         GdkEventKey     *event,
-                                        gpointer         user_data);
-
-void
-on_add_audio_cd_activate               (GtkMenuItem     *menuitem,
                                         gpointer         user_data);
 
 void
@@ -941,4 +937,124 @@ on_proxyuser_changed                   (GtkEditable     *editable,
 
 void
 on_proxypassword_changed               (GtkEditable     *editable,
+                                        gpointer         user_data);
+
+void
+on_hide_tray_icon_toggled              (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_embolden_current_toggled            (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_hide_delete_from_disk_toggled       (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_titlebar_format_playing_changed     (GtkEditable     *editable,
+                                        gpointer         user_data);
+
+void
+on_titlebar_format_stopped_changed     (GtkEditable     *editable,
+                                        gpointer         user_data);
+
+void
+on_cli_add_to_playlist_toggled         (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_cli_playlist_name_changed           (GtkEditable     *editable,
+                                        gpointer         user_data);
+
+gboolean
+on_statusbar_button_press_event        (GtkWidget       *widget,
+                                        GdkEventButton  *event,
+                                        gpointer         user_data);
+
+void
+on_resume_last_session_toggled         (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_jump_to_current_track1_activate     (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_translators1_activate               (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+
+GtkWidget*
+title_formatting_help_link_create (gchar *widget_name, gchar *string1, gchar *string2,
+                gint int1, gint int2);
+
+void
+on_album1_activate                     (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_artist1_activate                    (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_date1_activate                      (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_custom2_activate                    (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sortfmt_activate                    (GtkEntry        *entry,
+                                        gpointer         user_data);
+
+void
+gtkui_dialog_response_ok               (GtkEntry        *entry,
+                                        gpointer         user_data);
+
+
+void
+on_shuffle_albums1_activate            (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_order_shuffle_albums_activate       (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_dsp_add_clicked                     (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_dsp_remove_clicked                  (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_dsp_configure_clicked               (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_dsp_up_clicked                      (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_dsp_down_clicked                    (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_auto_name_playlist_from_folder_toggled
+                                        (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_dsp_preset_changed                  (GtkComboBox     *combobox,
+                                        gpointer         user_data);
+
+void
+on_dsp_preset_save_clicked             (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_dsp_preset_load_clicked             (GtkButton       *button,
                                         gpointer         user_data);

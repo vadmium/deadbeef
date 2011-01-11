@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -215,7 +215,7 @@ static void pulse_thread(void *context)
     {
         if (state != OUTPUT_STATE_PLAYING || !deadbeef->streamer_ok_to_read (-1))
         {
-            usleep(1000);
+            usleep(10000);
             continue;
         }
 
@@ -239,12 +239,6 @@ static void pulse_thread(void *context)
 
 static void pulse_callback(char *stream, int len)
 {
-    if (!deadbeef->streamer_ok_to_read (len))
-    {
-        memset (stream, 0, len);
-        return;
-    }
-
     int bytesread = deadbeef->streamer_read(stream, len);
     int16_t ivolume = deadbeef->volume_get_amp() * 1000;
 

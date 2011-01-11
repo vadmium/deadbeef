@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -29,8 +29,8 @@ eq_window_hide (void);
 void
 eq_window_destroy (void);
 
-struct DB_supereq_dsp_s *
-get_supereq_plugin (void);
+ddb_dsp_context_t *
+get_supereq (void);
 
 void
 eq_redraw (void);

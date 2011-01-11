@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -61,6 +61,12 @@ draw_get_font_size (void);
 
 void
 draw_init_font (GtkStyle *style);
+
+void
+draw_init_font_bold (void);
+
+void
+draw_init_font_normal (void);
 
 void
 draw_text (float x, float y, int width, int align, const char *text);

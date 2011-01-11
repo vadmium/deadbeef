@@ -57,8 +57,6 @@ typedef struct {
     unsigned int current_sample;
 } cdda_info_t;
 
-static uintptr_t mutex;
-static intptr_t cddb_tid;
 struct cddb_thread_params
 {
     DB_playItem_t *items[100];
@@ -71,7 +69,7 @@ min (int a, int b) {
 }
 
 static DB_fileinfo_t *
-cda_open (void) {
+cda_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (cdda_info_t));
     memset (_info, 0, sizeof (cdda_info_t));
     return _info;
@@ -111,10 +109,14 @@ cda_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
 
+    int channels = cdio_get_track_channels (info->cdio, track_nr);
+    trace ("cdio nchannels: %d\n", channels);
+
     _info->plugin = &plugin;
-    _info->bps = 16,
-    _info->channels = 2,
-    _info->samplerate = 44100,
+    _info->fmt.bps = 16;
+    _info->fmt.channels = 2;
+    _info->fmt.samplerate = 44100;
+    _info->fmt.channelmask = DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT;
     _info->readpos = 0;
 
     info->first_sector = cdio_get_track_lsn (info->cdio, track_nr);
@@ -126,7 +128,7 @@ cda_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 }
 
 int
-cda_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+cda_read (DB_fileinfo_t *_info, char *bytes, int size) {
     cdda_info_t *info = (cdda_info_t *)_info;
     int extrasize = 0;
     
@@ -178,7 +180,7 @@ cda_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
     retsize += extrasize;
 //    trace ("requested: %d; tail_len: %d; size: %d; sectors_to_read: %d; return: %d\n", initsize, tail_len, size, sectors_to_read, retsize);
     info->current_sample += retsize / SAMPLESIZE;
-    _info->readpos = (float)info->current_sample / _info->samplerate;
+    _info->readpos = (float)info->current_sample / _info->fmt.samplerate;
     return retsize;
 }
 
@@ -208,14 +210,14 @@ cda_seek_sample (DB_fileinfo_t *_info, int sample)
     memcpy (info->tail, buf + offset, SECTORSIZE - offset);
     info->current_sector = sector;
     info->current_sample = sample;
-    _info->readpos = (float)info->current_sample / _info->samplerate;
+    _info->readpos = (float)info->current_sample / _info->fmt.samplerate;
     return 0;
 }
 
 static int
 cda_seek (DB_fileinfo_t *_info, float sec)
 {
-    return cda_seek_sample (_info, sec * _info->samplerate);
+    return cda_seek_sample (_info, sec * _info->fmt.samplerate);
 }
 
 cddb_disc_t*
@@ -317,9 +319,7 @@ cddb_thread (void *items_i)
     DB_playItem_t **items = params->items;
 
     trace ("calling resolve_disc\n");
-    deadbeef->mutex_lock (mutex);
     cddb_disc_t* disc = resolve_disc (params->cdio);
-    deadbeef->mutex_unlock (mutex);
     if (!disc)
     {
         trace ("disc not resolved\n");
@@ -331,7 +331,6 @@ cddb_thread (void *items_i)
     }
     trace ("disc resolved\n");
 
-    deadbeef->mutex_lock (mutex);
     const char *disc_title = cddb_disc_get_title (disc);
     const char *artist = cddb_disc_get_artist (disc);
     trace ("disc_title=%s, disk_artist=%s\n", disc_title, artist);
@@ -356,9 +355,8 @@ cddb_thread (void *items_i)
         deadbeef->plug_trigger_event_trackinfochanged (items[i]);
     }
     cddb_disc_destroy (disc);
-    deadbeef->mutex_unlock (mutex);
     cleanup_thread_params (params);
-    cddb_tid = 0;
+    deadbeef->plug_trigger_event_playlistchanged ();
 }
 
 static void
@@ -381,15 +379,19 @@ read_track_cdtext (CdIo_t *cdio, int track_nr, DB_playItem_t *item)
         {
             switch (field_type)
             {
-                case CDTEXT_TITLE: album = strdup (text); break;
-                case CDTEXT_PERFORMER: artist = strdup (text); break;
+                case CDTEXT_TITLE: album = text; break;
+                case CDTEXT_PERFORMER: artist = text; break;
             }
         }
     }
 
     trace ("artist: %s; album: %s\n", artist, album);
-    deadbeef->pl_replace_meta (item, "artist", artist);
-    deadbeef->pl_replace_meta (item, "album", album);
+    if (artist) {
+        deadbeef->pl_replace_meta (item, "artist", artist);
+    }
+    if (album) {
+        deadbeef->pl_replace_meta (item, "album", album);
+    }
 
     cdtext = cdio_get_cdtext (cdio, track_nr);
     if (!cdtext)
@@ -411,7 +413,7 @@ read_track_cdtext (CdIo_t *cdio, int track_nr, DB_playItem_t *item)
             case CDTEXT_MESSAGE:    field = "comment";  break;
             default: field = NULL;
         }
-        if (field)
+        if (field && text)
         {
             trace ("%s: %s\n", field, text);
             deadbeef->pl_replace_meta (item, field, text);
@@ -438,7 +440,7 @@ read_disc_cdtext (struct cddb_thread_params *params)
 
 static DB_playItem_t *
 cda_insert (DB_playItem_t *after, const char *fname) {
-//    trace ("CDA insert: %s\n", fname);
+    trace ("CDA insert: %s\n", fname);
     CdIo_t* cdio = NULL;
     int track_nr;
     DB_playItem_t *res;
@@ -452,6 +454,9 @@ cda_insert (DB_playItem_t *after, const char *fname) {
     }
     const char *ext = strrchr (shortname, '.') + 1;
     int is_image = ext && (0 == strcmp (ext, "nrg"));
+    if (is_image && !deadbeef->conf_get_int ("cdda.enable_nrg", 0)) {
+        return NULL;
+    }
 
     if (0 == strcmp (ext, "cda")) {
         cdio = cdio_open (NULL, DRIVER_UNKNOWN);
@@ -461,6 +466,7 @@ cda_insert (DB_playItem_t *after, const char *fname) {
     }
 
     if (!cdio) {
+        trace ("not an audio disc/image, or file not found (%s)\n", fname);
         return NULL;
     }
 
@@ -483,6 +489,7 @@ cda_insert (DB_playItem_t *after, const char *fname) {
 
         for (i = 0; i < tracks; i++)
         {
+            trace ("inserting track %d\n", i);
             res = insert_single_track (cdio, res, is_image ? fname : NULL, i+first_track);
             if (res) {
                 p->items[i] = res;
@@ -495,10 +502,8 @@ cda_insert (DB_playItem_t *after, const char *fname) {
         if ((!got_cdtext || !prefer_cdtext) && enable_cddb)
         {
             trace ("cdda: querying freedb...\n");
-            if (cddb_tid) {
-                deadbeef->thread_join (cddb_tid);
-            }
-            cddb_tid = deadbeef->thread_start (cddb_thread, p); //will destroy cdio
+            intptr_t tid = deadbeef->thread_start (cddb_thread, p); //will destroy cdio
+            deadbeef->thread_detach (tid);
         }
         else
             cleanup_thread_params (p);
@@ -517,19 +522,23 @@ cda_insert (DB_playItem_t *after, const char *fname) {
 }
 
 static int
-cda_start (void) {
-    mutex = deadbeef->mutex_create ();
-    return 0;
+cda_action_add_cd (DB_plugin_action_t *act, DB_playItem_t *it)
+{
+    deadbeef->pl_add_file ("all.cda", NULL, NULL);
+    deadbeef->plug_trigger_event_playlistchanged ();
 }
 
-static int
-cda_stop (void) {
-    if (cddb_tid) {
-        trace ("cdda: waiting cddb query to end\n");
-        deadbeef->thread_join (cddb_tid);
-    }
-    deadbeef->mutex_free (mutex);
-    return 0;
+static DB_plugin_action_t add_cd_action = {
+    .title = "File/Add Audio CD",
+    .flags = DB_ACTION_COMMON,
+    .callback = cda_action_add_cd,
+    .next = NULL
+};
+
+static DB_plugin_action_t *
+cda_get_actions (DB_playItem_t *unused)
+{
+    return &add_cd_action;
 }
 
 static const char *exts[] = { "cda", "nrg", NULL };
@@ -540,28 +549,28 @@ static const char settings_dlg[] =
     "property \"Prefer CD-Text over CDDB\" checkbox cdda.prefer_cdtext 1;\n"
     "property \"CDDB url (e.g. 'freedb.org')\" entry cdda.freedb.host freedb.org;\n"
     "property \"CDDB port number (e.g. '888')\" entry cdda.freedb.port 888;\n"
-    "property \"Prefer CDDB protocol over HTTP\" checkbox cdda.protocol 1;"
+    "property \"Prefer CDDB protocol over HTTP\" checkbox cdda.protocol 1;\n"
+    "property \"Enable NRG image support\" checkbox cdda.enable_nrg 0;"
 ;
 
 // define plugin interface
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "cda",
     .plugin.name = "Audio CD player",
-    .plugin.descr = "using libcdio, includes .nrg image support",
+    .plugin.descr = "Audio CD plugin using libcdio and libcddb",
     .plugin.author = "Viktor Semykin, Alexey Yakovenko",
     .plugin.email = "thesame.ml@gmail.com, waker@users.sourceforge.net",
     .plugin.website = "http://deadbeef.sf.net",
-    .plugin.start = cda_start,
-    .plugin.stop = cda_stop,
     .plugin.configdialog = settings_dlg,
+    .plugin.get_actions = cda_get_actions,
     .open = cda_open,
     .init = cda_init,
     .free = cda_free,
-    .read_int16 = cda_read_int16,
+    .read = cda_read,
     .seek = cda_seek,
     .seek_sample = cda_seek_sample,
     .insert = cda_insert,

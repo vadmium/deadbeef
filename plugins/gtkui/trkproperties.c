@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -117,8 +117,7 @@ on_metadata_edited (GtkCellRendererText *renderer, gchar *path, gchar *new_text,
 static const char *types[] = {
     "artist", "Artist",
     "title", "Track Title",
-    "performer", "Performer / Conductor",
-    "band", "Band / Album Artist",
+    "performer", "Performer",
     "album", "Album",
     "year", "Date",
     "track", "Track Number",
@@ -127,11 +126,6 @@ static const char *types[] = {
     "composer", "Composer",
     "disc", "Disc Number",
     "comment", "Comment",
-    "vendor", "Encoder / Vendor",
-    "copyright", "Copyright",
-    // nonstandard frames, let's hide them for now
-//    "<performer>", "<PERFORMER>",
-//    "<albumartist>", "<ALBUM ARTIST>",
     NULL
 };
 
@@ -148,28 +142,29 @@ trkproperties_fill_metadata (void) {
     trkproperties_modified = 0;
     gtk_list_store_clear (store);
     deadbeef->pl_lock ();
+
+    // add "standard" fields
     int i = 0;
     while (types[i]) {
-        GtkTreeIter iter;
-        gtk_list_store_append (store, &iter);
         const char *value = deadbeef->pl_find_meta (track, types[i]);
         if (!value) {
             value = "";
         }
-        gtk_list_store_set (store, &iter, 0, types[i+1], 1, value, -1);
+        GtkTreeIter iter;
+        gtk_list_store_append (store, &iter);
+        gtk_list_store_set (store, &iter, 0, _(types[i+1]), 1, value, 2, types[i], -1);
         i += 2;
     }
-    deadbeef->pl_unlock ();
 
     // properties
     char temp[200];
     GtkTreeIter iter;
     gtk_list_store_clear (propstore);
     gtk_list_store_append (propstore, &iter);
-    gtk_list_store_set (propstore, &iter, 0, "Location", 1, track->fname, -1);
+    gtk_list_store_set (propstore, &iter, 0, _("Location"), 1, track->fname, -1);
     gtk_list_store_append (propstore, &iter);
     snprintf (temp, sizeof (temp), "%d", track->tracknum);
-    gtk_list_store_set (propstore, &iter, 0, "Subtrack Index", 1, temp, -1);
+    gtk_list_store_set (propstore, &iter, 0, _("Subtrack Index"), 1, temp, -1);
     gtk_list_store_append (propstore, &iter);
     deadbeef->pl_format_time (deadbeef->pl_get_item_duration (track), temp, sizeof (temp));
     gtk_list_store_set (propstore, &iter, 0, _("Duration"), 1, temp, -1);
@@ -183,17 +178,62 @@ trkproperties_fill_metadata (void) {
 
     gtk_list_store_append (propstore, &iter);
     snprintf (temp, sizeof (temp), "%0.2f dB", track->replaygain_album_gain);
-    gtk_list_store_set (propstore, &iter, 0, "REPLAYGAIN_ALBUM_GAIN", 1, temp, -1);
+    gtk_list_store_set (propstore, &iter, 0, "ReplayGain Album Gain", 1, temp, -1);
     gtk_list_store_append (propstore, &iter);
     snprintf (temp, sizeof (temp), "%0.6f", track->replaygain_album_peak);
-    gtk_list_store_set (propstore, &iter, 0, "REPLAYGAIN_ALBUM_PEAK", 1, temp, -1);
+    gtk_list_store_set (propstore, &iter, 0, "ReplayGain Album Peak", 1, temp, -1);
 
     gtk_list_store_append (propstore, &iter);
     snprintf (temp, sizeof (temp), "%0.2f dB", track->replaygain_track_gain);
-    gtk_list_store_set (propstore, &iter, 0, "REPLAYGAIN_TRACK_GAIN", 1, temp, -1);
+    gtk_list_store_set (propstore, &iter, 0, "ReplayGain Track Gain", 1, temp, -1);
     gtk_list_store_append (propstore, &iter);
     snprintf (temp, sizeof (temp), "%0.6f", track->replaygain_track_peak);
-    gtk_list_store_set (propstore, &iter, 0, "REPLAYGAIN_TRACK_PEAK", 1, temp, -1);
+    gtk_list_store_set (propstore, &iter, 0, "ReplayGain Track Peak", 1, temp, -1);
+
+    // unknown fields
+    DB_metaInfo_t *meta = deadbeef->pl_get_metadata (track);
+    while (meta) {
+        if (meta->key[0] == ':') {
+            int l = strlen (meta->key)-1;
+            char title[l+3];
+            snprintf (title, sizeof (title), "<%s>", meta->key+1);
+            const char *value = meta->value;
+
+            GtkTreeIter iter;
+            gtk_list_store_append (propstore, &iter);
+            gtk_list_store_set (propstore, &iter, 0, title, 1, value, -1);
+            meta = meta->next;
+            continue;
+        }
+        int i = 0;
+        while (types[i]) {
+            if (!strcmp (types[i], meta->key)) {
+                break;
+            }
+            i += 2;
+        }
+        if (types[i]) {
+            meta = meta->next;
+            continue;
+        }
+
+        int l = strlen (meta->key);
+        char title[l+3];
+        snprintf (title, sizeof (title), "<%s>", meta->key);
+        const char *value = meta->value;
+        const char *key = meta->key;
+        meta = meta->next;
+
+        if (!value) {
+            value = "";
+        }
+
+        GtkTreeIter iter;
+        gtk_list_store_append (store, &iter);
+        gtk_list_store_set (store, &iter, 0, _(title), 1, value, 2, key, -1);
+    }
+
+    deadbeef->pl_unlock ();
 }
 
 void
@@ -238,7 +278,7 @@ show_track_properties_dlg (DB_playItem_t *it) {
 
         // metadata tree
         tree = GTK_TREE_VIEW (lookup_widget (trackproperties, "metalist"));
-        store = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
+        store = gtk_list_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
         gtk_tree_view_set_model (tree, GTK_TREE_MODEL (store));
         GtkCellRenderer *rend_text = gtk_cell_renderer_text_new ();
         rend_text2 = GTK_CELL_RENDERER (ddb_cell_renderer_text_multiline_new ());//gtk_cell_renderer_text_new ();
@@ -300,18 +340,12 @@ show_track_properties_dlg (DB_playItem_t *it) {
 static gboolean
 set_metadata_cb (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer data) {
     GValue key = {0,}, value = {0,};
-    gtk_tree_model_get_value (model, iter, 0, &key);
+    gtk_tree_model_get_value (model, iter, 2, &key);
     gtk_tree_model_get_value (model, iter, 1, &value);
     const char *skey = g_value_get_string (&key);
     const char *svalue = g_value_get_string (&value);
 
-
-    for (int i = 0; types[i]; i += 2) {
-        if (!strcmp (skey, types[i+1])) {
-            trace ("setting %s = %s\n", types[i], svalue);
-            deadbeef->pl_replace_meta (DB_PLAYITEM (data), types[i], svalue);
-        }
-    }
+    deadbeef->pl_replace_meta (DB_PLAYITEM (data), skey, svalue);
 
     return FALSE;
 }
@@ -320,12 +354,6 @@ void
 on_write_tags_clicked                  (GtkButton       *button,
                                         gpointer         user_data)
 {
-#if 0
-    if (!deadbeef->conf_get_int ("enable_tag_writing", 0)) {
-        trace ("tag writing disabled\n");
-        return;
-    }
-#endif
     if (!track || !track->decoder_id) {
         return;
     }

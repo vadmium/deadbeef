@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -106,7 +106,7 @@ static WavpackStreamReader wsr = {
 #endif
 
 static DB_fileinfo_t *
-wv_open (void) {
+wv_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (wvctx_t));
     memset (_info, 0, sizeof (wvctx_t));
     return _info;
@@ -136,16 +136,18 @@ wv_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 #ifdef TINYWV
     info->ctx = WavpackOpenFileInput (wv_read_stream, info->file, error);
 #else
-    info->ctx = WavpackOpenFileInputEx (&wsr, info->file, info->c_file, error, OPEN_2CH_MAX | OPEN_NORMALIZE, 0);
+    info->ctx = WavpackOpenFileInputEx (&wsr, info->file, info->c_file, error, OPEN_NORMALIZE, 0);
 #endif
     if (!info->ctx) {
         fprintf (stderr, "wavpack error: %s\n", error);
         return -1;
     }
     _info->plugin = &plugin;
-    _info->bps = WavpackGetBytesPerSample (info->ctx) * 8;
-    _info->channels = WavpackGetReducedChannels (info->ctx);
-    _info->samplerate = WavpackGetSampleRate (info->ctx);
+    _info->fmt.bps = WavpackGetBytesPerSample (info->ctx) * 8;
+    _info->fmt.channels = WavpackGetNumChannels (info->ctx);
+    _info->fmt.samplerate = WavpackGetSampleRate (info->ctx);
+    _info->fmt.is_float = (WavpackGetMode (info->ctx) & MODE_FLOAT) ? 1 : 0;
+    _info->fmt.channelmask = WavpackGetChannelMask (info->ctx);
     _info->readpos = 0;
     if (it->endsample > 0) {
         info->startsample = it->startsample;
@@ -184,96 +186,66 @@ wv_free (DB_fileinfo_t *_info) {
 }
 
 static int
-wv_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+wv_read (DB_fileinfo_t *_info, char *bytes, int size) {
     wvctx_t *info = (wvctx_t *)_info;
+    int initsize = size;
     int currentsample = WavpackGetSampleIndex (info->ctx);
-    if (size / (2 * _info->channels) + currentsample > info->endsample) {
-        size = (info->endsample - currentsample + 1) * 2 * _info->channels;
+    int samplesize = _info->fmt.channels * _info->fmt.bps / 8;
+    if (size / samplesize + currentsample > info->endsample) {
+        size = (info->endsample - currentsample + 1) * samplesize;
         trace ("wv: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, currentsample, info->endsample);
         if (size <= 0) {
             return 0;
         }
     }
-    int32_t buffer[size/2];
-    int nchannels = WavpackGetReducedChannels (info->ctx);
-    int n = WavpackUnpackSamples (info->ctx, buffer, size/(2*nchannels));
-    size = n * 2 * nchannels;
-    // convert to int16
-    int32_t *p = buffer;
-    n *= nchannels;
-
+    int n;
     if (WavpackGetMode (info->ctx) & MODE_FLOAT) {
-        while (n > 0) {
-            float val = *(float*)p;
-            if (val >= 1.0)
-                *((int16_t *)bytes) = 32767;
-            else if (val <= -1.0)
-                *((int16_t *)bytes) = -32768;
-            else
-                *((int16_t *)bytes) = floor (val * 32768.f);
-            bytes += sizeof (int16_t);
-            p++;
-            n--;
-        }
+        _info->fmt.is_float = 1;
+    }
+    if (_info->fmt.is_float || _info->fmt.bps == 32) {
+        n = WavpackUnpackSamples (info->ctx, (int32_t *)bytes, size / samplesize);
+        size -= n * samplesize;
     }
     else {
-        while (n > 0) {
-            if (_info->bps >= 16) {
-                *((int16_t *)bytes) = (int16_t)((*p) >> (_info->bps-16));
-            }
-            else {
-                *((int16_t *)bytes) = (int16_t)((*p) << (16-_info->bps));
-            }
-            bytes += sizeof (int16_t);
-            p++;
-            n--;
-        }
-    }
-    _info->readpos = (float)(WavpackGetSampleIndex (info->ctx)-info->startsample)/WavpackGetSampleRate (info->ctx);
+        int32_t buffer[size/(_info->fmt.bps / 8)];
+        n = WavpackUnpackSamples (info->ctx, (int32_t *)buffer, size / samplesize);
+        size -= n * samplesize;
+        n *= _info->fmt.channels;
 
-#ifndef TINYWV
-    deadbeef->streamer_set_bitrate (WavpackGetInstantBitrate (info->ctx) / 1000);
-#endif
-
-    return size;
-}
-
-static int
-wv_read_float32 (DB_fileinfo_t *_info, char *bytes, int size) {
-    wvctx_t *info = (wvctx_t *)_info;
-    int currentsample = WavpackGetSampleIndex (info->ctx);
-    if (size / (4 * _info->channels) + currentsample > info->endsample) {
-        size = (info->endsample - currentsample + 1) * 4 * _info->channels;
-        trace ("wv: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, currentsample, info->endsample);
-        if (size <= 0) {
-            return 0;
-        }
-    }
-    int32_t buffer[size/4];
-    int nchannels = WavpackGetReducedChannels (info->ctx);
-    int n = WavpackUnpackSamples (info->ctx, buffer, size/(4*nchannels));
-    size = n * 4 * nchannels;
-    // convert to float32
-    n *= nchannels;
-
-    if (WavpackGetMode (info->ctx) & MODE_FLOAT) {
-        memcpy (bytes, buffer, size);
-    }
-    else {
-        float mul = 1.f/ (1UL << (_info->bps-1));
+        // convert from int32 to input (what???)
         int32_t *p = buffer;
-        while (n > 0) {
-            *((float *)bytes) = (*p) * mul;
-            bytes += sizeof (float);
-            p++;
-            n--;
+        if (_info->fmt.bps == 16) {
+            while (n > 0) {
+                *((int16_t *)bytes) = (int16_t)(*p);
+                bytes += sizeof (int16_t);
+                p++;
+                n--;
+            }
+        }
+        else if (_info->fmt.bps == 8) {
+            while (n > 0) {
+                *bytes++ = (char)(*p);
+                p++;
+                n--;
+            }
+        }
+        else if (_info->fmt.bps == 24) {
+            while (n > 0) {
+                *bytes++ = (*p)&0xff;
+                *bytes++ = ((*p)&0xff00)>>8;
+                *bytes++ = ((*p)&0xff0000)>>16;
+                p++;
+                n--;
+            }
         }
     }
     _info->readpos = (float)(WavpackGetSampleIndex (info->ctx)-info->startsample)/WavpackGetSampleRate (info->ctx);
+
 #ifndef TINYWV
     deadbeef->streamer_set_bitrate (WavpackGetInstantBitrate (info->ctx) / 1000);
 #endif
-    return size;
+
+    return initsize-size;
 }
 
 static int
@@ -294,7 +266,6 @@ wv_seek (DB_fileinfo_t *_info, float sec) {
 
 static DB_playItem_t *
 wv_insert (DB_playItem_t *after, const char *fname) {
-
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         return NULL;
@@ -340,28 +311,21 @@ wv_insert (DB_playItem_t *after, const char *fname) {
     if (!v1err) {
         trace ("wv: id3v1 tag found\n");
     }
+    deadbeef->pl_add_meta (it, "title", NULL);
 
-#if 0
-    // embedded cue
-    char *emb_cuesheet;
-    int len = WavpackGetTagItem (ctx, "cuesheet", NULL, 0);
-    if (len) {
-        emb_cuesheet = malloc (len);
-        if (emb_cuesheet) {
-            WavpackGetTagItem (ctx, "Cuesheet", emb_cuesheet, len);
-            trace ("got cuesheet\n%s\n", emb_cuesheet);
-            DB_playItem_t *last = deadbeef->pl_insert_cue_from_buffer (after, it, emb_cuesheet, strlen (emb_cuesheet), totalsamples, samplerate);
-            free (emb_cuesheet);
-            if (last) {
-                deadbeef->pl_item_unref (it);
-                deadbeef->fclose (fp);
-                WavpackCloseFile (ctx);
-                return last;
-            }
-            trace ("pl_insert_cue_from_buffer failed!\n");
-        }
-    }
-#endif
+    char s[100];
+    snprintf (s, sizeof (s), "%d", deadbeef->fgetlength (fp));
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+    snprintf (s, sizeof (s), "%d", WavpackGetBytesPerSample (ctx) * 8);
+    deadbeef->pl_add_meta (it, ":BPS", s);
+    snprintf (s, sizeof (s), "%d", WavpackGetNumChannels (ctx));
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", WavpackGetSampleRate (ctx));
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    snprintf (s, sizeof (s), "%d", (int)(WavpackGetAverageBitrate (ctx, 1) / 1000));
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
+    snprintf (s, sizeof (s), "%s", (WavpackGetMode (ctx) & MODE_FLOAT) ? "FLOAT" : "INTEGER");
+    deadbeef->pl_add_meta (it, ":WAVPACK_MODE", s);
 
     // embedded cue
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
@@ -442,20 +406,19 @@ static const char *filetypes[] = { "wv", NULL };
 // define plugin interface
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "wv",
     .plugin.name = "WavPack decoder",
-    .plugin.descr = ".wv player using libwavpack",
+    .plugin.descr = "WavPack (.wv, .iso.wv) player using libwavpack",
     .plugin.author = "Alexey Yakovenko",
     .plugin.email = "waker@users.sourceforge.net",
     .plugin.website = "http://deadbeef.sf.net",
     .open = wv_open,
     .init = wv_init,
     .free = wv_free,
-    .read_int16 = wv_read_int16,
-    .read_float32 = wv_read_float32,
+    .read = wv_read,
     .seek = wv_seek,
     .seek_sample = wv_seek_sample,
     .insert = wv_insert,

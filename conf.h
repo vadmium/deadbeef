@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,11 +44,17 @@ conf_get_float (const char *key, float def);
 int
 conf_get_int (const char *key, int def);
 
+int64_t
+conf_get_int64 (const char *key, int64_t def);
+
 void
 conf_set_str (const char *key, const char *val);
 
 void
 conf_set_int (const char *key, int val);
+
+void
+conf_set_int64 (const char *key, int64_t val);
 
 void
 conf_set_float (const char *key, float val);

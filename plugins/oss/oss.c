@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,6 +56,72 @@ oss_thread (void *context);
 static int
 oss_callback (char *stream, int len);
 
+int
+oss_set_hwparams (ddb_waveformat_t *fmt) {
+    int samplefmt;
+    switch (fmt->bps) {
+    case 8:
+        samplefmt = AFMT_S8;
+        break;
+    case 16:
+        samplefmt = AFMT_S16_NE;
+        break;
+    default:
+        samplefmt = AFMT_S16_NE;
+        break;
+    }
+    if (ioctl (fd, SNDCTL_DSP_SETFMT, &samplefmt) == -1) {
+        fprintf (stderr, "oss: failed to set format\n");
+        perror ("SNDCTL_DSP_SETFMT");
+        return -1;
+    }
+
+    int channels = fmt->channels;
+    if (ioctl (fd, SNDCTL_DSP_CHANNELS, &channels) == -1) {
+        if (channels != 2) {
+            fprintf (stderr, "oss: failed to set %d channels, trying fallback to stereo\n", fmt->channels);
+            channels = 2;
+            if (ioctl (fd, SNDCTL_DSP_CHANNELS, &channels) == -1) {
+                fprintf (stderr, "oss: stereo fallback failed\n");
+                perror ("SNDCTL_DSP_CHANNELS");
+                return -1;
+            }
+        }
+        else {
+                fprintf (stderr, "oss: failed to set %d channels\n", fmt->channels);
+                perror ("SNDCTL_DSP_CHANNELS");
+                return -1;
+        }
+    }
+    int rate = fmt->samplerate;
+    if (ioctl (fd, SNDCTL_DSP_SPEED, &rate) == -1) {
+        fprintf (stderr, "oss: can't switch to %d samplerate\n", rate);
+        perror ("SNDCTL_DSP_CHANNELS");
+        return -1;
+    }
+
+    plugin.fmt.samplerate = rate;
+    plugin.fmt.channels = channels;
+    switch (samplefmt) {
+    case AFMT_S8:
+        plugin.fmt.bps = 8;
+        break;
+    case AFMT_S16_LE:
+    case AFMT_S16_BE:
+        plugin.fmt.bps = 16;
+        break;
+    default:
+        fprintf (stderr, "oss: unsupported output format: 0x%X\n", samplefmt);
+        return -1;
+    }
+    plugin.fmt.channelmask = 0;
+    for (int i = 0; i < plugin.fmt.channels; i++) {
+        plugin.fmt.channelmask |= 1 << i;
+    }
+
+    return 0;
+}
+
 static int
 oss_init (void) {
     trace ("oss_init\n");
@@ -73,79 +139,12 @@ oss_init (void) {
         return -1;
     }
 
-#if OSS_VERSION>=0x040000
-/*
-    int cooked = 1;
-    ioctl (fd, SNDCTL_DSP_COOKEDMODE, &cooked);
-    trace ("oss: cooked_mode=%d\n", cooked);
-
-    int policy = 3;
-    ioctl (fd, SNDCTL_DSP_POLICY, &policy);
-    trace ("oss: policy=%d\n", policy);
-*/
-#endif
-
-    int fmt = AFMT_S16_NE;
-    if (ioctl (fd, SNDCTL_DSP_SETFMT, &fmt) == -1) {
-        fprintf (stderr, "oss: failed to set format\n");
-        perror ("SNDCTL_DSP_SETFMT");
-        plugin.free ();
-        return -1;
-    }
-
-    if (fmt != AFMT_S16_NE) {
-        fprintf (stderr, "oss: device doesn't support 16 bit sample format\n");
-        plugin.free ();
-        return -1;
-    }
-
-    int channels = 2;
-    if (ioctl (fd, SNDCTL_DSP_CHANNELS, &channels) == -1) {
-        fprintf (stderr, "oss: failed to set channels\n");
-        perror ("SNDCTL_DSP_CHANNELS");
-        plugin.free ();
-        return -1;
-    }
-    if (channels != 2) {
-        fprintf (stderr, "oss: device doesn't support stereo output\n");
-        plugin.free ();
-        return -1;
-    }
-
-    if (ioctl (fd, SNDCTL_DSP_SPEED, &oss_rate) == -1) {
-        fprintf (stderr, "oss: failed to set samplerate\n");
-        perror ("SNDCTL_DSP_CHANNELS");
-        plugin.free ();
-        return -1;
-    }
-
-    trace ("oss: samplerate: %d\n", oss_rate);
+    oss_set_hwparams (&plugin.fmt);
 
     mutex = deadbeef->mutex_create ();
 
     oss_tid = deadbeef->thread_start (oss_thread, NULL);
     return 0;
-}
-
-static int
-oss_change_rate (int rate) {
-    if (!fd) {
-        return oss_rate;
-    }
-    if (rate == oss_rate) {
-        trace ("oss_change_rate %d: ignored\n", rate);
-        return rate;
-    }
-    deadbeef->mutex_lock (mutex);
-    if (ioctl (fd, SNDCTL_DSP_SPEED, &rate) == -1) {
-        fprintf (stderr, "oss: can't switch to %d samplerate\n", rate);
-        perror ("SNDCTL_DSP_CHANNELS");
-        plugin.free ();
-        return -1;
-    }
-    oss_rate = rate;
-    deadbeef->mutex_unlock (mutex);
-    return oss_rate;
 }
 
 static int
@@ -161,6 +160,7 @@ oss_free (void) {
         oss_terminate = 0;
         if (fd) {
             close (fd);
+            fd = 0;
         }
         if (mutex) {
             deadbeef->mutex_free (mutex);
@@ -196,6 +196,41 @@ oss_pause (void) {
     // set pause state
     oss_free();
     state = OUTPUT_STATE_PAUSED;
+    return 0;
+}
+
+
+static int
+oss_setformat (ddb_waveformat_t *fmt) {
+    trace ("oss_setformat\n");
+    if (!fd) {
+        memcpy (&plugin.fmt, fmt, sizeof (ddb_waveformat_t));
+    }
+    if (!memcmp (fmt, &plugin.fmt, sizeof (ddb_waveformat_t))) {
+        return 0;
+    }
+    deadbeef->mutex_lock (mutex);
+
+    if (0 != oss_set_hwparams (fmt)) {
+        return -1;
+    }
+
+    deadbeef->mutex_unlock (mutex);
+
+    switch (state) {
+    case OUTPUT_STATE_STOPPED:
+        return oss_stop ();
+    case OUTPUT_STATE_PLAYING:
+        return oss_play ();
+    case OUTPUT_STATE_PAUSED:
+        if (0 != oss_play ()) {
+            return -1;
+        }
+        if (0 != oss_pause ()) {
+            return -1;
+        }
+        break;
+    }
     return 0;
 }
 
@@ -262,13 +297,7 @@ oss_thread (void *context) {
 
 static int
 oss_callback (char *stream, int len) {
-    int bytesread = deadbeef->streamer_read (stream, len);
-    int16_t ivolume = deadbeef->volume_get_amp () * 1000;
-    for (int i = 0; i < bytesread/2; i++) {
-        ((int16_t*)stream)[i] = (int16_t)(((int32_t)(((int16_t*)stream)[i])) * ivolume / 1000);
-    }
-
-    return bytesread;
+    return deadbeef->streamer_read (stream, len);
 }
 
 static int
@@ -295,9 +324,8 @@ oss_load (DB_functions_t *api) {
 // define plugin interface
 static DB_output_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
-    .plugin.nostop = 0,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_OUTPUT,
     .plugin.id = "oss",
     .plugin.name = "OSS output plugin",
@@ -309,14 +337,11 @@ static DB_output_t plugin = {
     .plugin.stop = oss_plugin_stop,
     .init = oss_init,
     .free = oss_free,
-    .change_rate = oss_change_rate,
+    .setformat = oss_setformat,
     .play = oss_play,
     .stop = oss_stop,
     .pause = oss_pause,
     .unpause = oss_unpause,
     .state = oss_get_state,
-    .samplerate = oss_get_rate,
-    .bitspersample = oss_get_bps,
-    .channels = oss_get_channels,
-    .endianness = oss_get_endianness,
+    .fmt = {-1},
 };

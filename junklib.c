@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 
 #define MAX_TEXT_FRAME_SIZE 1024
 #define MAX_CUESHEET_FRAME_SIZE 10000
-#define MAX_APEV2_FRAME_SIZE 1000000
+#define MAX_APEV2_FRAME_SIZE 2000000
 #define MAX_ID3V2_FRAME_SIZE 100000
 #define MAX_ID3V2_APIC_FRAME_SIZE 2000000
 
@@ -60,31 +60,63 @@ enum {
     MAP_APEV2 = 4
 };
 
+// map of known id3v2 and apev2 text tags
+// order: ddb, id3-2.3, 2.4, 2.2, apev2
 static const char *frame_mapping[] = {
+// these tags will be displayed and edited uniformly for all tag types
     "artist", "TPE1", "TPE1", "TP1", "Artist",
-    "band", "TPE2", "TPE2", "TP2", "Band",
-    "disc", "TPOS", "TPOS", "TPA", "Media",
+    "disc", "TPOS", "TPOS", "TPA", "Disc",
     "title", "TIT2", "TIT2", "TT2", "Title",
     "album", "TALB", "TALB", "TAL", "Album",
     "copyright", "TCOP", "TCOP", "TCO", "Copyright",
     "genre", "TCON", "TCON", "TCO", "Genre",
-    "vendor", "TENC", "TENC", "TEN", "ENCODER",
-    "performer", "TPE3", "TPE3", "TP3", "Performer",
     "composer", "TCOM", "TCOM", "TCM", "Composer",
-    "year", "TYER", "TDRC", "TYE", "Year",
-    "track", "TRCK", "TRCK", "TRK", "Track",
-    "comment", NULL, NULL, NULL, "Comment",
-    "cuesheet", NULL, NULL, NULL, "Cuesheet",
-//    "<performer>", "TXXX", "TXXX", "TXX", "Performer", // fb2k only
-//    "<albumartist>", "TXXX", "TXXX", "TXX", "Album artist", // fb2k only
-//    "date", "TXXX", "TXXX", "TXX", "Date", // fb2k only
+    "year", "TYER", "TDRC", "TYE", "Year", // NOTE: TDRC and TYER are slightly different, and are converted on read/write
+    "track", "TRCK", "TRCK", "TRK", "Track", // NOTE: this is special case when writing id3v2
+// misc id3v2 fields
+// these might or might not have appropriate fields in every tag type
+    "BAND", "TPE2", "TPE2", "TP2", NULL,
+    "ENCODER", "TENC", "TENC", "TEN", NULL,
+    "BEATS_PER_MINUTE", "TBPM", "TBPM", "TBP", NULL,
+    "PLAYLIST_DELAY", "TDLY", "TDLY", "TDY", NULL,
+    "TEXT_WRITERS", "TEXT", "TEXT", "TXT", NULL,
+    "FILE_TYPE", "TFLT", "TFLT", "TFT", NULL,
+    "CONTENT_GROUP_DESCRIPTION", "TIT1", "TIT1", "TT1", NULL,
+    "SUBTITLE", "TIT3", "TIT3", "TT3", NULL,
+    "INITIAL_KEY", "TKEY", "TKEY", "TKE", NULL,
+    "LANGUAGES", "TLAN", "TLAN", "TLA", NULL,
+    "LENGTH", "TLEN", "TLEN", "TLE", NULL,
+    "MEDIA_TYPE", "TMED", "TMED", "TMT", NULL,
+    "ORIGINAL_ALBUM_TITLE", "TOAL", "TOAL", "TOT", NULL,
+    "ORIGINAL_FILENAME", "TOFN", "TOFN", "TOF", NULL,
+    "ORIGINAL_TEXT_WRITERS", "TOLY", "TOLY", "TOL", NULL,
+    "ORIGINAL_ARTISTS", "TOPE", "TOPE", "TOA", NULL,
+    "FILE_OWNER", "TOWN", "TOWN", NULL, NULL,
+    "PERFORMER_REFINEMENT", "TPE3", "TPE3", "TP3", NULL,
+    "MODIFIED_BY", "TPE4", "TPE4", "TP4", NULL,
+    "PUBLISHER", "TPUB", "TPUB", "TPB", NULL,
+    "INTERNET_RADIO_STATION_NAME", "TRSN", "TRSN", NULL, NULL,
+    "INTERNET_RADIO_STATION_OWNER", "TRSO", "TRSO", NULL, NULL,
+    "ISRC", "TSRC", "TSRC", NULL, NULL,
+    "ENCODING_SOFTWARE_HARDWARE", "TSSE", "TSSE", "TSS", NULL,
+    "RECORDING_TIME", NULL, "TDRC", NULL, NULL,
+    "RELEASE_TIME", NULL, "TDRL", NULL, NULL,
+    "TAGGING_TIME", NULL, "TDTG", NULL, NULL,
+    "ALBUM_SORT_ORDER", NULL, "TSOA", NULL, NULL,
+    "PERFORMER_SORT_ORDER", NULL, "TSOP", NULL, NULL,
+    "TITLE_SORT_ORDER", NULL, "TSOT", NULL, NULL,
+    "SIZE", "TSIZ", NULL, "TSI", NULL,
+    "RECORDING_DATES", "TRDA", NULL, "TRD", NULL,
+    "INVOLVED_PEOPLE_LIST", NULL, "TIPL", NULL, NULL,
+    "MUSICIAN_CREDITS_LIST", NULL, "TMCL", NULL, NULL,
+    "ENCODING_TIME", NULL, "TDEN", NULL, NULL,
+    "ORIGINAL_RELEASE_TIME", NULL, "TDOR", NULL, NULL,
+    "MOOD", NULL, "TMOO", NULL, NULL,
+    "PRODUCED_NOTICE", NULL, "TPRO", NULL, NULL,
     NULL
 };
 
 static const char *txx_mapping[] = {
-    "performer", "performer",
-    "album artist", "albumartist",
-    "date", "date",
     "replaygain_album_gain", NULL,
     "replaygain_album_peak", NULL,
     "replaygain_track_gain", NULL,
@@ -755,7 +787,7 @@ junk_find_id3v1 (DB_FILE *fp) {
 }
 
 int
-junk_add_track_meta (playItem_t *it, char *track) {
+junk_add_track_meta (playItem_t *it, const char *track) {
     char *slash = strchr (track, '/');
     if (slash) {
         // split into track/number
@@ -768,8 +800,152 @@ junk_add_track_meta (playItem_t *it, char *track) {
 }
 
 int
+junk_apev2_add_frame (playItem_t *it, DB_apev2_tag_t *tag_store, DB_apev2_frame_t **tail, uint32_t itemsize, uint32_t itemflags, const char *key, const uint8_t *value) {
+    if (tag_store) {
+        DB_apev2_frame_t *frm = malloc (sizeof (DB_apev2_frame_t) + itemsize);
+        memset (frm, 0, sizeof (DB_apev2_tag_t));
+        frm->flags = itemflags;
+        strcpy (frm->key, key);
+        trace ("*** stored frame %s flags %X\n", key, itemflags);
+        frm->size = itemsize;
+        memcpy (frm->data, value, itemsize);
+        if (*tail) {
+            (*tail)->next = frm;
+        }
+        else {
+            tag_store->frames = frm;
+        }
+        *tail = frm;
+    }
+
+    if (it) {
+        int valuetype = ((itemflags >> 1) & 3);
+        // add metainfo only if it's textual
+        if (valuetype == 0 && (itemsize < MAX_TEXT_FRAME_SIZE || (!strcasecmp (key, "cuesheet") && itemsize < MAX_CUESHEET_FRAME_SIZE))) {
+            if (!u8_valid (value, itemsize, NULL)) {
+                trace ("junk_read_ape_full: bad encoding in text frame %s\n", key);
+                return -1;
+            }
+
+            int m;
+            for (m = 0; frame_mapping[m]; m += FRAME_MAPPINGS) {
+                if (frame_mapping[m + MAP_APEV2] && !strcasecmp (key, frame_mapping[m + MAP_APEV2])) {
+                    if (!strcmp (frame_mapping[m+MAP_DDB], "track")) {
+                        junk_add_track_meta (it, value);
+                    }
+                    else {
+                        trace ("pl_append_meta %s %s\n", frame_mapping[m+MAP_DDB], value);
+                        pl_append_meta (it, frame_mapping[m+MAP_DDB], value);
+                    }
+                    break;
+                }
+            }
+
+            trace ("apev2 %s=%s\n", key, value);
+
+            if (!frame_mapping[m]) {
+                if (!strncasecmp (key, "replaygain_album_gain", 21)) {
+                    it->replaygain_album_gain = atof (value);
+                    trace ("album_gain=%s\n", value);
+                }
+                else if (!strncasecmp (key, "replaygain_album_peak", 21)) {
+                    it->replaygain_album_peak = atof (value);
+                    trace ("album_peak=%s\n", value);
+                }
+                else if (!strncasecmp (key, "replaygain_track_gain", 21)) {
+                    it->replaygain_track_gain = atof (value);
+                    trace ("track_gain=%s\n", value);
+                }
+                else if (!strncasecmp (key, "replaygain_track_peak", 21)) {
+                    it->replaygain_track_peak = atof (value);
+                    trace ("track_peak=%s\n", value);
+                }
+                else {
+                    trace ("%s=%s\n", key, value);
+                    pl_append_meta (it, key, value);;
+                }
+            }
+        }
+    }
+}
+
+int
+junk_apev2_read_full_mem (playItem_t *it, DB_apev2_tag_t *tag_store, char *mem, int memsize) {
+    char *end = mem+memsize;
+#define STEP(x,y) {mem+=(x);if(mem+(y)>end) {trace ("fail %d\n", (x));return -1;}}
+
+    char *header = mem;
+
+    DB_apev2_frame_t *tail = NULL;
+
+    uint32_t version = extract_i32_le (&header[0]);
+    int32_t size = extract_i32_le (&header[4]);
+    uint32_t numitems = extract_i32_le (&header[8]);
+    uint32_t flags = extract_i32_le (&header[12]);
+
+    trace ("APEv%d, size=%d, items=%d, flags=%x\n", version, size, numitems, flags);
+    if (it) {
+        uint32_t f = pl_get_item_flags (it);
+        f |= DDB_TAG_APEV2;
+        pl_set_item_flags (it, f);
+    }
+
+    STEP(24, 8);
+
+    int i;
+    for (i = 0; i < numitems; i++) {
+        trace ("reading item %d\n", i);
+        uint8_t *buffer = mem;
+
+        uint32_t itemsize = extract_i32_le (&buffer[0]);
+        uint32_t itemflags = extract_i32_le (&buffer[4]);
+
+        STEP(8, 1);
+        trace ("size=%d, flags=%x\n", itemsize, itemflags);
+
+        // read key until 0 (stupid and slow)
+        char key[256];
+        int keysize = 0;
+        while (keysize <= 255 && mem < end) {
+            key[keysize] = *mem;
+            mem++;
+            if (key[keysize] == 0) {
+                break;
+            }
+            if (key[keysize] < 0x20) {
+                trace ("nonascii chars\n");
+                return -1; // non-ascii chars and chars with codes 0..0x1f not allowed in ape item keys
+            }
+            keysize++;
+        }
+        key[255] = 0;
+        trace ("item %d, size %d, flags %08x, keysize %d, key %s\n", i, itemsize, itemflags, keysize, key);
+        // read value
+        if (itemsize <= MAX_APEV2_FRAME_SIZE) // just a sanity check
+        {
+            STEP(0,itemsize);
+            uint8_t *value = malloc (itemsize+1);
+            if (!value) {
+                trace ("junk_read_ape_full: failed to allocate %d bytes\n", itemsize+1);
+                return -1;
+            }
+            memcpy (value, mem, itemsize);
+            value[itemsize] = 0;
+
+            junk_apev2_add_frame (it, tag_store, &tail, itemsize, itemflags, key, value);
+
+            free (value);
+            STEP(itemsize, 8);
+        }
+        else {
+            STEP(itemsize,8);
+        }
+    }
+    return 0;
+}
+
+int
 junk_apev2_read_full (playItem_t *it, DB_apev2_tag_t *tag_store, DB_FILE *fp) {
-//    trace ("trying to read ape tag\n");
     // try to read footer, position must be already at the EOF right before
     // id3v1 (if present)
 
@@ -861,74 +1037,14 @@ junk_apev2_read_full (playItem_t *it, DB_apev2_tag_t *tag_store, DB_FILE *fp) {
             }
             value[itemsize] = 0;
 
-            if (tag_store) {
-                DB_apev2_frame_t *frm = malloc (sizeof (DB_apev2_frame_t) + itemsize);
-                memset (frm, 0, sizeof (DB_apev2_tag_t));
-                frm->flags = itemflags;
-                strcpy (frm->key, key);
-                trace ("*** stored frame %s flags %X\n", key, itemflags);
-                frm->size = itemsize;
-                memcpy (frm->data, value, itemsize);
-                if (tail) {
-                    tail->next = frm;
-                }
-                else {
-                    tag_store->frames = frm;
-                }
-                tail = frm;
-            }
-
-            if (it) {
-                int valuetype = ((itemflags >> 1) & 3);
-                // add metainfo only if it's textual
-                if (valuetype == 0 && (itemsize < MAX_TEXT_FRAME_SIZE || (!strcasecmp (key, "cuesheet") && itemsize < MAX_CUESHEET_FRAME_SIZE))) {
-                    if (!u8_valid (value, itemsize, NULL)) {
-                        trace ("junk_read_ape_full: bad encoding in text frame %s\n", key);
-                        continue;
-                    }
-
-                    int m;
-                    for (m = 0; frame_mapping[m]; m += FRAME_MAPPINGS) {
-                        if (frame_mapping[m + MAP_APEV2] && !strcasecmp (key, frame_mapping[m + MAP_APEV2])) {
-                            if (!strcmp (frame_mapping[m+MAP_DDB], "track")) {
-                                junk_add_track_meta (it, value);
-                            }
-                            else {
-                                trace ("pl_append_meta %s %s\n", frame_mapping[m+MAP_DDB], value);
-                                pl_append_meta (it, frame_mapping[m+MAP_DDB], value);
-                            }
-                            break;
-                        }
-                    }
-
-                    trace ("apev2 %s=%s\n", key, value);
-
-                    if (!frame_mapping[m]) {
-                        if (!strncasecmp (key, "replaygain_album_gain", 21)) {
-                            it->replaygain_album_gain = atof (value);
-                            trace ("album_gain=%s\n", value);
-                        }
-                        else if (!strncasecmp (key, "replaygain_album_peak", 21)) {
-                            it->replaygain_album_peak = atof (value);
-                            trace ("album_peak=%s\n", value);
-                        }
-                        else if (!strncasecmp (key, "replaygain_track_gain", 21)) {
-                            it->replaygain_track_gain = atof (value);
-                            trace ("track_gain=%s\n", value);
-                        }
-                        else if (!strncasecmp (key, "replaygain_track_peak", 21)) {
-                            it->replaygain_track_peak = atof (value);
-                            trace ("track_peak=%s\n", value);
-                        }
-                    }
-                }
-            }
+            junk_apev2_add_frame (it, tag_store, &tail, itemsize, itemflags, key, value);
             free (value);
         }
         else {
             // try to skip
-            if (0 != deadbeef->fseek (fp, SEEK_CUR, itemsize)) {
-                fprintf (stderr, "junklib: corrupted APEv2 tag\n");
+            int err = deadbeef->fseek (fp, itemsize, SEEK_CUR);
+            if (0 != err) {
+                perror ("junklib: corrupted APEv2 tag\n");
                 return -1;
             }
         }
@@ -940,6 +1056,11 @@ junk_apev2_read_full (playItem_t *it, DB_apev2_tag_t *tag_store, DB_FILE *fp) {
 int
 junk_apev2_read (playItem_t *it, DB_FILE *fp) {
     return junk_apev2_read_full (it, NULL, fp);
+}
+
+int
+junk_apev2_read_mem (playItem_t *it, char *mem, int size) {
+    return junk_apev2_read_full_mem (it, NULL, mem, size);
 }
 
 int
@@ -2003,7 +2124,7 @@ junk_id3v2_convert_apev2_to_24 (DB_apev2_tag_t *ape, DB_id3v2_tag_t *tag24) {
     }
 
     const char *text_keys[] = {
-        "Title", "Subtitle", "Artist", "Album", "Publisher", "Conductor", "Track", "Composer", "Copyright", "Genre", "Media", "ISRC", "Language", "Year", NULL
+        "Title", "Subtitle", "Artist", "Album", "Publisher", "Conductor", "Track", "Composer", "Copyright", "Genre", "Disc", "ISRC", "Language", "Year", NULL
     };
 
     const char *text_keys_24[] = {
@@ -2408,6 +2529,13 @@ junk_id3v2_load_txx (int version_major, playItem_t *it, uint8_t *readptr, int sy
     }
 
     if (val) {
+        // skip utf8 BOM (can be produced by iconv FEFF/FFFE)
+        int l = strlen (val);
+        uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
+        if (l >= 3 && !memcmp (val, bom, 3)) {
+            val += 3;
+        }
+
         if (!strcasecmp (txx, "replaygain_album_gain")) {
             it->replaygain_album_gain = atof (val);
         }
@@ -2420,16 +2548,11 @@ junk_id3v2_load_txx (int version_major, playItem_t *it, uint8_t *readptr, int sy
         else if (!strcasecmp (txx, "replaygain_track_peak")) {
             it->replaygain_track_peak = atof (val);
         }
-        else if (!strcasecmp (txx, "performer")) {
-            pl_append_meta (it, "performer", val);
-        }
-        else if (!strcasecmp (txx, "album artist")) {
-            pl_append_meta (it, "albumartist", val);
-        }
-        else if (!strcasecmp (txx, "date")) {
-            pl_replace_meta (it, "year", val);
+        else {
+            pl_append_meta (it, txx, val);
         }
     }
+
     free (txx);
 
     return 0;
@@ -2437,6 +2560,7 @@ junk_id3v2_load_txx (int version_major, playItem_t *it, uint8_t *readptr, int sy
 
 int
 junk_id3v2_add_genre (playItem_t *it, char *genre) {
+    int numeric = 0;
     if (genre[0] == '(') {
         // find matching parenthesis
         char *p = &genre[1];
@@ -2446,13 +2570,14 @@ junk_id3v2_add_genre (playItem_t *it, char *genre) {
             }
             p++;
         }
-        if (*p == ')' && p[1] == 0) {
+        if (*p == ')') {
             *p = 0;
             memmove (genre, genre+1, p-genre);
+            numeric = 1;
         }
     }
-    // check if it is numeric
-    if (genre) {
+    if (!numeric) {
+        // check if it is numeric
         const char *p = genre;
         while (*p) {
             if (!isdigit (*p)) {
@@ -2461,29 +2586,36 @@ junk_id3v2_add_genre (playItem_t *it, char *genre) {
             p++;
         }
         if (*p == 0 && p > genre) {
-            int genre_id = atoi (genre);
-            if (genre_id >= 0) {
-                const char *genre_str = NULL;
-                if (genre_id <= 147) {
-                    genre_str = junk_genretbl[genre_id];
-                }
-                else if (genre_id == 0xff) {
-                    genre_str = "None";
-                }
-                if (genre_str) {
-                    pl_add_meta (it, "genre", genre_str);
-                }
-            }
-        }
-        else if (!strcmp (genre, "CR")) {
-            pl_add_meta (it, "genre", "Cover");
-        }
-        else if (!strcmp (genre, "RX")) {
-            pl_add_meta (it, "genre", "Remix");
+            numeric = 1;
         }
     }
 
-    pl_add_meta (it, "genre", genre);
+    if (numeric) {
+        int genre_id = atoi (genre);
+        if (genre_id >= 0) {
+            const char *genre_str = NULL;
+            if (genre_id <= 147) {
+                genre_str = junk_genretbl[genre_id];
+            }
+            else if (genre_id == 0xff) {
+                genre_str = "None";
+            }
+            if (genre_str) {
+                pl_add_meta (it, "genre", genre_str);
+                return 0;
+            }
+        }
+    }
+    else if (!strcmp (genre, "CR")) {
+        pl_add_meta (it, "genre", "Cover");
+    }
+    else if (!strcmp (genre, "RX")) {
+        pl_add_meta (it, "genre", "Remix");
+    }
+    else {
+        pl_add_meta (it, "genre", genre);
+    }
+
     return 0;
 }
 
@@ -2526,6 +2658,9 @@ junk_id3v2_read_full (playItem_t *it, DB_id3v2_tag_t *tag_store, DB_FILE *fp) {
     uint32_t size = (header[9] << 0) | (header[8] << 7) | (header[7] << 14) | (header[6] << 21);
 
     trace ("tag size: %d\n", size);
+    if (size == 0) {
+        return -1;
+    }
     if (tag_store) {
         tag_store->version[0] = version_major;
         tag_store->version[1] = version_minor;
@@ -3081,33 +3216,39 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
         junk_id3v2_remove_frames (&id3v2, "COMM");
         const char *val = pl_find_meta (it, "comment");
         if (val && *val) {
+            junk_id3v2_remove_frames (&id3v2, "COMM");
             junk_id3v2_add_comment_frame (&id3v2, "eng", "", val);
         }
 
-        // add all basic frames
-        for (int i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
-            const char *frm_name = id3v2_version == 3 ? frame_mapping[i+MAP_ID3V23] : frame_mapping[i+MAP_ID3V24];
-            if (frm_name) {
-                if (strcmp (frm_name, "TXXX")) {
-                    junk_id3v2_remove_frames (&id3v2, frm_name);
-                }
-                const char *val = pl_find_meta (it, frame_mapping[i+MAP_DDB]);
-                if (val && *val) {
-                    if (strcmp (frm_name, "TXXX")) {
-                        trace ("add_frame %s %s\n", frm_name, val);
-                        junk_id3v2_add_text_frame (&id3v2, frm_name, val);
-                        //junk_id3v2_add_text_frame (&id3v2, frm_name, "test line 1\nтестовая строка №2");
-                    }
-                    else {
-                        for (int txx = 0; txx_mapping[txx]; txx += 2) {
-                            if (txx_mapping[txx+1] && !strcmp (frame_mapping[i+MAP_DDB], txx_mapping[txx+1])) {
-                                trace ("add_txxx_frame %s %s\n", txx_mapping[txx], val);
-                                junk_id3v2_add_txxx_frame (&id3v2, txx_mapping[txx], val);
-                            }
+        DB_metaInfo_t *meta = pl_get_metadata (it);
+        while (meta) {
+            if (meta->value && *meta->value) {
+                int i;
+                for (i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
+                    if (!strcasecmp (meta->key, frame_mapping[i+MAP_DDB])) {
+                        const char *frm_name = id3v2_version == 3 ? frame_mapping[i+MAP_ID3V23] : frame_mapping[i+MAP_ID3V24];
+                        if (frm_name) {
+                            // field is known and supported for this tag version
+                            junk_id3v2_remove_frames (&id3v2, frm_name);
+                            trace ("add_frame %s %s\n", frm_name, meta->value);
+                            junk_id3v2_add_text_frame (&id3v2, frm_name, meta->value);
+                            //junk_id3v2_add_text_frame (&id3v2, frm_name, "test line 1\nтестовая строка №2");
                         }
+                        break;
                     }
+                }
+                if (!frame_mapping[i]
+                        && meta->key[0] != ':'
+                        && strcasecmp (meta->key, "comment")
+                        && strcasecmp (meta->key, "track")
+                        && strcasecmp (meta->key, "numtracks")) {
+                    // add as txxx
+                    trace ("adding TXX %s=%s\n", meta->key, meta->value);
+                    junk_id3v2_remove_txxx_frame (&id3v2, meta->key);
+                    junk_id3v2_add_txxx_frame (&id3v2, meta->key, meta->value);
                 }
             }
+            meta = meta->next;
         }
 
         // add tracknumber/totaltracks
@@ -3123,22 +3264,6 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             junk_id3v2_remove_frames (&id3v2, "TRCK");
             junk_id3v2_add_text_frame (&id3v2, "TRCK", track);
         }
-
-#if 0
-        // add year/date
-        const char *year = pl_find_meta (it, "year");
-        if (year) {
-            // FIXME: format check
-            if (id3v2.version[0] == 3) {
-                junk_id3v2_remove_frames (&id3v2, "TYER");
-                add_frame (&id3v2, "TYER", year);
-            }
-            else {
-                junk_id3v2_remove_frames (&id3v2, "TDRC");
-                add_frame (&id3v2, "TDRC", year);
-            }
-        }
-#endif
 
         // write tag
         if (junk_id3v2_write (out, &id3v2) != 0) {
@@ -3204,14 +3329,28 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             memset (&apev2, 0, sizeof (apev2));
         }
         // add all basic frames
-        for (int i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
-            if (frame_mapping[i+MAP_APEV2]) {
-                const char *val = pl_find_meta (it, frame_mapping[i+MAP_DDB]);
-                if (val) {
-                    junk_apev2_remove_frames (&apev2, frame_mapping[i+MAP_APEV2]);
-                    junk_apev2_add_text_frame (&apev2, frame_mapping[i+MAP_APEV2], val);
+        DB_metaInfo_t *meta = pl_get_metadata (it);
+        while (meta) {
+            if (meta->value && *meta->value) {
+                int i;
+                for (i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
+                    if (!strcasecmp (meta->key, frame_mapping[i+MAP_DDB]) && frame_mapping[i+MAP_APEV2]) {
+                        trace ("apev2 writing known field: %s=%s\n", meta->key, meta->value);
+                        junk_apev2_remove_frames (&apev2, frame_mapping[i+MAP_APEV2]);
+                        junk_apev2_add_text_frame (&apev2, frame_mapping[i+MAP_APEV2], meta->value);
+                        break;
+                    }
+                }
+                if (!frame_mapping[i]
+                        && meta->key[0] != ':'
+                        && strcasecmp (meta->key, "track")
+                        && strcasecmp (meta->key, "numtracks")) {
+                    trace ("apev2 writing unknown field: %s=%s\n", meta->key, meta->value);
+                    junk_apev2_remove_frames (&apev2, meta->key);
+                    junk_apev2_add_text_frame (&apev2, meta->key, meta->value);
                 }
             }
+            meta = meta->next;
         }
 
         // add tracknumber/totaltracks

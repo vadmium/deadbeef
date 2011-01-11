@@ -17,9 +17,12 @@ LOCAL_SRC_FILES +=\
 	vfs_stdio.c\
 	volume.c\
 	md5/md5.c\
-	moduleconf-android.h
+	ringbuf.c\
+	dsppreset.c\
+	premix.c
 
-LOCAL_CFLAGS += -O2 -DHAVE_CONFIG_H -I$(LOCAL_PATH) -std=c99 -I$(LOCAL_PATH)/android/jni/libsamplerate/src
+
+LOCAL_CFLAGS += -O2 -I$(LOCAL_PATH) -std=c99 -DVERSION=\"0.4.4\"
 
 LOCAL_ARM_MODE := arm
 

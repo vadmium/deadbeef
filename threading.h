@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,12 @@ thread_start_low_priority (void (*fn)(void *ctx), void *ctx);
 
 int
 thread_join (intptr_t tid);
+
+int
+thread_detach (intptr_t tid);
+
+void
+thread_exit (void *retval);
 
 uintptr_t
 mutex_create (void);

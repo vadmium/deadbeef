@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -21,6 +21,10 @@
 #include <string.h>
 #include "../../deadbeef.h"
 #include "wildmidi_lib.h"
+#ifdef HAVE_CONFIG_H
+#include "../../config.h"
+#endif
+#include "../../gettext.h"
 
 extern DB_decoder_t wmidi_plugin;
 
@@ -38,7 +42,7 @@ typedef struct {
 } wmidi_info_t;
 
 DB_fileinfo_t *
-wmidi_open (void) {
+wmidi_open (uint32_t hints) {
     DB_fileinfo_t *_info = (DB_fileinfo_t *)malloc (sizeof (wmidi_info_t));
     memset (_info, 0, sizeof (wmidi_info_t));
     return _info;
@@ -50,14 +54,15 @@ wmidi_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     info->m = WildMidi_Open (it->fname);
     if (!info->m) {
-        fprintf (stderr, "wmidi: failed to open %s\n", it->fname);
+        trace ("wmidi: failed to open %s\n", it->fname);
         return -1;
     }
 
     _info->plugin = &wmidi_plugin;
-    _info->channels = 2;
-    _info->bps = 16;
-    _info->samplerate = 44100;
+    _info->fmt.channels = 2;
+    _info->fmt.bps = 16;
+    _info->fmt.samplerate = 44100;
+    _info->fmt.channelmask = _info->fmt.channels == 1 ? DDB_SPEAKER_FRONT_LEFT : (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT);
     _info->readpos = 0;
 
     return 0;
@@ -80,7 +85,7 @@ wmidi_read (DB_fileinfo_t *_info, char *bytes, int size) {
     wmidi_info_t *info = (wmidi_info_t *)_info;
     int bufferused = WildMidi_GetOutput (info->m, (char *)bytes, size);
     if (bufferused < 0) {
-        fprintf (stderr, "WildMidi_GetOutput returned %d\n", bufferused);
+        trace ("WildMidi_GetOutput returned %d\n", bufferused);
         return 0;
     }
 
@@ -92,13 +97,13 @@ wmidi_seek_sample (DB_fileinfo_t *_info, int sample) {
     wmidi_info_t *info = (wmidi_info_t *)_info;
     unsigned long int s = sample;
     WildMidi_SampledSeek (info->m, &s);
-    _info->readpos = s/44100.0f;
+    _info->readpos = s/(float)_info->fmt.samplerate;
     return 0;
 }
 
 int
 wmidi_seek (DB_fileinfo_t *_info, float time) {
-    return wmidi_seek_sample (_info, time * 44100);
+    return wmidi_seek_sample (_info, time * _info->fmt.samplerate);
 }
 
 DB_playItem_t *
@@ -107,7 +112,7 @@ wmidi_insert (DB_playItem_t *after, const char *fname) {
 
     midi *m = WildMidi_Open (fname);
     if (!m) {
-        fprintf (stderr, "wmidi: failed to open %s\n", fname);
+        trace ("wmidi: failed to open %s\n", fname);
         return NULL;
     }
 
@@ -124,12 +129,39 @@ wmidi_insert (DB_playItem_t *after, const char *fname) {
     return after;
 }
 
-#define DEFAULT_TIMIDITY_CONFIG "/etc/timidity++/timidity-freepats.cfg"
+#define DEFAULT_TIMIDITY_CONFIG "/etc/timidity++/timidity-freepats.cfg:/etc/timidity/freepats.cfg:/etc/timidity/freepats/freepats.cfg"
 
 int
 wmidi_start (void) {
-    const char *config_file = deadbeef->conf_get_str ("wildmidi.config", DEFAULT_TIMIDITY_CONFIG);
-    WildMidi_Init (config_file, 44100, 0);
+    const char *config_files = deadbeef->conf_get_str ("wildmidi.config", DEFAULT_TIMIDITY_CONFIG);
+    char config[1024] = "";
+    const char *p = config_files;
+    while (p) {
+        *config = 0;
+        char *e = strchr (p, ':');
+        if (e) {
+            strncpy (config, p, e-p);
+            config[e-p] = 0;
+            e++;
+        }
+        else {
+            strcpy (config, p);
+        }
+        if (*config) {
+            FILE *f = fopen (config, "rb");
+            if (f) {
+                fclose (f);
+                break;
+            }
+        }
+        p = e;
+    }
+    if (*config) {
+        WildMidi_Init (config, 44100, 0);
+    }
+    else {
+        fprintf (stderr, _("wildmidi: freepats config file not found. Please install timidity-freepats package, or specify path to freepats.cfg in the plugin settings."));
+    }
     return 0;
 }
 
@@ -155,8 +187,8 @@ static const char settings_dlg[] =
 DB_decoder_t wmidi_plugin = {
     DB_PLUGIN_SET_API_VERSION
     .plugin.type = DB_PLUGIN_DECODER,
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.name = "WildMidi player",
     .plugin.descr = "MIDI player based on WildMidi library",
     .plugin.author = "Alexey Yakovenko",
@@ -169,7 +201,7 @@ DB_decoder_t wmidi_plugin = {
     .open = wmidi_open,
     .init = wmidi_init,
     .free = wmidi_free,
-    .read_int16 = wmidi_read,
+    .read = wmidi_read,
     .seek = wmidi_seek,
     .seek_sample = wmidi_seek_sample,
     .insert = wmidi_insert,

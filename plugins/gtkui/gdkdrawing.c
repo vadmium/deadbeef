@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -92,6 +92,20 @@ draw_rect (float x, float y, float w, float h, int fill) {
 }
 
 static GtkStyle *font_style = NULL;
+static PangoWeight font_weight = PANGO_WEIGHT_NORMAL;
+
+void
+draw_free (void) {
+    draw_end ();
+    if (pangoctx) {
+        g_object_unref (pangoctx);
+        pangoctx = NULL;
+    }
+    if (pangolayout) {
+        g_object_unref (pangolayout);
+        pangolayout = NULL;
+    }
+}
 
 void
 draw_init_font (GtkStyle *new_font_style) {
@@ -111,10 +125,30 @@ draw_init_font (GtkStyle *new_font_style) {
         pangolayout = pango_layout_new (pangoctx);
         pango_layout_set_ellipsize (pangolayout, PANGO_ELLIPSIZE_END);
         PangoFontDescription *desc = font_style->font_desc;
+        font_weight = pango_font_description_get_weight (desc);
         pango_layout_set_font_description (pangolayout, desc);
         pango_ready = 1;
     }
+    else if (new_font_style) {
+        PangoFontDescription *desc = font_style->font_desc;
+        pango_layout_set_font_description (pangolayout, desc);
+    }
 }
+
+void
+draw_init_font_bold (void) {
+    PangoFontDescription *desc = pango_font_description_copy (font_style->font_desc);
+    pango_font_description_set_weight (desc, PANGO_WEIGHT_BOLD);
+    pango_layout_set_font_description (pangolayout, desc);
+    pango_font_description_free(desc);
+}
+
+void
+draw_init_font_normal (void) {
+    pango_font_description_set_weight (font_style->font_desc, font_weight);
+    pango_layout_set_font_description (pangolayout, font_style->font_desc);
+}
+
 
 float
 draw_get_font_size (void) {

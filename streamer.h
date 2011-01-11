@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -60,9 +60,6 @@ streamer_ok_to_read (int len);
 float
 streamer_get_playpos (void);
 
-int
-streamer_is_buffering (void);
-
 void
 streamer_song_removed_notify (playItem_t *it);
 
@@ -98,10 +95,23 @@ streamer_move_to_randomsong (void);
 struct DB_fileinfo_s *
 streamer_get_current_fileinfo (void);
 
+void
+streamer_set_current_playlist (int plt);
+
 int
 streamer_get_current_playlist (void);
 
+// returns track index in current streamer playlist
+int
+str_get_idx_of (playItem_t *it);
+
 void
 streamer_notify_playlist_deleted (playlist_t *plt);
+
+struct ddb_dsp_context_s *
+streamer_get_dsp_chain (void);
+
+void
+streamer_set_dsp_chain (struct ddb_dsp_context_s *chain);
 
 #endif // __STREAMER_H

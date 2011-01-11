@@ -24,7 +24,7 @@ LOCAL_SRC_FILES +=\
 	requant.h\
 	streaminfo.h
 
-LOCAL_CFLAGS += -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../..
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../..
 
 LOCAL_ARM_MODE := arm
 

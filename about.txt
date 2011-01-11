@@ -1,5 +1,5 @@
 DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-Copyright © 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+Copyright © 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 http://deadbeef.sf.net
 
 This program is free software; you can redistribute it and/or
@@ -28,23 +28,29 @@ Contributors:
     Anton Novikov <tonn.post@gmail.com>
         PulseAudio plugin
 
-    Stas Akimushkin <uncle.lag@gmail.com>
+    Sofias <sofias@radikalismus.com>
         Icon
 
+    Stas Akimushkin <uncle.lag@gmail.com>
+        Original artwork
+
     Viktor Semykin <thesame.ml@gmail.com>
-        Global Hotkeys plugin, CD Audio plugin, Cover Art plugin, lots of patches and suggestions
+        Global Hotkeys, CD Audio, Cover Art, ShellExec plugins, lots of patches and suggestions
+
+    These people sent patches or helped with testing, distribution, or in other ways:
     
-    Alex Dedul <rotmer@gmail.com>
-    David Bryant <david@wavpack.com>
-    Derreck <sarumyanxxl@users.sourceforge.net>
-    Igor Murzov <igor@gplsoft.org>
-    Igor Rudchenko <igor@thinkpads.net>
-    Kryksyh <druid@foobar2000.ru>
-    Serghey Kotlyarov <shadowsbrother@gmail.com>
-    Themaister <maister@archlinux.us>
-    Veniamin Gvozdikov <g.veniamin@googlemail.com>
+        Alex Dedul <rotmer@gmail.com>
+        David Bryant <david@wavpack.com>
+        Derreck <sarumyanxxl@users.sourceforge.net>
+        Igor Murzov <igor@gplsoft.org>
+        Igor Rudchenko <igor@thinkpads.net>
+        Jan D. Behrens <zykure@web.de>
+        Kryksyh <druid@foobar2000.ru>
+        Serghey Kotlyarov <shadowsbrother@gmail.com>
+        Themaister <maister@archlinux.us>
+        Veniamin Gvozdikov <g.veniamin@googlemail.com>
 
-
+    If you think your name is missing here, or needs to be removed, please send an email to Alexey Yakovenko <waker@users.sf.net>
 
 Special Thanks To:
 
@@ -63,7 +69,7 @@ http://dumb.sf.net
 Copyright © 2001-2005 Ben Davis, Robert J Ohannessian and Julien Cugniere.
 
 
-Game_Music_Emu Version 0.5.2
+Game_Music_Emu Version 0.5.5
 http://code.google.com/p/game-music-emu
 Copyright © 2003-2006 Shay Green.
 
@@ -74,7 +80,7 @@ Copyright © Simon White and other authors.
 
 
 ffap - monkey's audio decoder based on code from ffmpeg and rockbox
-Copyright © 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+Copyright © 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 Copyright © 2007 Benjamin Zores <ben@geexbox.org>
 Copyright © 2007 Dave Chapman
 
@@ -107,3 +113,31 @@ Copyright © 2001-2004 Chris Ison
 ttadec - TTAv1 decoder
 http://true-audio.com/
 Copyright © 2004 True Audio Software
+
+
+aosdk 1.4.8 - library for playing .PSF (Sony PlayStation), .SPU (Sony PlayStation), .PSF2 (Sony PlayStation 2), .SSF (Sega Saturn), .DSF (Sega Dreamcast), and .QSF (Capcom QSound) audio file formats
+http://rbelmont.mameworld.info/?page_id=221
+Copyright © 2007-2009 R. Belmont and Richard Bannister.
+
+
+mp4ff - part of libfaad2 2.7, mp4 container library
+http://www.nero.com
+Copyright © 2003-2005 M. Bakker, Nero AG
+
+
+libdca - library for decoding DTS Coherent Acoustics streams
+http://www.videolan.org/developers/libdca.html
+Copyright © 2000-2003 Michel Lespinasse <walken@zoy.org>
+Copyright © 1999-2000 Aaron Holtzman <aholtzma@ess.engr.uvic.ca>
+
+
+xmms-shn 2.4.1 - Shorten XMMS Plugin (ported to Deadbeef API)
+http://etree.org/shnutils/xmms-shn/
+Copyright © Jason Jordan <shnutils@freeshell.org>
+
+
+libmms - Library to stream over mms/mmsh protocol
+http://libmms.sourceforge.net/
+Copyright © Maciej Katafiasz (Mathrick) <mathrick@users.sourceforge.net>
+Copyright © Søren Hansen (shawarma) <sh@warma.dk>
+

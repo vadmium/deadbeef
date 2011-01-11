@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ typedef struct {
     void (*col_sort) (int col, int sort_order, void *user_data);
     void (*col_free_user_data) (void *user_data);
     void (*vscroll_changed) (int pos);
+    void (*cursor_changed) (int pos);
 } DdbListviewBinding;
 
 struct _DdbListviewColumn;
@@ -109,7 +110,6 @@ struct _DdbListview {
     // current state
     int scrollpos;
     int hscrollpos;
-    double clicktime; // for doubleclick detection
     int rowheight;
 
     int col_movepos;
@@ -145,6 +145,10 @@ struct _DdbListview {
     int block_redraw_on_scroll;
     int grouptitle_height;
 
+    // previous area selection range
+    int area_selection_start;
+    int area_selection_end;
+
     GdkCursor *cursor_sz;
     GdkCursor *cursor_drag;
 };
@@ -171,6 +175,8 @@ int
 ddb_listview_handle_keypress (DdbListview *ps, int keyval, int state);
 void
 ddb_listview_set_cursor (DdbListview *pl, int cursor);
+void
+ddb_listview_set_cursor_noscroll (DdbListview *pl, int cursor);
 void
 ddb_listview_scroll_to (DdbListview *listview, int rowpos);
 void
@@ -246,6 +252,9 @@ void
 ddb_listview_list_drag_end                   (GtkWidget       *widget,
                                         GdkDragContext  *drag_context,
                                         gpointer         user_data);
+
+void
+ddb_listview_clear_sort (DdbListview *listview);
 
 G_END_DECLS
 

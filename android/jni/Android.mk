@@ -6,9 +6,9 @@ include $(CLEAR_VARS)
 
 CORE_PATH=../..
 
-LOCAL_STATIC_LIBRARIES := core gme libsamplerate dumb vtx adplug sid musepack flac flaclib ffap tta mpgmad mad wavpack wv
+LOCAL_STATIC_LIBRARIES := core gme dumb vtx adplug sid musepack flac flaclib ffap tta mpgmad mad wavpack wv
 
-LOCAL_CFLAGS    += -O2 -finline-functions -DHAVE_CONFIG_H -I$(LOCAL_PATH) -I$(LOCAL_PATH)/../.. -std=c99
+LOCAL_CFLAGS    += -O2 -finline-functions -I$(LOCAL_PATH) -I$(LOCAL_PATH)/../.. -std=c99
 
 LOCAL_MODULE    := deadbeef
 LOCAL_SRC_FILES := deadbeef-jni.c

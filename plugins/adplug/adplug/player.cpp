@@ -34,10 +34,7 @@ const unsigned char CPlayer::op_table[9] =
 extern "C" void android_trace (const char *fmt, ...);
 #define trace(...) { android_trace(__VA_ARGS__); }
 CPlayer::CPlayer(Copl *newopl)
-//  : opl(newopl)
-  //, db(CAdPlug::database)
 {
-    trace ("CPlayer this=%p, newopl=%p\n", this, newopl);
     opl = newopl;
 }
 

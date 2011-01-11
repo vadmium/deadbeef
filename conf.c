@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include "conf.h"
 
 static DB_conf_item_t *conf_items;
@@ -133,6 +134,12 @@ conf_get_int (const char *key, int def) {
     return v ? atoi (v) : def;
 }
 
+int64_t
+conf_get_int64 (const char *key, int64_t def) {
+    const char *v = conf_get_str (key, NULL);
+    return v ? atoll (v) : def;
+}
+
 DB_conf_item_t *
 conf_find (const char *group, DB_conf_item_t *prev) {
     int l = strlen (group);
@@ -182,6 +189,13 @@ void
 conf_set_int (const char *key, int val) {
     char s[10];
     snprintf (s, sizeof (s), "%d", val);
+    conf_set_str (key, s);
+}
+
+void
+conf_set_int64 (const char *key, int64_t val) {
+    char s[20];
+    snprintf (s, sizeof (s), PRId64, val);
     conf_set_str (key, s);
 }
 

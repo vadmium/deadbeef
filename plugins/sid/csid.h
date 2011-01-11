@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-DB_fileinfo_t *csid_open (void);
+DB_fileinfo_t *csid_open (uint32_t hints);
 int csid_init (DB_fileinfo_t *_info, DB_playItem_t *it);
 void csid_free (DB_fileinfo_t *);
 int csid_read (DB_fileinfo_t *, char *bytes, int size);

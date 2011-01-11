@@ -1,37 +1,51 @@
+/*
+    DeaDBeeF - ultimate music player for GNU/Linux systems with X11
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
+    Original SuperEQ code (C) Naoki Shibata <shibatch@users.sf.net>
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
 #include "paramlist.hpp"
+#include "Equ.h"
 
-typedef float REAL;
+int _Unwind_Resume_or_Rethrow;
+int _Unwind_RaiseException;
+int _Unwind_GetLanguageSpecificData;
+int _Unwind_Resume;
+int _Unwind_DeleteException;
+int _Unwind_GetTextRelBase;
+int _Unwind_SetIP;
+int _Unwind_GetDataRelBase;
+int _Unwind_GetRegionStart;
+int _Unwind_SetGR;
+int _Unwind_GetIPInfo;
+
 void rfft(int n,int isign,REAL x[]);
-
-#define M 15
 
 #define PI 3.1415926535897932384626433832795
 
-#define RINT(x) ((x) >= 0 ? ((int)((x) + 0.5)) : ((int)((x) - 0.5)))
-
 #define DITHERLEN 65536
 
-// play -c 2 -r 44100 -fs -sw
-
+#define M 15
 static REAL fact[M+1];
 static REAL aa = 96;
-static REAL iza;
-static REAL *lires,*lires1,*lires2,*rires,*rires1,*rires2,*irest;
-static REAL *fsamples;
-static REAL *ditherbuf;
-static int ditherptr = 0;
-static volatile int chg_ires,cur_ires;
-static int winlen,winlenbit,tabsize,nbufsamples;
-static short *inbuf;
-static REAL *outbuf;
-static int maxamp;
-int enable = 1, dither = 0;
-
-#define NCH 2
+static REAL iza = 0;
 
 #define NBANDS 17
 static REAL bands[] = {
@@ -62,49 +76,50 @@ static REAL izero(REAL x)
   return ret;
 }
 
-extern "C" void equ_init(int wb)
+extern "C" void equ_init(SuperEqState *state, int wb, int channels)
 {
   int i,j;
 
-  if (lires1 != NULL)   free(lires1);
-  if (lires2 != NULL)   free(lires2);
-  if (rires1 != NULL)   free(rires1);
-  if (rires2 != NULL)   free(rires2);
-  if (irest != NULL)    free(irest);
-  if (fsamples != NULL) free(fsamples);
-  if (inbuf != NULL)    free(inbuf);
-  if (outbuf != NULL)   free(outbuf);
-  if (ditherbuf != NULL) free(ditherbuf);
+  if (state->lires1 != NULL)   free(state->lires1);
+  if (state->lires2 != NULL)   free(state->lires2);
+  if (state->irest != NULL)    free(state->irest);
+  if (state->fsamples != NULL) free(state->fsamples);
+  if (state->finbuf != NULL)    free(state->finbuf);
+  if (state->outbuf != NULL)   free(state->outbuf);
+  if (state->ditherbuf != NULL) free(state->ditherbuf);
 
-  winlen = (1 << (wb-1))-1;
-  winlenbit = wb;
-  tabsize  = 1 << wb;
 
-  lires1   = (REAL *)malloc(sizeof(REAL)*tabsize);
-  lires2   = (REAL *)malloc(sizeof(REAL)*tabsize);
-  rires1   = (REAL *)malloc(sizeof(REAL)*tabsize);
-  rires2   = (REAL *)malloc(sizeof(REAL)*tabsize);
-  irest    = (REAL *)malloc(sizeof(REAL)*tabsize);
-  fsamples = (REAL *)malloc(sizeof(REAL)*tabsize);
-  inbuf    = (short *)calloc(winlen*NCH,sizeof(int));
-  outbuf   = (REAL *)calloc(tabsize*NCH,sizeof(REAL));
-  ditherbuf = (REAL *)malloc(sizeof(REAL)*DITHERLEN);
+  memset (state, 0, sizeof (SuperEqState));
+  state->channels = channels;
+  state->enable = 1;
 
-  lires = lires1;
-  rires = rires1;
-  cur_ires = 1;
-  chg_ires = 1;
+  state->winlen = (1 << (wb-1))-1;
+  state->winlenbit = wb;
+  state->tabsize  = 1 << wb;
+
+  state->lires1   = (REAL *)malloc(sizeof(REAL)*state->tabsize * state->channels);
+  state->lires2   = (REAL *)malloc(sizeof(REAL)*state->tabsize * state->channels);
+  state->irest    = (REAL *)malloc(sizeof(REAL)*state->tabsize);
+  state->fsamples = (REAL *)malloc(sizeof(REAL)*state->tabsize);
+  state->finbuf    = (REAL *)calloc(state->winlen*state->channels,sizeof(REAL));
+  state->outbuf   = (REAL *)calloc(state->tabsize*state->channels,sizeof(REAL));
+  state->ditherbuf = (REAL *)malloc(sizeof(REAL)*DITHERLEN);
+
+  state->lires = state->lires1;
+  state->cur_ires = 1;
+  state->chg_ires = 1;
 
   for(i=0;i<DITHERLEN;i++)
-	ditherbuf[i] = (float(rand())/RAND_MAX-0.5);
+	state->ditherbuf[i] = (float(rand())/RAND_MAX-0.5);
 
-  for(i=0;i<=M;i++)
-    {
-      fact[i] = 1;
-      for(j=1;j<=i;j++) fact[i] *= j;
-    }
-
-  iza = izero(alpha(aa));
+  if (fact[0] < 1) {
+      for(i=0;i<=M;i++)
+      {
+          fact[i] = 1;
+          for(j=1;j<=i;j++) fact[i] *= j;
+      }
+      iza = izero(alpha(aa));
+  }
 }
 
 // -(N-1)/2 <= n <= (N-1)/2
@@ -168,7 +183,6 @@ void process_param(REAL *bc,paramlist *param,paramlist &param2,REAL fs,int ch)
   
   for(e = param->elm;e != NULL;e = e->next)
   {
-	if ((ch == 0 && !e->left) || (ch == 1 && !e->right)) continue;
 	if (e->lower >= e->upper) continue;
 
 	for(p=param2.elm;p != NULL;p = p->next)
@@ -231,413 +245,163 @@ void process_param(REAL *bc,paramlist *param,paramlist &param2,REAL fs,int ch)
   }
 }
 
-extern "C" void equ_makeTable(REAL *lbc,REAL *rbc,paramlist *param,REAL fs)
+extern "C" void equ_makeTable(SuperEqState *state, REAL *lbc,void *_param,REAL fs)
 {
-  int i,cires = cur_ires;
+  paramlist *param = (paramlist *)_param;
+  int i,cires = state->cur_ires;
   REAL *nires;
 
   if (fs <= 0) return;
 
   paramlist param2;
 
-  // L
+  for (int ch = 0; ch < state->channels; ch++) {
+      process_param(lbc,param,param2,fs,ch);
 
-  process_param(lbc,param,param2,fs,0);
-  
-  for(i=0;i<winlen;i++)
-    irest[i] = hn(i-winlen/2,param2,fs)*win(i-winlen/2,winlen);
+      for(i=0;i<state->winlen;i++)
+          state->irest[i] = hn(i-state->winlen/2,param2,fs)*win(i-state->winlen/2,state->winlen);
 
-  for(;i<tabsize;i++)
-    irest[i] = 0;
+      for(;i<state->tabsize;i++)
+          state->irest[i] = 0;
 
-  rfft(tabsize,1,irest);
+      rfft(state->tabsize,1,state->irest);
 
-  nires = cires == 1 ? lires2 : lires1;
+      nires = cires == 1 ? state->lires2 : state->lires1;
+      nires += ch * state->tabsize;
 
-  for(i=0;i<tabsize;i++)
-    nires[i] = irest[i];
-
-  process_param(rbc,param,param2,fs,1);
-
-  // R
-  
-  for(i=0;i<winlen;i++)
-    irest[i] = hn(i-winlen/2,param2,fs)*win(i-winlen/2,winlen);
-
-  for(;i<tabsize;i++)
-    irest[i] = 0;
-
-  rfft(tabsize,1,irest);
-
-  nires = cires == 1 ? rires2 : rires1;
-
-  for(i=0;i<tabsize;i++)
-    nires[i] = irest[i];
-   
-  //
-  
-  chg_ires = cires == 1 ? 2 : 1;
+      for(i=0;i<state->tabsize;i++)
+          nires[i] = state->irest[i];
+  }
+  state->chg_ires = cires == 1 ? 2 : 1;
 }
 
-extern "C" void equ_quit(void)
+extern "C" void equ_quit(SuperEqState *state)
 {
-  free(lires1);
-  free(lires2);
-  free(rires1);
-  free(rires2);
-  free(irest);
-  free(fsamples);
-  free(inbuf);
-  free(outbuf);
-  free(ditherbuf);
+  free(state->lires1);
+  free(state->lires2);
+  free(state->irest);
+  free(state->fsamples);
+  free(state->finbuf);
+  free(state->outbuf);
+  free(state->ditherbuf);
 
-  lires1   = NULL;
-  lires2   = NULL;
-  rires1   = NULL;
-  rires2   = NULL;
-  irest    = NULL;
-  fsamples = NULL;
-  inbuf    = NULL;
-  outbuf   = NULL;
+  state->lires1   = NULL;
+  state->lires2   = NULL;
+  state->irest    = NULL;
+  state->fsamples = NULL;
+  state->finbuf    = NULL;
+  state->outbuf   = NULL;
 
   rfft(0,0,NULL);
 }
 
-extern "C" void equ_clearbuf(int bps,int srate)
+extern "C" void equ_clearbuf(SuperEqState *state)
 {
 	int i;
 
-	nbufsamples = 0;
-	for(i=0;i<tabsize*NCH;i++) outbuf[i] = 0;
+	state->nbufsamples = 0;
+	for(i=0;i<state->tabsize*state->channels;i++) state->outbuf[i] = 0;
 }
 
-extern "C" int equ_modifySamples(char *buf,int nsamples,int nch,int bps)
+extern "C" int equ_modifySamples_float (SuperEqState *state, char *buf,int nsamples,int nch)
 {
   int i,p,ch;
   REAL *ires;
-  int amax =  (1 << (bps-1))-1;
-  int amin = -(1 << (bps-1));
+  float amax = 1.0f;
+  float amin = -1.0f;
   static float hm1 = 0, hm2 = 0;
 
-  if (chg_ires) {
-	  cur_ires = chg_ires;
-	  lires = cur_ires == 1 ? lires1 : lires2;
-	  rires = cur_ires == 1 ? rires1 : rires2;
-	  chg_ires = 0;
+  if (state->chg_ires) {
+	  state->cur_ires = state->chg_ires;
+	  state->lires = state->cur_ires == 1 ? state->lires1 : state->lires2;
+	  state->chg_ires = 0;
   }
 
   p = 0;
 
-  while(nbufsamples+nsamples >= winlen)
+  while(state->nbufsamples+nsamples >= state->winlen)
     {
-	  switch(bps)
-	  {
-	  case 8:
-		for(i=0;i<(winlen-nbufsamples)*nch;i++)
+		for(i=0;i<(state->winlen-state->nbufsamples)*nch;i++)
 			{
-				inbuf[nbufsamples*nch+i] = ((unsigned char *)buf)[i+p*nch] - 0x80;
-				float s = outbuf[nbufsamples*nch+i];
-				if (dither) {
-					float u;
-					s -= hm1;
-					u = s;
-					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					s = RINT(s);
-					hm1 = s - u;
-					((unsigned char *)buf)[i+p*nch] = s + 0x80;
-				} else {
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					((unsigned char *)buf)[i+p*nch] = RINT(s) + 0x80;
-				}
-			}
-		for(i=winlen*nch;i<tabsize*nch;i++)
-			outbuf[i-winlen*nch] = outbuf[i];
-
-		break;
-
-	  case 16:
-		for(i=0;i<(winlen-nbufsamples)*nch;i++)
-			{
-				inbuf[nbufsamples*nch+i] = ((short *)buf)[i+p*nch];
-				float s = outbuf[nbufsamples*nch+i];
-				if (dither) {
-					float u;
-					s -= hm1;
-					u = s;
-					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					s = RINT(s);
-					hm1 = s - u;
-					((short *)buf)[i+p*nch] = s;
-				} else {
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					((short *)buf)[i+p*nch] = RINT(s);
-				}
-			}
-		for(i=winlen*nch;i<tabsize*nch;i++)
-			outbuf[i-winlen*nch] = outbuf[i];
-
-		break;
-
-	  case 24:
-		for(i=0;i<(winlen-nbufsamples)*nch;i++)
-			{
-				((int *)inbuf)[nbufsamples*nch+i] =
-					(((unsigned char *)buf)[(i+p*nch)*3  ]      ) +
-					(((unsigned char *)buf)[(i+p*nch)*3+1] <<  8) +
-					(((  signed char *)buf)[(i+p*nch)*3+2] << 16) ;
-
-				float s = outbuf[nbufsamples*nch+i];
+                state->finbuf[state->nbufsamples*nch+i] = ((float *)buf)[i+p*nch];
+				float s = state->outbuf[state->nbufsamples*nch+i];
 				//if (dither) s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
 				if (s < amin) s = amin;
 				if (amax < s) s = amax;
-				int s2 = RINT(s);
-				((signed char *)buf)[(i+p*nch)*3  ] = s2 & 255; s2 >>= 8;
-				((signed char *)buf)[(i+p*nch)*3+1] = s2 & 255; s2 >>= 8;
-				((signed char *)buf)[(i+p*nch)*3+2] = s2 & 255;
+				((float *)buf)[i+p*nch] = s;
 			}
-		for(i=winlen*nch;i<tabsize*nch;i++)
-			outbuf[i-winlen*nch] = outbuf[i];
+		for(i=state->winlen*nch;i<state->tabsize*nch;i++)
+			state->outbuf[i-state->winlen*nch] = state->outbuf[i];
 
-		break;
 
-	  default:
-		assert(0);
-	  }
-
-      p += winlen-nbufsamples;
-      nsamples -= winlen-nbufsamples;
-      nbufsamples = 0;
+      p += state->winlen-state->nbufsamples;
+      nsamples -= state->winlen-state->nbufsamples;
+      state->nbufsamples = 0;
 
       for(ch=0;ch<nch;ch++)
 		{
-			ires = ch == 0 ? lires : rires;
+            ires = state->lires + ch * state->tabsize;
 
-			if (bps == 24) {
-				for(i=0;i<winlen;i++)
-					fsamples[i] = ((int *)inbuf)[nch*i+ch];
-			} else {
-				for(i=0;i<winlen;i++)
-					fsamples[i] = inbuf[nch*i+ch];
-			}
+            for(i=0;i<state->winlen;i++)
+                state->fsamples[i] = state->finbuf[nch*i+ch];
 
-			for(i=winlen;i<tabsize;i++)
-				fsamples[i] = 0;
+			for(i=state->winlen;i<state->tabsize;i++)
+				state->fsamples[i] = 0;
 
-			if (enable) {
-				rfft(tabsize,1,fsamples);
+			if (state->enable) {
+				rfft(state->tabsize,1,state->fsamples);
 
-				fsamples[0] = ires[0]*fsamples[0];
-				fsamples[1] = ires[1]*fsamples[1]; 
+				state->fsamples[0] = ires[0]*state->fsamples[0];
+				state->fsamples[1] = ires[1]*state->fsamples[1]; 
 			
-				for(i=1;i<tabsize/2;i++)
+				for(i=1;i<state->tabsize/2;i++)
 					{
 						REAL re,im;
 
-						re = ires[i*2  ]*fsamples[i*2] - ires[i*2+1]*fsamples[i*2+1];
-						im = ires[i*2+1]*fsamples[i*2] + ires[i*2  ]*fsamples[i*2+1];
+						re = ires[i*2  ]*state->fsamples[i*2] - ires[i*2+1]*state->fsamples[i*2+1];
+						im = ires[i*2+1]*state->fsamples[i*2] + ires[i*2  ]*state->fsamples[i*2+1];
 
-						fsamples[i*2  ] = re;
-						fsamples[i*2+1] = im;
+						state->fsamples[i*2  ] = re;
+						state->fsamples[i*2+1] = im;
 					}
 
-				rfft(tabsize,-1,fsamples);
+				rfft(state->tabsize,-1,state->fsamples);
 			} else {
-				for(i=winlen-1+winlen/2;i>=winlen/2;i--) fsamples[i] = fsamples[i-winlen/2]*tabsize/2;
-				for(;i>=0;i--) fsamples[i] = 0;
+				for(i=state->winlen-1+state->winlen/2;i>=state->winlen/2;i--) state->fsamples[i] = state->fsamples[i-state->winlen/2]*state->tabsize/2;
+				for(;i>=0;i--) state->fsamples[i] = 0;
 			}
 
-			for(i=0;i<winlen;i++) outbuf[i*nch+ch] += fsamples[i]/tabsize*2;
+			for(i=0;i<state->winlen;i++) state->outbuf[i*nch+ch] += state->fsamples[i]/state->tabsize*2;
 
-			for(i=winlen;i<tabsize;i++) outbuf[i*nch+ch] = fsamples[i]/tabsize*2;
+			for(i=state->winlen;i<state->tabsize;i++) state->outbuf[i*nch+ch] = state->fsamples[i]/state->tabsize*2;
 		}
     }
 
-	switch(bps)
-	  {
-	  case 8:
 		for(i=0;i<nsamples*nch;i++)
 			{
-				inbuf[nbufsamples*nch+i] = ((unsigned char *)buf)[i+p*nch] - 0x80;
-				float s = outbuf[nbufsamples*nch+i];
-				if (dither) {
+				state->finbuf[state->nbufsamples*nch+i] = ((float *)buf)[i+p*nch];
+				float s = state->outbuf[state->nbufsamples*nch+i];
+				if (state->dither) {
 					float u;
 					s -= hm1;
 					u = s;
-					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
+//					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
 					if (s < amin) s = amin;
 					if (amax < s) s = amax;
-					s = RINT(s);
 					hm1 = s - u;
-					((unsigned char *)buf)[i+p*nch] = s + 0x80;
+					((float *)buf)[i+p*nch] = s;
 				} else {
 					if (s < amin) s = amin;
 					if (amax < s) s = amax;
-					((unsigned char *)buf)[i+p*nch] = RINT(s) + 0x80;
+					((float *)buf)[i+p*nch] = s;
 				}
 			}
-		break;
-
-	  case 16:
-		for(i=0;i<nsamples*nch;i++)
-			{
-				inbuf[nbufsamples*nch+i] = ((short *)buf)[i+p*nch];
-				float s = outbuf[nbufsamples*nch+i];
-				if (dither) {
-					float u;
-					s -= hm1;
-					u = s;
-					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					s = RINT(s);
-					hm1 = s - u;
-					((short *)buf)[i+p*nch] = s;
-				} else {
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					((short *)buf)[i+p*nch] = RINT(s);
-				}
-			}
-		break;
-
-	  case 24:
-		for(i=0;i<nsamples*nch;i++)
-			{
-				((int *)inbuf)[nbufsamples*nch+i] =
-					(((unsigned char *)buf)[(i+p*nch)*3  ]      ) +
-					(((unsigned char *)buf)[(i+p*nch)*3+1] <<  8) +
-					(((  signed char *)buf)[(i+p*nch)*3+2] << 16) ;
-
-				float s = outbuf[nbufsamples*nch+i];
-				//if (dither) s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
-				if (s < amin) s = amin;
-				if (amax < s) s = amax;
-				int s2 = RINT(s);
-				((signed char *)buf)[(i+p*nch)*3  ] = s2 & 255; s2 >>= 8;
-				((signed char *)buf)[(i+p*nch)*3+1] = s2 & 255; s2 >>= 8;
-				((signed char *)buf)[(i+p*nch)*3+2] = s2 & 255;
-			}
-		break;
-
-	  default:
-		assert(0);
-	}
 
   p += nsamples;
-  nbufsamples += nsamples;
+  state->nbufsamples += nsamples;
 
   return p;
 }
-
-#if 0
-void usage(void)
-{
-  fprintf(stderr,"Ouch!\n");
-}
-
-int main(int argc,char **argv)
-{
-  FILE *fpi,*fpo;
-  char buf[576*2*2];
-
-  static REAL bc[] =
-  {1.0,  0,1.0,  0,1.0,  0,1.0,  0,1.0,  0,1.0,  0,1.0,  0,1.0,  0,1.0,  0};
-
-  init(14);
-  makeTable(bc,44100);
-
-  if (argc != 3 && argc != 4) exit(-1);
-
-  fpi = fopen(argv[1],"r");
-  fpo = fopen(argv[2],"w");
-
-  if (!fpi || !fpo) exit(-1);
-
-  /* generate wav header */
-
-  {
-    short word;
-    int dword;
-
-    fwrite("RIFF",4,1,fpo);
-    dword = 0;
-    fwrite(&dword,4,1,fpo);
-
-    fwrite("WAVEfmt ",8,1,fpo);
-    dword = 16;
-    fwrite(&dword,4,1,fpo);
-    word = 1;
-    fwrite(&word,2,1,fpo);  /* format category, PCM */
-    word = 2;
-    fwrite(&word,2,1,fpo);  /* channels */
-    dword = 44100;
-    fwrite(&dword,4,1,fpo); /* sampling rate */
-    dword = 44100*2*2;
-    fwrite(&dword,4,1,fpo); /* bytes per sec */
-    word = 4;
-    fwrite(&word,2,1,fpo);  /* block alignment */
-    word = 16;
-    fwrite(&word,2,1,fpo);  /* ??? */
-
-    fwrite("data",4,1,fpo);
-    dword = 0;
-    fwrite(&dword,4,1,fpo);
-  }
-
-  preamp = 65536;
-  maxamp = 0;
-
-  if (argc == 4) {
-    preamp = 32767*65536/atoi(argv[3]);
-    fprintf(stderr,"preamp = %d\n",preamp);
-  }
-
-  for(;;)
-    {
-      int n,m;
-
-      n = fread(buf,1,576*2*2,fpi);
-      if (n <= 0) break;
-      m = modifySamples((short *)buf,n/4,2);
-      fwrite(buf,4,m,fpo);
-    }
-
-#if 0
-  for(;;)
-    {
-      int n = flushbuf((short *)buf,576);
-      if (n == 0) break;
-      fwrite(buf,4,n,fpo);
-    }
-#endif
-
-  {
-    short word;
-    int dword;
-    int len = ftell(fpo);
-
-    fseek(fpo,4,SEEK_SET);
-    dword = len-8;
-    fwrite(&dword,4,1,fpo);
-
-    fseek(fpo,40,SEEK_SET);
-    dword = len-44;
-    fwrite(&dword,4,1,fpo);
-  }
-
-  if (maxamp != 0) {
-    fprintf(stderr,"maxamp = %d\n",maxamp);
-  }
-
-  quit();
-}
-#endif
 
 extern "C" void *paramlist_alloc (void) {
     return (void *)(new paramlist);

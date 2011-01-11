@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include <errno.h>
 #include <string.h>
 #include "threading.h"
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 intptr_t
 thread_start (void (*fn)(void *ctx), void *ctx) {
@@ -40,7 +43,6 @@ thread_start (void (*fn)(void *ctx), void *ctx) {
     s = pthread_attr_destroy (&attr);
     if (s != 0) {
         fprintf (stderr, "pthread_attr_destroy failed: %s\n", strerror (s));
-//        pthread_cancel (tid); // missing on android
         return 0;
     }
     return tid;
@@ -48,7 +50,7 @@ thread_start (void (*fn)(void *ctx), void *ctx) {
 
 intptr_t
 thread_start_low_priority (void (*fn)(void *ctx), void *ctx) {
-#ifdef __linux__
+#if defined(__linux__) && !defined(ANDROID)
     pthread_t tid;
     pthread_attr_t attr;
     int s = pthread_attr_init (&attr);
@@ -69,12 +71,14 @@ thread_start_low_priority (void (*fn)(void *ctx), void *ctx) {
         fprintf (stderr, "pthread_create failed: %s\n", strerror (s));
         return 0;
     }
+#if !STATICLINK
     s = pthread_setschedprio (tid, minprio);
     if (s != 0) {
         fprintf (stderr, "pthread_setschedprio failed: %s\n", strerror (s));
         pthread_cancel (tid);
         return 0;
     }
+#endif
 
     s = pthread_attr_destroy (&attr);
     if (s != 0) {
@@ -97,6 +101,21 @@ thread_join (intptr_t tid) {
         return -1;
     }
     return 0;
+}
+
+int
+thread_detach (intptr_t tid) {
+    int s = pthread_detach ((pthread_t)tid);
+    if (s) {
+        fprintf (stderr, "pthread_detach failed: %s\n", strerror (s));
+        return -1;
+    }
+    return 0;
+}
+
+void
+thread_exit (void *retval) {
+    pthread_exit (retval);
 }
 
 uintptr_t

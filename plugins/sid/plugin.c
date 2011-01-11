@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,16 +23,18 @@ const char *filetypes[] = { "SID", NULL };
 
 static const char settings_dlg[] =
     "property \"Enable HVSC\" checkbox hvsc_enable 0;\n"
-    "property \"HVSC path\" file hvsc_path \"\";\n"
-    "property \"Samplerate\" entry sid.samplerate 48000;\n"
+    "property \"Songlenghts.txt (from HVSC)\" file hvsc_path \"\";\n"
+    "property \"Samplerate\" entry sid.samplerate 44100;\n"
+    "property \"Bits per sample (8 or 16)\" entry sid.bps 16;\n"
+    "property \"Default song length (sec)\" entry sid.defaultlength 180;\n"
 ;
 
 // define plugin interface
 DB_decoder_t sid_plugin = {
     DB_PLUGIN_SET_API_VERSION
     .plugin.type = DB_PLUGIN_DECODER,
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.name = "SID decoder",
     .plugin.descr = "SID player based on libsidplay2",
     .plugin.author = "Alexey Yakovenko",
@@ -45,7 +47,7 @@ DB_decoder_t sid_plugin = {
     .open = csid_open,
     .init = csid_init,
     .free = csid_free,
-    .read_int16 = csid_read,
+    .read = csid_read,
     .seek = csid_seek,
     .seek_sample = NULL,
     .insert = csid_insert,

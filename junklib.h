@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -69,7 +69,13 @@ int
 junk_apev2_read_full (struct playItem_s *it, DB_apev2_tag_t *tag_store, DB_FILE *fp);
 
 int
+junk_apev2_read_full_mem (struct playItem_s *it, DB_apev2_tag_t *tag_store, char *mem, int memsize);
+
+int
 junk_apev2_read (struct playItem_s *it, DB_FILE *fp);
+
+int
+junk_apev2_read_mem (struct playItem_s *it, char *mem, int size);
 
 int
 junk_apev2_find (DB_FILE *fp, int32_t *psize, uint32_t *pflags, uint32_t *pnumitems);

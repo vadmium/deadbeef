@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -119,6 +119,7 @@ curl_req_send (const char *req, const char *post) {
     memset(lfm_err, 0, sizeof(lfm_err));
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, lfm_err);
     curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt (curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt (curl, CURLOPT_PROGRESSFUNCTION, lfm_curl_control);
     curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0);
     if (post) {
@@ -334,26 +335,31 @@ lfm_fetch_song_info (DB_playItem_t *song, const char **a, const char **t, const 
 static int
 lfm_uri_encode (char *out, int outl, const char *str) {
     int l = outl;
-    static const char echars[] = " ;/?:@=#&+";
     //trace ("lfm_uri_encode %p %d %s\n", out, outl, str);
     while (*str) {
         if (outl <= 1) {
             //trace ("no space left for 1 byte in buffer\n");
             return -1;
         }
-        if (strchr (echars, *str)) {
+
+        if (!(
+            (*str >= '0' && *str <= '9') ||
+            (*str >= 'a' && *str <= 'z') ||
+            (*str >= 'A' && *str <= 'Z') ||
+            (*str == ' ')
+        ))
+        {
             if (outl <= 3) {
                 //trace ("no space left for 3 bytes in the buffer\n");
                 return -1;
             }
-            //trace ("adding escaped value for %c\n", *str);
-            snprintf (out, outl, "%%%02x", (int)*str);
+            snprintf (out, outl, "%%%02x", (uint8_t)*str);
             outl -= 3;
             str++;
             out += 3;
         }
         else {
-            *out = *str;
+            *out = *str == ' ' ? '+' : *str;
             out++;
             str++;
             outl--;
@@ -819,6 +825,72 @@ lastfm_stop (void) {
     return 0;
 }
 
+static int
+lfm_action_lookup (DB_plugin_action_t *action, DB_playItem_t *it)
+{
+    const char *artist = deadbeef->pl_find_meta (it, "artist");
+    const char *title = deadbeef->pl_find_meta (it, "title");
+
+    if (!title || !artist)
+        return 0;
+
+    char eartist [strlen (artist) * 3 + 1];
+    char etitle [strlen (title) * 3 + 1];
+
+    if (-1 == lfm_uri_encode (eartist, sizeof (eartist), artist))
+        return 0;
+
+    if (-1 == lfm_uri_encode (etitle, sizeof (etitle), title))
+        return 0;
+
+    char *command = NULL;
+    if (-1 == asprintf (&command, "xdg-open 'http://www.last.fm/music/%s/_/%s' &", eartist, etitle))
+        return 0;
+    printf ("executing %s\n", command);
+    system (command);
+    free (command);
+}
+
+static int
+lfm_action_love (DB_plugin_action_t *act, DB_playItem_t *it)
+{
+    printf ("Love starts here\n");
+}
+
+static DB_plugin_action_t love_action = {
+    .title = "Love at Last.fm",
+    .name = "lfm_love",
+    .flags = DB_ACTION_SINGLE_TRACK,
+    .callback = lfm_action_love,
+    .next = NULL
+};
+
+static DB_plugin_action_t lookup_action = {
+    .title = "Lookup on Last.fm",
+    .name = "lfm_lookup",
+    .flags = DB_ACTION_SINGLE_TRACK,
+    .callback = lfm_action_lookup,
+    .next = NULL// &love_action
+};
+
+static DB_plugin_action_t *
+lfm_get_actions (DB_playItem_t *it)
+{
+    if (!it ||
+        !deadbeef->pl_find_meta (it, "artist") ||
+        !deadbeef->pl_find_meta (it, "title"))
+    {
+        love_action.flags |= DB_ACTION_DISABLED;
+        lookup_action.flags |= DB_ACTION_DISABLED;
+    }
+    else
+    {
+        love_action.flags &= ~DB_ACTION_DISABLED;
+        lookup_action.flags &= ~DB_ACTION_DISABLED;
+    }
+    return &lookup_action;
+}
+
 static const char settings_dlg[] =
     "property \"Enable scrobbler\" checkbox lastfm.enable 0;"
     "property \"Disable nowplaying\" checkbox lastfm.disable_np 0;"
@@ -830,8 +902,8 @@ static const char settings_dlg[] =
 // define plugin interface
 static DB_misc_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.name = "last.fm scrobbler",
     .plugin.descr = "sends played songs information to your last.fm account",
@@ -840,5 +912,6 @@ static DB_misc_t plugin = {
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = lastfm_start,
     .plugin.stop = lastfm_stop,
-    .plugin.configdialog = settings_dlg
+    .plugin.configdialog = settings_dlg,
+    .plugin.get_actions = lfm_get_actions
 };

@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #define DEFAULT_GROUP_TITLE_HEIGHT 30
 #define SCROLL_STEP 20
 #define AUTOSCROLL_UPDATE_FREQ 0.01f
+#define NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW 10
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
@@ -320,6 +321,9 @@ ddb_listview_init(DdbListview *listview)
     listview->cursor_sz = NULL;
     listview->cursor_drag = NULL;
 
+    listview->area_selection_start = 0;
+    listview->area_selection_end = 0;
+
     GtkWidget *hbox;
     GtkWidget *vbox;
 
@@ -512,9 +516,9 @@ ddb_listview_list_realize                    (GtkWidget       *widget,
         gpointer         user_data)
 {
     GtkTargetEntry entry = {
-        .target = "STRING",
+        .target = "DDB_URI_LIST",
         .flags = GTK_TARGET_SAME_APP,
-        TARGET_SAMEWIDGET
+        .info = TARGET_SAMEWIDGET
     };
     // setup drag-drop target
     gtk_drag_dest_set (widget, GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP, &entry, 1, GDK_ACTION_COPY | GDK_ACTION_MOVE);
@@ -873,17 +877,6 @@ ddb_listview_list_drag_drop                  (GtkWidget       *widget,
                                         gpointer         user_data)
 {
     return TRUE;
-#if 0
-    if (drag_context->targets) {
-        GdkAtom target_type = GDK_POINTER_TO_ATOM (g_list_nth_data (drag_context->targets, TARGET_SAMEWIDGET));
-        if (!target_type) {
-            return FALSE;
-        }
-//        gtk_drag_get_data (widget, drag_context, target_type, time);
-        return TRUE;
-    }
-    return FALSE;
-#endif
 }
 
 
@@ -938,7 +931,11 @@ ddb_listview_list_drag_data_received         (GtkWidget       *widget,
                                         guint            time,
                                         gpointer         user_data)
 {
+    printf ("target_type: %d, format: %d\n", target_type, data->format);
     DdbListview *ps = DDB_LISTVIEW (g_object_get_data (G_OBJECT (widget), "owner"));
+    ps->scroll_direction = 0; // interrupt autoscrolling, if on
+    ps->scroll_active = 0;
+    ps->drag_motion_y = -1;
     if (!ps->binding->external_drag_n_drop || !ps->binding->drag_n_drop) {
         gtk_drag_finish (drag_context, TRUE, FALSE, time);
         return;
@@ -965,7 +962,7 @@ ddb_listview_list_drag_data_received         (GtkWidget       *widget,
             UNREF (it);
         }
     }
-    else if (target_type == 1) {
+    else if (target_type == 1 && data->format == 32) { // list of 32bit ints, DDB_URI_LIST target
         uint32_t *d= (uint32_t *)ptr;
         int plt = *d;
         d++;
@@ -1307,29 +1304,44 @@ ddb_listview_header_expose (DdbListview *ps, int x, int y, int w, int h) {
 
 void
 ddb_listview_select_single (DdbListview *ps, int sel) {
+    int nchanged = 0;
     int idx=0;
     DdbListviewIter it = ps->binding->head ();
     for (; it; idx++) {
         if (idx == sel) {
             if (!ps->binding->is_selected (it)) {
                 ps->binding->select (it, 1);
-                ddb_listview_draw_row (ps, idx, it);
-                ps->binding->selection_changed (it, idx);
+                if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                    ddb_listview_draw_row (ps, idx, it);
+                    ps->binding->selection_changed (it, idx);
+                }
+                nchanged++;
             }
             else if (ps->binding->cursor () == idx) {
-                ddb_listview_draw_row (ps, idx, it);
+                if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                    ddb_listview_draw_row (ps, idx, it);
+                }
             }
         }
         else if (ps->binding->is_selected (it)) {
             ps->binding->select (it, 0);
-            ddb_listview_draw_row (ps, idx, it);
-            ps->binding->selection_changed (it, idx);
+            if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                ddb_listview_draw_row (ps, idx, it);
+                ps->binding->selection_changed (it, idx);
+            }
+            nchanged++;
         }
         DdbListviewIter next = PL_NEXT (it);
         UNREF (it);
         it = next;
     }
     UNREF (it);
+    if (nchanged >= NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+        ddb_listview_refresh (ps, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ps->binding->selection_changed (it, -1); // that means "selection changed a lot, redraw everything"
+    }
+    ps->area_selection_start = sel;
+    ps->area_selection_end = sel;
 }
 
 void
@@ -1416,7 +1428,7 @@ ddb_listview_click_selection (DdbListview *ps, int ex, int ey, DdbListviewGroup 
 //   }}}
 // }}}
 void
-ddb_listview_list_mouse1_pressed (DdbListview *ps, int state, int ex, int ey, double time) {
+ddb_listview_list_mouse1_pressed (DdbListview *ps, int state, int ex, int ey, GdkEventType type) {
     // cursor must be set here, but selection must be handled in keyrelease
     int cnt = ps->binding->count ();
     if (cnt == 0) {
@@ -1434,7 +1446,7 @@ ddb_listview_list_mouse1_pressed (DdbListview *ps, int state, int ex, int ey, do
     }
 
     int cursor = ps->binding->cursor ();
-    if (time - ps->clicktime < 0.5
+    if (type == GDK_2BUTTON_PRESS
             && fabs(ps->lastpos[0] - ex) < 3
             && fabs(ps->lastpos[1] - ey) < 3) {
         // doubleclick - play this item
@@ -1449,12 +1461,6 @@ ddb_listview_list_mouse1_pressed (DdbListview *ps, int state, int ex, int ey, do
             }
             return;
         }
-
-        // prevent next click to trigger doubleclick
-        ps->clicktime = time-1;
-    }
-    else {
-        ps->clicktime = time;
     }
 
     int prev = cursor;
@@ -1659,7 +1665,7 @@ ddb_listview_list_mousemove (DdbListview *ps, GdkEventMotion *ev, int ex, int ey
             ps->dragwait = 0;
             ps->drag_source_playlist = deadbeef->plt_get_curr ();
             GtkTargetEntry entry = {
-                .target = "STRING",
+                .target = "DDB_URI_LIST",
                 .flags = GTK_TARGET_SAME_WIDGET,
                 .info = TARGET_SAMEWIDGET
             };
@@ -1728,26 +1734,45 @@ ddb_listview_list_mousemove (DdbListview *ps, GdkEventMotion *ev, int ex, int ey
             int start = min (y, ps->shift_sel_anchor);
             int end = max (y, ps->shift_sel_anchor);
 
-            idx=0;
-            DdbListviewIter it;
-            for (it = ps->binding->head (); it; idx++) {
+            int nchanged = 0;
+
+            // don't touch anything in process_start/end range
+            int process_start = min (start, ps->area_selection_start);
+            int process_end = max (end, ps->area_selection_end);
+
+            idx=process_start;
+            DdbListviewIter it = ps->binding->get_for_idx (idx);
+            for (; it && idx <= process_end; idx++) {
+                int selected = ps->binding->is_selected (it);
                 if (idx >= start && idx <= end) {
-                    if (!ps->binding->is_selected (it)) {
+                    if (!selected) {
                         ps->binding->select (it, 1);
+                        nchanged++;
+                        if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                            ddb_listview_draw_row (ps, idx, it);
+                            ps->binding->selection_changed (it, idx);
+                        }
+                    }
+                }
+                else if (selected) {
+                    ps->binding->select (it, 0);
+                    nchanged++;
+                    if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
                         ddb_listview_draw_row (ps, idx, it);
                         ps->binding->selection_changed (it, idx);
                     }
-                }
-                else if (ps->binding->is_selected (it)) {
-                    ps->binding->select (it, 0);
-                    ddb_listview_draw_row (ps, idx, it);
-                    ps->binding->selection_changed (it, idx);
                 }
                 DdbListviewIter next = PL_NEXT(it);
                 UNREF (it);
                 it = next;
             }
             UNREF (it);
+            if (nchanged >= NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                ddb_listview_refresh (ps, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+                ps->binding->selection_changed (it, -1); // that means "selection changed a lot, redraw everything"
+            }
+            ps->area_selection_start = start;
+            ps->area_selection_end = end;
         }
         if (sel != -1 && sel != prev) {
             if (prev != -1) {
@@ -1909,25 +1934,36 @@ ddb_listview_handle_keypress (DdbListview *ps, int keyval, int state) {
             // select all between shift_sel_anchor and deadbeef->pl_get_cursor (ps->iterator)
             int start = min (cursor, ps->shift_sel_anchor);
             int end = max (cursor, ps->shift_sel_anchor);
+
+            int nchanged = 0;
             int idx=0;
+
             DdbListviewIter it;
             for (it = ps->binding->head (); it; idx++) {
                 if (idx >= start && idx <= end) {
                     ps->binding->select (it, 1);
-                    ddb_listview_draw_row (ps, idx, it);
-                    ps->binding->selection_changed (it, idx);
+                    if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                        ddb_listview_draw_row (ps, idx, it);
+                        ps->binding->selection_changed (it, idx);
+                    }
                 }
                 else if (ps->binding->is_selected (it))
                 {
                     ps->binding->select (it, 0);
-                    ddb_listview_draw_row (ps, idx, it);
-                    ps->binding->selection_changed (it, idx);
+                    if (nchanged < NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                        ddb_listview_draw_row (ps, idx, it);
+                        ps->binding->selection_changed (it, idx);
+                    }
                 }
                 DdbListviewIter next = PL_NEXT(it);
                 UNREF (it);
                 it = next;
             }
             UNREF (it);
+            if (nchanged >= NUM_CHANGED_ROWS_BEFORE_FULL_REDRAW) {
+                ddb_listview_refresh (ps, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+                ps->binding->selection_changed (it, -1); // that means "selection changed a lot, redraw everything"
+            }
         }
     }
     else {
@@ -1977,6 +2013,8 @@ ddb_listview_list_track_dragdrop (DdbListview *ps, int y) {
     }
     if (y == -1) {
         ps->drag_motion_y = -1;
+        ps->scroll_active = 0;
+        ps->scroll_direction = 0;
         return;
     }
     int sel = ddb_listview_dragdrop_get_row_from_coord (ps, y);
@@ -2034,6 +2072,8 @@ ddb_listview_list_drag_end                   (GtkWidget       *widget,
     ps->scroll_pointer_y = -1;
 }
 
+// #define HEADERS_GTKTHEME
+
 void
 ddb_listview_header_render (DdbListview *ps) {
     GtkWidget *widget = ps->header;
@@ -2042,10 +2082,18 @@ ddb_listview_header_render (DdbListview *ps) {
     int h = widget->allocation.height;
     const char *detail = "button";
 
-    // fill background
-    //gdk_draw_rectangle (widget->window, widget->style->base_gc[GTK_STATE_NORMAL], TRUE, 0, 0,  widget->allocation.width, widget->allocation.height);
+    // fill background and draw bottom line
+#if !HEADERS_GTKTHEME
+    GdkGC *gc = gdk_gc_new (ps->backbuf_header);
+    GdkColor clr;
+    gdk_gc_set_rgb_fg_color (gc, (gtkui_get_tabstrip_base_color (&clr), &clr));
+    gdk_draw_rectangle (ps->backbuf_header, gc, TRUE, 0, 0,  widget->allocation.width, widget->allocation.height);
+    gdk_gc_set_rgb_fg_color (gc, (gtkui_get_tabstrip_dark_color (&clr), &clr));
+    gdk_draw_line (ps->backbuf_header, gc, 0, widget->allocation.height-1, widget->allocation.width, widget->allocation.height-1);
+#else
     gtk_paint_box (theme_button->style, ps->backbuf_header, GTK_STATE_NORMAL, GTK_SHADOW_OUT, NULL, widget, detail, -10, -10, widget->allocation.width+20, widget->allocation.height+20);
     gdk_draw_line (ps->backbuf_header, widget->style->mid_gc[GTK_STATE_NORMAL], 0, widget->allocation.height-1, widget->allocation.width, widget->allocation.height-1);
+#endif
     draw_begin ((uintptr_t)ps->backbuf_header);
     x = -ps->hscrollpos;
     DdbListviewColumn *c;
@@ -2071,7 +2119,14 @@ ddb_listview_header_render (DdbListview *ps) {
             int arrow_sz = 10;
             int sort = c->sort_order;
             if (w > 0) {
+#if !HEADERS_GTKTHEME
+                gdk_gc_set_rgb_fg_color (gc, (gtkui_get_tabstrip_dark_color (&clr), &clr));
+                gdk_draw_line (ps->backbuf_header, gc, xx+w - 2, 2, xx+w - 2, h-4);
+                gdk_gc_set_rgb_fg_color (gc, (gtkui_get_tabstrip_light_color (&clr), &clr));
+                gdk_draw_line (ps->backbuf_header, gc, xx+w - 1, 2, xx+w - 1, h-4);
+#else
                 gtk_paint_vline (widget->style, ps->backbuf_header, GTK_STATE_NORMAL, NULL, widget, NULL, 2, h-4, xx+w - 2);
+#endif
                 GdkColor *gdkfg = &theme_button->style->fg[0];
                 float fg[3] = {(float)gdkfg->red/0xffff, (float)gdkfg->green/0xffff, (float)gdkfg->blue/0xffff};
                 draw_set_fg_color (fg);
@@ -2114,7 +2169,7 @@ ddb_listview_header_render (DdbListview *ps) {
                 if (x < widget->allocation.width) {
                     gtk_paint_box (theme_button->style, ps->backbuf_header, GTK_STATE_ACTIVE, GTK_SHADOW_ETCHED_IN, NULL, widget, "button", x, 0, w, h);
                 }
-                x = ps->col_movepos;
+                x = ps->col_movepos - ps->hscrollpos;
                 if (x >= widget->allocation.width) {
                     break;
                 }
@@ -2131,6 +2186,10 @@ ddb_listview_header_render (DdbListview *ps) {
         }
     }
     draw_end ();
+
+#if !HEADERS_GTKTHEME
+    g_object_unref (gc);
+#endif
 }
 
 gboolean
@@ -2199,7 +2258,9 @@ ddb_listview_header_motion_notify_event          (GtkWidget       *widget,
     ev_x = event->x;
     ev_y = event->y;
     ev_state = event->state;
+#if GTK_CHECK_VERSION(2,12,0) && !defined(ULTRA_COMPATIBLE)
     gdk_event_request_motions (event);
+#endif
 
     if ((ev_state & GDK_BUTTON1_MASK) && ps->header_prepare) {
         if (gtk_drag_check_threshold (widget, ev_x, ps->prev_header_x, 0, 0)) {
@@ -2211,8 +2272,7 @@ ddb_listview_header_motion_notify_event          (GtkWidget       *widget,
         DdbListviewColumn *c;
         int i;
         for (i = 0, c = ps->columns; i < ps->header_dragging && c; c = c->next, i++);
-        ps->col_movepos = ev_x - ps->header_dragpt[0];
-
+        ps->col_movepos = ev_x - ps->header_dragpt[0] + ps->hscrollpos;
         // find closest column to the left
         int inspos = -1;
         DdbListviewColumn *cc;
@@ -2383,7 +2443,7 @@ ddb_listview_header_button_release_event         (GtkWidget       *widget,
                     else if (sort_order == 2) {
                         c->sort_order = 1;
                     }
-                    ps->binding->col_sort (i, c->sort_order, c->user_data);
+                    ps->binding->col_sort (i, c->sort_order-1, c->user_data);
                     sorted = 1;
                 }
                 else {
@@ -2422,6 +2482,7 @@ struct set_cursor_t {
     int cursor;
     int prev;
     DdbListview *pl;
+    int noscroll;
 };
 
 static gboolean
@@ -2446,26 +2507,28 @@ ddb_listview_set_cursor_cb (gpointer data) {
         sc->pl->binding->unref (prev_it);
     }
 
-    DdbListviewIter it;
-    DdbListview *ps = sc->pl;
+    if (!sc->noscroll) {
+        DdbListviewIter it;
+        DdbListview *ps = sc->pl;
 
-    int cursor_scroll = ddb_listview_get_row_pos (sc->pl, sc->cursor);
-    int newscroll = sc->pl->scrollpos;
-    if (cursor_scroll < sc->pl->scrollpos) {
-        newscroll = cursor_scroll;
-    }
-    else if (cursor_scroll + sc->pl->rowheight >= sc->pl->scrollpos + sc->pl->list->allocation.height) {
-        newscroll = cursor_scroll + sc->pl->rowheight - sc->pl->list->allocation.height + 1;
-        if (newscroll < 0) {
-            newscroll = 0;
+        int cursor_scroll = ddb_listview_get_row_pos (sc->pl, sc->cursor);
+        int newscroll = sc->pl->scrollpos;
+        if (cursor_scroll < sc->pl->scrollpos) {
+            newscroll = cursor_scroll;
         }
-    }
-    if (sc->pl->scrollpos != newscroll) {
-        GtkWidget *range = sc->pl->scrollbar;
-        gtk_range_set_value (GTK_RANGE (range), newscroll);
-    }
+        else if (cursor_scroll + sc->pl->rowheight >= sc->pl->scrollpos + sc->pl->list->allocation.height) {
+            newscroll = cursor_scroll + sc->pl->rowheight - sc->pl->list->allocation.height + 1;
+            if (newscroll < 0) {
+                newscroll = 0;
+            }
+        }
+        if (sc->pl->scrollpos != newscroll) {
+            GtkWidget *range = sc->pl->scrollbar;
+            gtk_range_set_value (GTK_RANGE (range), newscroll);
+        }
 
-    free (data);
+        free (data);
+    }
     return FALSE;
 }
 
@@ -2476,6 +2539,18 @@ ddb_listview_set_cursor (DdbListview *pl, int cursor) {
     data->prev = prev;
     data->cursor = cursor;
     data->pl = pl;
+    data->noscroll = 0;
+    g_idle_add (ddb_listview_set_cursor_cb, data);
+}
+
+void
+ddb_listview_set_cursor_noscroll (DdbListview *pl, int cursor) {
+    int prev = pl->binding->cursor ();
+    struct set_cursor_t *data = malloc (sizeof (struct set_cursor_t));
+    data->prev = prev;
+    data->cursor = cursor;
+    data->pl = pl;
+    data->noscroll = 1;
     g_idle_add (ddb_listview_set_cursor_cb, data);
 }
 
@@ -2486,7 +2561,7 @@ ddb_listview_list_button_press_event         (GtkWidget       *widget,
 {
     DdbListview *ps = DDB_LISTVIEW (g_object_get_data (G_OBJECT (widget), "owner"));
     if (event->button == 1) {
-        ddb_listview_list_mouse1_pressed (ps, event->state, event->x, event->y, event->time);
+        ddb_listview_list_mouse1_pressed (ps, event->state, event->x, event->y, event->type);
     }
     else if (event->button == 3) {
         // get item under cursor
@@ -2547,7 +2622,9 @@ ddb_listview_motion_notify_event        (GtkWidget       *widget,
 {
     int x = event->x;
     int y = event->y;
+#if GTK_CHECK_VERSION(2,12,0) && !defined(ULTRA_COMPATIBLE)
     gdk_event_request_motions (event);
+#endif
     DdbListview *ps = DDB_LISTVIEW (g_object_get_data (G_OBJECT (widget), "owner"));
     ddb_listview_list_mousemove (ps, event, x, y);
     return FALSE;
@@ -2790,6 +2867,7 @@ ddb_listview_free_groups (DdbListview *listview) {
 
 void
 ddb_listview_build_groups (DdbListview *listview) {
+    deadbeef->pl_lock ();
     ddb_listview_free_groups (listview);
     listview->fullheight = 0;
 
@@ -2822,6 +2900,7 @@ ddb_listview_build_groups (DdbListview *listview) {
 //            }
             listview->fullheight = grp->height;
             listview->fullheight += listview->grouptitle_height;
+            deadbeef->pl_unlock ();
             return;
         }
         if (!grp || strcmp (str, curr)) {
@@ -2856,6 +2935,7 @@ ddb_listview_build_groups (DdbListview *listview) {
         }
         listview->fullheight += grp->height;
     }
+    deadbeef->pl_unlock ();
 }
 void
 ddb_listview_set_vscroll (DdbListview *listview, gboolean scroll) {
@@ -2867,3 +2947,12 @@ ddb_listview_show_header (DdbListview *listview, int show) {
     show ? gtk_widget_show (listview->header) : gtk_widget_hide (listview->header);
 }
 
+void
+ddb_listview_clear_sort (DdbListview *listview) {
+    DdbListviewColumn *c;
+    for (c = listview->columns; c; c = c->next) {
+        c->sort_order = 0;
+    }
+    ddb_listview_header_render (listview);
+    ddb_listview_header_expose (listview, 0, 0, listview->header->allocation.width, listview->header->allocation.height);
+}

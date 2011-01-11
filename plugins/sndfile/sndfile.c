@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -85,11 +85,69 @@ static SF_VIRTUAL_IO vfs = {
 };
 
 static DB_fileinfo_t *
-sndfile_open (void) {
+sndfile_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (sndfile_info_t));
     memset (_info, 0, sizeof (sndfile_info_t));
     return _info;
 }
+
+
+// taken from libsndfile
+#define     ARRAY_LEN(x)    ((int) (sizeof (x) / sizeof ((x) [0])))
+/* This stores which bit in dwChannelMask maps to which channel */
+static const struct chanmap_s
+{	int id ;
+	const char * name ;
+} channel_mask_bits [] =
+{	/* WAVEFORMATEXTENSIBLE doesn't distuingish FRONT_LEFT from LEFT */
+	{	SF_CHANNEL_MAP_LEFT, "L" },
+	{	SF_CHANNEL_MAP_RIGHT, "R" },
+	{	SF_CHANNEL_MAP_CENTER, "C" },
+	{	SF_CHANNEL_MAP_LFE, "LFE" },
+	{	SF_CHANNEL_MAP_REAR_LEFT, "Ls" },
+	{	SF_CHANNEL_MAP_REAR_RIGHT, "Rs" },
+	{	SF_CHANNEL_MAP_FRONT_LEFT_OF_CENTER, "Lc" },
+	{	SF_CHANNEL_MAP_FRONT_RIGHT_OF_CENTER, "Rc" },
+	{	SF_CHANNEL_MAP_REAR_CENTER, "Cs" },
+	{	SF_CHANNEL_MAP_SIDE_LEFT, "Sl" },
+	{	SF_CHANNEL_MAP_SIDE_RIGHT, "Sr" },
+	{	SF_CHANNEL_MAP_TOP_CENTER, "Tc" },
+	{	SF_CHANNEL_MAP_TOP_FRONT_LEFT, "Tfl" },
+	{	SF_CHANNEL_MAP_TOP_FRONT_CENTER, "Tfc" },
+	{	SF_CHANNEL_MAP_TOP_FRONT_RIGHT, "Tfr" },
+	{	SF_CHANNEL_MAP_TOP_REAR_LEFT, "Trl" },
+	{	SF_CHANNEL_MAP_TOP_REAR_CENTER, "Trc" },
+	{	SF_CHANNEL_MAP_TOP_REAR_RIGHT, "Trr" },
+} ;
+
+
+static int
+wavex_gen_channel_mask (const int *chan_map, int channels)
+{   int chan, mask = 0, bit = -1, last_bit = -1 ;
+
+    if (chan_map == NULL)
+        return 0 ;
+
+    for (chan = 0 ; chan < channels ; chan ++)
+    {   int k ;
+
+        for (k = bit + 1 ; k < ARRAY_LEN (channel_mask_bits) ; k++)
+            if (chan_map [chan] == channel_mask_bits [k].id)
+            {   bit = k ;
+                break ;
+                } ;
+
+        /* Check for bad sequence. */
+        if (bit <= last_bit)
+            return 0 ;
+
+        mask += 1 << bit ;
+        last_bit = bit ;
+        } ;
+
+    return mask ;
+} /* wavex_gen_channel_mask */
+
 
 static int
 sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
@@ -110,9 +168,48 @@ sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
     _info->plugin = &plugin;
-    _info->bps = 16;
-    _info->channels = inf.channels;
-    _info->samplerate = inf.samplerate;
+
+    switch (inf.format&0x000f) {
+    case SF_FORMAT_PCM_S8:
+    case SF_FORMAT_PCM_U8:
+        _info->fmt.bps = 8;
+        break;
+    case SF_FORMAT_PCM_16:
+        _info->fmt.bps = 16;
+        break;
+    case SF_FORMAT_PCM_24:
+        _info->fmt.bps = 24;
+        break;
+    case SF_FORMAT_PCM_32:
+    case SF_FORMAT_FLOAT:
+        _info->fmt.bps = 32;
+        break;
+    case SF_FORMAT_DOUBLE:
+        fprintf (stderr, "[sndfile] 64 bit float input format is not supported (yet)\n");
+        return -1;
+//        _info->fmt.bps = 64;
+        break;
+    default:
+        fprintf (stderr, "[sndfile] unidentified input format: 0x%X\n", inf.format&0x000f);
+        return -1;
+    }
+
+    _info->fmt.channels = inf.channels;
+    _info->fmt.samplerate = inf.samplerate;
+
+    int channel_map [inf.channels];
+    int cmdres = sf_command (info->ctx, SFC_GET_CHANNEL_MAP_INFO, channel_map, sizeof (channel_map)) ;
+    if (cmdres != SF_FALSE) {
+        // channel map found, convert to channel mask
+        _info->fmt.channelmask = wavex_gen_channel_mask (channel_map, inf.channels);
+    }
+    else {
+        // channel map not found, generate from channel number
+        for (int i = 0; i < inf.channels; i++) {
+            _info->fmt.channelmask |= 1 << i;
+        }
+    }
+
     _info->readpos = 0;
     if (it->endsample > 0) {
         info->startsample = it->startsample;
@@ -150,39 +247,24 @@ sndfile_free (DB_fileinfo_t *_info) {
 }
 
 static int
-sndfile_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+sndfile_read (DB_fileinfo_t *_info, char *bytes, int size) {
     sndfile_info_t *info = (sndfile_info_t*)_info;
-    if (size / (2 * _info->channels) + info->currentsample > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * 2 * _info->channels;
-        trace ("wv: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, info->currentsample, info->endsample);
+    int samplesize = _info->fmt.channels * _info->fmt.bps / 8;
+    if (size / samplesize + info->currentsample > info->endsample) {
+        size = (info->endsample - info->currentsample + 1) * samplesize;
+        trace ("sndfile: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, info->currentsample, info->endsample);
         if (size <= 0) {
             return 0;
         }
     }
-    int n = sf_readf_short (info->ctx, (short *)bytes, size/(2*_info->channels));
-    info->currentsample += n;
-    size = n * 2 * _info->channels;
-    _info->readpos = (float)(info->currentsample-info->startsample)/_info->samplerate;
-    if (info->bitrate > 0) {
-        deadbeef->streamer_set_bitrate (info->bitrate);
-    }
-    return size;
-}
 
-static int
-sndfile_read_float32 (DB_fileinfo_t *_info, char *bytes, int size) {
-    sndfile_info_t *info = (sndfile_info_t*)_info;
-    if (size / (4 * _info->channels) + info->currentsample > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * 4 * _info->channels;
-        trace ("wv: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, info->currentsample, info->endsample);
-        if (size <= 0) {
-            return 0;
-        }
-    }
-    int n = sf_readf_float (info->ctx, (float *)bytes, size/(4*_info->channels));
+    int n = 0;
+    n = sf_read_raw (info->ctx, (short *)bytes, size);
+    n /= samplesize;
     info->currentsample += n;
-    size = n * 4 * _info->channels;
-    _info->readpos = (float)(info->currentsample-info->startsample)/_info->samplerate;
+
+    size = n * samplesize;
+    _info->readpos = (float)(info->currentsample-info->startsample)/_info->fmt.samplerate;
     if (info->bitrate > 0) {
         deadbeef->streamer_set_bitrate (info->bitrate);
     }
@@ -197,13 +279,13 @@ sndfile_seek_sample (DB_fileinfo_t *_info, int sample) {
         return -1;
     }
     info->currentsample = ret;
-    _info->readpos = (float)(info->currentsample - info->startsample) / _info->samplerate;
+    _info->readpos = (float)(info->currentsample - info->startsample) / _info->fmt.samplerate;
     return 0;
 }
 
 static int
 sndfile_seek (DB_fileinfo_t *_info, float sec) {
-    return sndfile_seek_sample (_info, sec * _info->samplerate);
+    return sndfile_seek_sample (_info, sec * _info->fmt.samplerate);
 }
 
 static DB_playItem_t *
@@ -219,6 +301,7 @@ sndfile_insert (DB_playItem_t *after, const char *fname) {
     info.ctx = sf_open_virtual (&vfs, SFM_READ, &inf, &info);
     if (!info.ctx) {
         trace ("sndfile: sf_open failed");
+        deadbeef->fclose (info.file);
         return NULL;
     }
     int totalsamples = inf.frames;
@@ -250,13 +333,13 @@ sndfile_insert (DB_playItem_t *after, const char *fname) {
 }
 
 static const char * exts[] = { "wav", "aif", "aiff", "snd", "au", "paf", "svx", "nist", "voc", "ircam", "w64", "mat4", "mat5", "pvf", "xi", "htk", "sds", "avr", "wavex", "sd2", "caf", "wve", NULL };
-static const char *filetypes[] = { "wav", NULL };
+static const char *filetypes[] = { "WAV", NULL };
 
 // define plugin interface
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "sndfile",
     .plugin.name = "pcm player",
@@ -267,8 +350,7 @@ static DB_decoder_t plugin = {
     .open = sndfile_open,
     .init = sndfile_init,
     .free = sndfile_free,
-    .read_int16 = sndfile_read_int16,
-    .read_float32 = sndfile_read_float32,
+    .read = sndfile_read,
     .seek = sndfile_seek,
     .seek_sample = sndfile_seek_sample,
     .insert = sndfile_insert,

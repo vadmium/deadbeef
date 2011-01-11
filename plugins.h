@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -26,6 +26,9 @@ struct playItem_s;
 
 int
 plug_load_all (void);
+
+void
+plug_connect_all (void);
 
 void
 plug_unload_all (void);
@@ -63,27 +66,6 @@ plug_md5 (uint8_t sig[16], const char *in, int len);
 void
 plug_md5_to_str (char *str, const uint8_t sig[16]);
 
-void
-plug_playback_next (void);
-
-void
-plug_playback_prev (void);
-
-void
-plug_playback_pause (void);
-
-void 
-plug_playback_stop (void);
-
-void 
-plug_playback_play (void);
-
-void 
-plug_playback_random (void);
-
-void 
-plug_quit (void);
-
 float
 plug_playback_get_pos (void);
 
@@ -105,6 +87,9 @@ plug_get_vfs_list (void);
 struct DB_dsp_s **
 plug_get_dsp_list (void);
 
+struct DB_playlist_s **
+plug_get_playlist_list (void);
+
 void
 plug_volume_set_db (float db);
 
@@ -113,6 +98,14 @@ plug_volume_set_amp (float amp);
 
 const char *
 plug_get_config_dir (void);
+const char *
+plug_get_prefix (void);
+const char *
+plug_get_doc_dir (void);
+const char *
+plug_get_plugin_dir (void);
+const char *
+plug_get_pixmap_dir (void);
 
 int
 plug_activate (DB_plugin_t *plug, int activate);

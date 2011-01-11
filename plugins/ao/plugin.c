@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -25,8 +25,8 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
-#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-//#define trace(fmt,...)
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+#define trace(fmt,...)
 
 DB_functions_t *deadbeef;
 static DB_decoder_t plugin;
@@ -48,7 +48,7 @@ typedef struct {
 } aoplug_info_t;
 
 static DB_fileinfo_t *
-aoplug_open (void) {
+aoplug_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (aoplug_info_t));
     aoplug_info_t *info = (aoplug_info_t *)_info;
     memset (info, 0, sizeof (aoplug_info_t));
@@ -59,9 +59,10 @@ static int
 aoplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     aoplug_info_t *info = (aoplug_info_t *)_info;
 
-    _info->bps = 16;
-    _info->channels = 2;
-    _info->samplerate = 44100;
+    _info->fmt.bps = 16;
+    _info->fmt.channels = 2;
+    _info->fmt.samplerate = deadbeef->conf_get_int ("synth.samplerate", 44100);
+    _info->fmt.channelmask = _info->fmt.channels == 1 ? DDB_SPEAKER_FRONT_LEFT : (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT);
     _info->readpos = 0;
     _info->plugin = &plugin;
     info->duration = deadbeef->pl_get_item_duration (it);
@@ -116,11 +117,11 @@ aoplug_free (DB_fileinfo_t *_info) {
 }
 
 static int
-aoplug_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+aoplug_read (DB_fileinfo_t *_info, char *bytes, int size) {
     aoplug_info_t *info = (aoplug_info_t *)_info;
 //    printf ("aoplug_read_int16 %d samples, curr %d, end %d\n", size/4, info->currentsample, (int)(info->duration * _info->samplerate));
 
-    if (info->currentsample >= info->duration * _info->samplerate) {
+    if (info->currentsample >= info->duration * _info->fmt.samplerate) {
         return 0;
     }
 
@@ -152,7 +153,7 @@ aoplug_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
             info->remaining = 735;
         }
     }
-    info->currentsample += (initsize-size) / (_info->channels * _info->bps/8);
+    info->currentsample += (initsize-size) / (_info->fmt.channels * _info->fmt.bps/8);
     return initsize-size;
 }
 
@@ -168,13 +169,39 @@ aoplug_seek_sample (DB_fileinfo_t *_info, int sample) {
         info->skipsamples = sample;
     }
     info->currentsample = sample;
-    _info->readpos = (float)sample / _info->samplerate;
+    _info->readpos = (float)sample / _info->fmt.samplerate;
     return 0;
 }
 
 static int
 aoplug_seek (DB_fileinfo_t *_info, float time) {
-    return aoplug_seek_sample (_info, time * _info->samplerate);
+    return aoplug_seek_sample (_info, time * _info->fmt.samplerate);
+}
+
+static void
+aoplug_add_meta (DB_playItem_t *it, const char *key, const char *value, const char *comment_title) {
+    const char *res = NULL;
+    char tmp[200];
+    // check utf8
+    if (deadbeef->junk_recode (value, strlen (value), tmp, sizeof (tmp), "utf-8") >= 0) {
+        if (key) {
+            deadbeef->pl_add_meta (it, key, value);
+        }
+        res = value;
+    }
+    // check shift-jis
+    if (deadbeef->junk_recode (value, strlen (value), tmp, sizeof (tmp), "SHIFT-JIS") >= 0) {
+        if (key) {
+            deadbeef->pl_add_meta (it, key, tmp);
+        }
+        res = tmp;
+    }
+
+    if (res) {
+        char s[1024];
+        snprintf (s, sizeof (s), "%s%s", comment_title, res);
+        deadbeef->pl_append_meta (it, "comment", s);
+    }
 }
 
 static DB_playItem_t *
@@ -213,6 +240,7 @@ aoplug_insert (DB_playItem_t *after, const char *fname) {
         return NULL;
     }
     ao_display_info info;
+    memset (&info, 0, sizeof (info));
     int have_info = 0;
     if (ao_get_info (type, dec, &info) == AO_SUCCESS) {
         have_info = 1;
@@ -265,28 +293,29 @@ aoplug_insert (DB_playItem_t *after, const char *fname) {
                 if (sscanf (info.info[i], "%d:%d", &min, &sec) == 2) {
                     duration = min * 60 + sec;
                 }
+                aoplug_add_meta (it, NULL, info.info[i], info.title[i]);
             }
             else if (!strncasecmp (info.title[i], "Name: ", 6) || !strncasecmp (info.title[i], "Song: ", 6)) {
-                deadbeef->pl_add_meta (it, "title", info.info[i]);
+                aoplug_add_meta (it, "title", info.info[i], info.title[i]);
             }
             else if (!strncasecmp (info.title[i], "Game: ", 6)) {
-                deadbeef->pl_add_meta (it, "album", info.info[i]);
+                aoplug_add_meta (it, "album", info.info[i], info.title[i]);
             }
             else if (!strncasecmp (info.title[i], "Artist: ", 8)) {
-                deadbeef->pl_add_meta (it, "artist", info.info[i]);
+                aoplug_add_meta (it, "artist", info.info[i], info.title[i]);
             }
             else if (!strncasecmp (info.title[i], "Copyright: ", 11)) {
-                deadbeef->pl_add_meta (it, "copyright", info.info[i]);
+                aoplug_add_meta (it, "copyright", info.info[i], info.title[i]);
             }
             else if (!strncasecmp (info.title[i], "Year: ", 6)) {
-                deadbeef->pl_add_meta (it, "date", info.info[i]);
+                aoplug_add_meta (it, "year", info.info[i], info.title[i]);
             }
-            else if (!strncasecmp (info.title[i], "Year: ", 6)) {
-                deadbeef->pl_add_meta (it, "date", info.info[i]);
+            else if (!strncasecmp (info.title[i], "Ripper: ", 8)) {
+                aoplug_add_meta (it, "vendor", info.info[i], info.title[i]);
             }
-            char s[1024];
-            snprintf (s, sizeof (s), "%s%s", info.title[i], info.info[i]);
-            deadbeef->pl_append_meta (it, "comment", s);
+            else {
+                aoplug_add_meta (it, NULL, info.info[i], info.title[i]);
+            }
         }
     }
     deadbeef->pl_set_item_duration (it, duration);
@@ -308,8 +337,8 @@ aoplug_stop (void) {
 
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "psf",
     .plugin.name = "Audio Overload plugin",
@@ -322,7 +351,7 @@ static DB_decoder_t plugin = {
     .open = aoplug_open,
     .init = aoplug_init,
     .free = aoplug_free,
-    .read_int16 = aoplug_read_int16,
+    .read = aoplug_read,
     .seek = aoplug_seek,
     .seek_sample = aoplug_seek_sample,
     .insert = aoplug_insert,

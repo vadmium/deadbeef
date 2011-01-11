@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <unistd.h>
+#include <math.h>
 #include "mpc/mpcdec.h"
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -81,7 +82,7 @@ mpc_bool_t musepack_vfs_canseek (mpc_reader *r) {
 }
 
 static DB_fileinfo_t *
-musepack_open (void) {
+musepack_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (musepack_info_t));
     musepack_info_t *info = (musepack_info_t *)_info;
     memset (info, 0, sizeof (musepack_info_t));
@@ -123,9 +124,11 @@ musepack_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     info->vbr_update_bits = 0;
     info->remaining = 0;
 
-    _info->bps = 16;
-    _info->channels = info->si.channels;
-    _info->samplerate = info->si.sample_freq;
+    _info->fmt.is_float = 1;
+    _info->fmt.bps = 32;
+    _info->fmt.channels = info->si.channels;
+    _info->fmt.samplerate = info->si.sample_freq;
+    _info->fmt.channelmask = _info->fmt.channels == 1 ? DDB_SPEAKER_FRONT_LEFT : (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT);
     _info->readpos = 0;
     _info->plugin = &plugin;
 
@@ -146,10 +149,6 @@ static void
 musepack_free (DB_fileinfo_t *_info) {
     musepack_info_t *info = (musepack_info_t *)_info;
     if (info) {
-//        if (info->mpcdec) {
-//            mpc_decoder_exit (info->mpcdec);
-//            info->decoder = NULL;
-//        }
         if (info->demux) {
             mpc_demux_exit (info->demux);
             info->demux = NULL;
@@ -162,27 +161,24 @@ musepack_free (DB_fileinfo_t *_info) {
     }
 }
 
+#if 0
 static int
-musepack_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+musepack_read (DB_fileinfo_t *_info, char *bytes, int size) {
     musepack_info_t *info = (musepack_info_t *)_info;
 
-    if (info->currentsample + size / (2 * _info->channels) > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * 2 * _info->channels;
+    int samplesize = _info->fmt.bps / 8 * _info->fmt.channels;
+    if (info->currentsample + size / samplesize > info->endsample) {
+        size = (info->endsample - info->currentsample + 1) * samplesize;
         if (size <= 0) {
             return 0;
         }
     }
 
     int initsize = size;
-    int out_channels = _info->channels;
-    if (out_channels > 2) {
-        out_channels = 2;
-    }
-    int sample_size = ((_info->bps >> 3) * out_channels);
 
     while (size > 0) {
         if (info->remaining > 0) {
-            int n = size / sample_size;
+            int n = size / samplesize;
             n = min (n, info->remaining);
             int nn = n;
             float *p = info->buffer;
@@ -196,7 +192,7 @@ musepack_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
                 }
                 *((int16_t *)bytes) = (int16_t)sample;
                 bytes += 2;
-                if (_info->channels == 2) {
+                if (_info->fmt.channels == 2) {
                     sample = (int)(*(p+1) * 32767.0f);
                     if (sample > 32767) {
                         sample = 32767;
@@ -208,11 +204,11 @@ musepack_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
                     bytes += 2;
                 }
                 n--;
-                size -= sample_size;
+                size -= samplesize;
                 p += info->si.channels;
             }
             if (info->remaining > nn) {
-                memmove (info->buffer, p, (info->remaining - nn) * sizeof (float) * _info->channels);
+                memmove (info->buffer, p, (info->remaining - nn) * sizeof (float) * _info->fmt.channels);
             }
             info->remaining -= nn;
         }
@@ -228,48 +224,39 @@ musepack_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
             info->remaining = frame.samples;
         }
     }
-    info->currentsample += (initsize-size) / sample_size;
+    info->currentsample += (initsize-size) / samplesize;
     return initsize-size;
 }
+#endif
 
 static int
-musepack_read_float32 (DB_fileinfo_t *_info, char *bytes, int size) {
+musepack_read (DB_fileinfo_t *_info, char *bytes, int size) {
     musepack_info_t *info = (musepack_info_t *)_info;
+    int samplesize = _info->fmt.bps / 8 * _info->fmt.channels;
 
-    if (info->currentsample + size / (4 * _info->channels) > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * 4 * _info->channels;
+    if (info->currentsample + size / samplesize > info->endsample) {
+        size = (info->endsample - info->currentsample + 1) * samplesize;
         if (size <= 0) {
             return 0;
         }
     }
 
     int initsize = size;
-    int out_channels = _info->channels;
-    if (out_channels > 2) {
-        out_channels = 2;
-    }
 
     while (size > 0) {
         if (info->remaining > 0) {
-            int n = size / (out_channels * 4);
+            int n = size / samplesize;
             n = min (n, info->remaining);
-            int nn = n;
-            float *p = info->buffer;
-            while (n > 0) {
-                *((float *)bytes) = *p;
-                bytes += 4;
-                if (out_channels == 2) {
-                    *((float *)bytes) = *(p+1);
-                    bytes += 4;
-                }
-                n--;
-                size -= out_channels * 4;
-                p += info->si.channels;
+
+            memcpy (bytes, info->buffer, n * samplesize);
+
+            size -= n * samplesize;
+            bytes += n * samplesize;
+
+            if (info->remaining > n) {
+                memmove (info->buffer, ((char *)info->buffer) + n * samplesize, (info->remaining - n) * samplesize);
             }
-            if (info->remaining > nn) {
-                memmove (info->buffer, p, (info->remaining - nn) * 4 * _info->channels);
-            }
-            info->remaining -= nn;
+            info->remaining -= n;
         }
 
         if (size > 0 && !info->remaining) {
@@ -283,9 +270,10 @@ musepack_read_float32 (DB_fileinfo_t *_info, char *bytes, int size) {
             info->remaining = frame.samples;
         }
     }
-    info->currentsample += (initsize-size) / (4 * _info->channels);
+    info->currentsample += (initsize-size) / samplesize;
     return initsize-size;
 }
+
 static int
 musepack_seek_sample (DB_fileinfo_t *_info, int sample) {
     musepack_info_t *info = (musepack_info_t *)_info;
@@ -295,7 +283,7 @@ musepack_seek_sample (DB_fileinfo_t *_info, int sample) {
         return -1;
     }
     info->currentsample = sample + info->startsample;
-    _info->readpos = (float)sample / _info->samplerate;
+    _info->readpos = (float)sample / _info->fmt.samplerate;
     info->remaining = 0;
     return 0;
 }
@@ -303,7 +291,7 @@ musepack_seek_sample (DB_fileinfo_t *_info, int sample) {
 static int
 musepack_seek (DB_fileinfo_t *_info, float time) {
     musepack_info_t *info = (musepack_info_t *)_info;
-    return musepack_seek_sample (_info, time * _info->samplerate);
+    return musepack_seek_sample (_info, time * _info->fmt.samplerate);
 }
 
 static DB_playItem_t *
@@ -338,8 +326,83 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     int totalsamples = mpc_streaminfo_get_length_samples (&si);
     double dur = mpc_streaminfo_get_length (&si);
 
-    mpc_demux_exit (demux);
-    demux = NULL;
+    // replay gain
+    float gain_title = 0.f;
+    float gain_album = 0.f;
+    float peak_title = 1.f;
+    float peak_album = 1.f;
+    if (si.gain_title != 0) {
+        gain_title = 64.82-si.gain_title/256.0;
+    }
+    if (si.gain_album != 0) {
+        gain_album = 64.82-si.gain_album/256.0;
+    }
+    if (si.peak_title != 0) {
+        peak_title = pow (10, si.peak_title / (20.0 * 256.0)) / (1<<15);
+    }
+    if (si.peak_album != 0) {
+        peak_album = pow (10, si.peak_album / (20.0 * 256.0)) / (1<<15);
+    }
+
+    // chapters
+    int nchapters = mpc_demux_chap_nb (demux);
+    DB_playItem_t *prev = NULL;
+    DB_playItem_t *meta = NULL;
+    if (nchapters > 1) {
+        int i;
+        for (i = 0; i < nchapters; i++) {
+            const mpc_chap_info *ch = mpc_demux_chap (demux, i);
+            DB_playItem_t *it = deadbeef->pl_item_alloc ();
+            it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
+            it->fname = strdup (fname);
+            it->filetype = "MusePack";
+            it->tracknum = i;
+            it->startsample = ch->sample;
+            it->endsample = totalsamples-1;
+            float gain = gain_title, peak = peak_title;
+            if (ch->gain != 0) {
+                gain = 64.82-ch->gain/256.0;
+            }
+            if (ch->peak != 0) {
+                peak = pow (10, ch->peak / (20.0 * 256.0)) / (1<<15);
+            }
+            it->replaygain_album_gain = gain_album;
+            it->replaygain_album_peak = peak_album;
+            it->replaygain_track_gain = gain_title;
+            it->replaygain_track_peak = peak_title;
+            deadbeef->pl_set_item_flags (it, DDB_IS_SUBTRACK);
+            if (!prev) {
+                meta = deadbeef->pl_item_alloc ();
+                /*int apeerr = */deadbeef->junk_apev2_read (meta, fp);
+            }
+            else {
+                prev->endsample = it->startsample-1;
+                float dur = (prev->endsample - prev->startsample) / (float)si.sample_freq;
+                deadbeef->pl_set_item_duration (prev, dur);
+            }
+            if (i == nchapters - 1) {
+                float dur = (it->endsample - it->startsample) / (float)si.sample_freq;
+                deadbeef->pl_set_item_duration (it, dur);
+            }
+            if (ch->tag_size > 0) {
+                uint8_t *tag = ch->tag;
+                deadbeef->junk_apev2_read_mem (it, ch->tag, ch->tag_size);
+                if (meta) {
+                    deadbeef->pl_items_copy_junk (meta, it, it);
+                }
+            }
+            after = deadbeef->pl_insert_item (after, it);
+            prev = it;
+            deadbeef->pl_item_unref (it);
+        }
+        mpc_demux_exit (demux);
+        demux = NULL;
+        deadbeef->fclose (fp);
+        if (meta) {
+            deadbeef->pl_item_unref (meta);
+        }
+        return after;
+    }
 
     DB_playItem_t *it = deadbeef->pl_item_alloc ();
     it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
@@ -348,10 +411,16 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     deadbeef->pl_set_item_duration (it, dur);
 
     /*int apeerr = */deadbeef->junk_apev2_read (it, fp);
+    it->replaygain_album_gain = gain_album;
+    it->replaygain_album_peak = peak_album;
+    it->replaygain_track_gain = gain_title;
+    it->replaygain_track_peak = peak_title;
+
     deadbeef->fclose (fp);
 
-    // embedded cue
     deadbeef->pl_lock ();
+
+    // embedded cue
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     DB_playItem_t *cue = NULL;
     if (cuesheet) {
@@ -360,6 +429,8 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (cue);
             deadbeef->pl_unlock ();
+            mpc_demux_exit (demux);
+            demux = NULL;
             return cue;
         }
     }
@@ -369,12 +440,18 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
+        mpc_demux_exit (demux);
+        demux = NULL;
+
         return cue;
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
     after = deadbeef->pl_insert_item (after, it);
     deadbeef->pl_item_unref (it);
+
+    mpc_demux_exit (demux);
+    demux = NULL;
 
     return after;
 }
@@ -418,14 +495,14 @@ musepack_stop (void) {
     return 0;
 }
 
-static const char * exts[] = { "mpc", "mpp", NULL };
+static const char * exts[] = { "mpc", "mpp", "mp+", NULL };
 static const char *filetypes[] = { "MusePack", NULL };
 
 // define plugin interface
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "musepack",
     .plugin.name = "MusePack decoder",
@@ -438,8 +515,7 @@ static DB_decoder_t plugin = {
     .open = musepack_open,
     .init = musepack_init,
     .free = musepack_free,
-    .read_int16 = musepack_read_int16,
-    .read_float32 = musepack_read_float32,
+    .read = musepack_read,
     .seek = musepack_seek,
     .seek_sample = musepack_seek_sample,
     .insert = musepack_insert,

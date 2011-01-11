@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,20 +44,16 @@
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
+#include <unistd.h>
 #include "gettext.h"
 #include "playlist.h"
-#include "playback.h"
-#include "unistd.h"
 #include "threading.h"
 #include "messagepump.h"
 #include "streamer.h"
 #include "conf.h"
 #include "volume.h"
 #include "plugins.h"
-
-#ifndef PATH_MAX
-#define PATH_MAX    1024    /* max # of characters in a path name */
-#endif
+#include "common.h"
 
 #ifndef PREFIX
 #error PREFIX must be defined
@@ -67,9 +63,18 @@
 #define USE_ABSTRACT_NAME 0
 #endif
 
+#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+//#define trace(fmt,...)
+
+
 // some common global variables
-char confdir[1024]; // $HOME/.config
-char dbconfdir[1024]; // $HOME/.config/deadbeef
+char sys_install_path[PATH_MAX]; // see deadbeef->get_prefix
+char confdir[PATH_MAX]; // $HOME/.config
+char dbconfdir[PATH_MAX]; // $HOME/.config/deadbeef
+char dbinstalldir[PATH_MAX]; // see deadbeef->get_prefix
+char dbdocdir[PATH_MAX]; // see deadbeef->get_doc_dir
+char dbplugindir[PATH_MAX]; // see deadbeef->get_plugin_dir
+char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 
 // client-side commandline support
 // -1 error, program must exit with error code -1
@@ -91,6 +96,7 @@ client_exec_command_line (const char *cmdline, int len) {
             fprintf (stdout, _("   --play             Start playback\n"));
             fprintf (stdout, _("   --stop             Stop playback\n"));
             fprintf (stdout, _("   --pause            Pause playback\n"));
+            fprintf (stdout, _("   --toggle-pause     Toggle pause\n"));
             fprintf (stdout, _("   --next             Next song in playlist\n"));
             fprintf (stdout, _("   --prev             Previous song in playlist\n"));
             fprintf (stdout, _("   --random           Random song in playlist\n"));
@@ -103,7 +109,7 @@ client_exec_command_line (const char *cmdline, int len) {
             return 1;
         }
         else if (!strcmp (parg, "--version")) {
-            fprintf (stdout, "DeaDBeeF " VERSION " Copyright © 2009-2010 Alexey Yakovenko\n");
+            fprintf (stdout, "DeaDBeeF " VERSION " Copyright © 2009-2011 Alexey Yakovenko\n");
             return 1;
         }
         parg += strlen (parg);
@@ -174,27 +180,31 @@ server_exec_command_line (const char *cmdline, int len, char *sendback, int sbsi
             }
         }
         else if (!strcmp (parg, "--next")) {
-            messagepump_push (M_NEXTSONG, 0, 0, 0);
+            messagepump_push (M_NEXT, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--prev")) {
-            messagepump_push (M_PREVSONG, 0, 0, 0);
+            messagepump_push (M_PREV, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--play")) {
-            messagepump_push (M_PLAYSONG, 0, 0, 0);
+            messagepump_push (M_PLAY_CURRENT, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--stop")) {
-            messagepump_push (M_STOPSONG, 0, 0, 0);
+            messagepump_push (M_STOP, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--pause")) {
-            messagepump_push (M_PAUSESONG, 0, 0, 0);
+            messagepump_push (M_PAUSE, 0, 0, 0);
+            return 0;
+        }
+        else if (!strcmp (parg, "--toggle-pause")) {
+            messagepump_push (M_TOGGLE_PAUSE, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--random")) {
-            messagepump_push (M_PLAYRANDOM, 0, 0, 0);
+            messagepump_push (M_PLAY_RANDOM, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--queue")) {
@@ -210,10 +220,23 @@ server_exec_command_line (const char *cmdline, int len, char *sendback, int sbsi
         parg++;
     }
     if (parg < pend) {
+        if (conf_get_int ("cli_add_to_specific_playlist", 1)) {
+            const char *str = conf_get_str ("cli_add_playlist_name", "Default");
+            int idx = plt_find (str);
+            if (idx < 0) {
+                idx = plt_add (plt_get_count (), str);
+            }
+            if (idx >= 0) {
+                plt_set_curr (idx);
+            }
+        }
         // add files
         if (!queue && plt_get_curr () != -1) {
             pl_clear ();
             pl_reset_cursor ();
+        }
+        if (parg < pend) {
+            deadbeef->pl_add_files_begin ();
         }
         while (parg < pend) {
             char resolved[PATH_MAX];
@@ -224,17 +247,18 @@ server_exec_command_line (const char *cmdline, int len, char *sendback, int sbsi
             else {
                 pname = parg;
             }
-            if (pl_add_dir (pname, NULL, NULL) < 0) {
-                if (pl_add_file (pname, NULL, NULL) < 0) {
+            if (deadbeef->pl_add_dir (pname, NULL, NULL) < 0) {
+                if (deadbeef->pl_add_file (pname, NULL, NULL) < 0) {
                     fprintf (stderr, "failed to add file or folder %s\n", pname);
                 }
             }
             parg += strlen (parg);
             parg++;
         }
-        messagepump_push (M_PLAYLISTREFRESH, 0, 0, 0);
+        deadbeef->pl_add_files_end ();
+        messagepump_push (M_PLAYLIST_REFRESH, 0, 0, 0);
         if (!queue) {
-            messagepump_push (M_PLAYSONG, 0, 1, 0);
+            messagepump_push (M_PLAY_CURRENT, 0, 1, 0);
             return 2; // don't reload playlist at startup
         }
     }
@@ -270,7 +294,8 @@ server_start (void) {
     memcpy (srv_local.sun_path, server_id, sizeof (server_id));
     int len = offsetof(struct sockaddr_un, sun_path) + sizeof (server_id)-1;
 #else
-    snprintf (srv_local.sun_path, sizeof (srv_local.sun_path), "%s/socket", dbconfdir);
+    char *socketdirenv = getenv ("DDB_SOCKET_DIR");
+    snprintf (srv_local.sun_path, sizeof (srv_local.sun_path), "%s/socket", socketdirenv ? socketdirenv : dbconfdir);
     if (unlink(srv_local.sun_path) < 0) {
         perror ("INFO: unlink socket");
     }
@@ -347,6 +372,7 @@ player_mainloop (void) {
         uint32_t p1;
         uint32_t p2;
         while (messagepump_pop(&msg, &ctx, &p1, &p2) != -1) {
+            DB_output_t *output = plug_get_output ();
             switch (msg) {
             case M_REINIT_SOUND:
                 plug_reinit_sound ();
@@ -354,9 +380,9 @@ player_mainloop (void) {
                 break;
             case M_TERMINATE:
                 return;
-            case M_PLAYSONG:
+            case M_PLAY_CURRENT:
                 if (p1) {
-                    p_stop ();
+                    output->stop ();
                     pl_playqueue_clear ();
                     streamer_set_nextsong (0, 1);
                 }
@@ -364,41 +390,47 @@ player_mainloop (void) {
                     streamer_play_current_track ();
                 }
                 break;
-            case M_PLAYSONGNUM:
-                p_stop ();
+            case M_PLAY_NUM:
+                output->stop ();
                 pl_playqueue_clear ();
                 streamer_set_nextsong (p1, 1);
                 break;
-            case M_STOPSONG:
+            case M_STOP:
                 streamer_set_nextsong (-2, 0);
                 break;
-            case M_NEXTSONG:
-                p_stop ();
+            case M_NEXT:
+                output->stop ();
                 streamer_move_to_nextsong (1);
                 break;
-            case M_PREVSONG:
-                p_stop ();
+            case M_PREV:
+                output->stop ();
                 streamer_move_to_prevsong ();
                 break;
-            case M_PAUSESONG:
-                if (p_get_state () == OUTPUT_STATE_PAUSED) {
-                    p_unpause ();
-                    plug_trigger_event_paused (0);
-                }
-                else {
-                    p_pause ();
+            case M_PAUSE:
+                if (output->state () != OUTPUT_STATE_PAUSED) {
+                    output->pause ();
                     plug_trigger_event_paused (1);
                 }
                 break;
-            case M_PLAYRANDOM:
-                p_stop ();
+            case M_TOGGLE_PAUSE:
+                if (output->state () == OUTPUT_STATE_PAUSED) {
+                    output->unpause ();
+                    plug_trigger_event_paused (0);
+                }
+                else {
+                    output->pause ();
+                    plug_trigger_event_paused (1);
+                }
+                break;
+            case M_PLAY_RANDOM:
+                output->stop ();
                 streamer_move_to_randomsong ();
                 break;
-            case M_PLAYLISTREFRESH:
+            case M_PLAYLIST_REFRESH:
                 pl_save_current ();
                 plug_trigger_event_playlistchanged ();
                 break;
-            case M_CONFIGCHANGED:
+            case M_CONFIG_CHANGED:
                 conf_save ();
                 streamer_configchanged ();
                 plug_trigger_event (DB_EV_CONFIGCHANGED, 0);
@@ -410,8 +442,8 @@ player_mainloop (void) {
     }
 }
 
+#if 0
 static int sigterm_handled = 0;
-
 void
 atexit_handler (void) {
     fprintf (stderr, "atexit_handler\n");
@@ -430,6 +462,7 @@ sigterm_handler (int sig) {
     fprintf (stderr, "bye.\n");
     exit (0);
 }
+#endif
 
 #ifdef __linux__
 void
@@ -463,6 +496,45 @@ sigsegv_handler (int sig) {
 }
 #endif
 
+void
+save_resume_state (void) {
+    playItem_t *trk = streamer_get_playing_track ();
+    DB_output_t *output = plug_get_output ();
+    float playpos = -1;
+    int playtrack = -1;
+    int playlist = streamer_get_current_playlist ();
+    int paused = (output->state () == OUTPUT_STATE_PAUSED);
+    if (trk && playlist >= 0) {
+        playtrack = str_get_idx_of (trk);
+        playpos = streamer_get_playpos ();
+        pl_item_unref (trk);
+    }
+
+    conf_set_float ("resume.position", playpos);
+    conf_set_int ("resume.track", playtrack);
+    conf_set_int ("resume.playlist", playlist);
+    conf_set_int ("resume.paused", paused);
+}
+
+void
+restore_resume_state (void) {
+    DB_output_t *output = plug_get_output ();
+    if (conf_get_int ("resume_last_session", 0) && output->state () == OUTPUT_STATE_STOPPED) {
+        int plt = conf_get_int ("resume.playlist", -1);
+        int track = conf_get_int ("resume.track", -1);
+        float pos = conf_get_float ("resume.position", -1);
+        int paused = conf_get_int ("resume.paused", 0);
+        trace ("resume: track %d pos %f playlist %d\n", track, pos, plt);
+        if (plt >= 0 && track >= 0 && pos >= 0) {
+            streamer_lock (); // need to hold streamer thread to make the resume operation atomic
+            streamer_set_current_playlist (plt);
+            streamer_set_nextsong (track, paused ? 2 : 3);
+            streamer_set_seek (pos);
+            streamer_unlock ();
+        }
+    }
+}
+
 int
 main (int argc, char *argv[]) {
 #ifdef __linux__
@@ -475,12 +547,40 @@ main (int argc, char *argv[]) {
 	bindtextdomain (PACKAGE, LOCALEDIR);
 	bind_textdomain_codeset (PACKAGE, "UTF-8");
 	textdomain (PACKAGE);
-#endif					
-    fprintf (stderr, "starting deadbeef " VERSION "\n");
+#endif
+
+    int staticlink = 0;
+    int portable = 0;
+#if STATICLINK
+    staticlink = 1;
+#endif
+#if PORTABLE
+    portable = 1;
+#endif
+
+    fprintf (stderr, "starting deadbeef " VERSION "%s%s\n", staticlink ? " [static]" : "", portable ? " [portable]" : "");
     srand (time (NULL));
 #ifdef __linux__
     prctl (PR_SET_NAME, "deadbeef-main", 0, 0, 0, 0);
 #endif
+
+#if PORTABLE
+    strcpy (dbinstalldir, argv[0]);
+    char *e = dbinstalldir + strlen (dbinstalldir);
+    while (e >= dbinstalldir && *e != '/') {
+        e--;
+    }
+    *e = 0;
+#endif
+
+#if PORTABLE_FULL
+    if (snprintf (confdir, sizeof (confdir), "%s/config", dbinstalldir) > sizeof (confdir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+
+    strcpy (dbconfdir, confdir);
+#else
     char *homedir = getenv ("HOME");
     if (!homedir) {
         fprintf (stderr, "unable to find home directory. stopping.\n");
@@ -500,11 +600,48 @@ main (int argc, char *argv[]) {
             return -1;
         }
     }
-    mkdir (confdir, 0755);
     if (snprintf (dbconfdir, sizeof (dbconfdir), "%s/deadbeef", confdir) > sizeof (dbconfdir)) {
         fprintf (stderr, "fatal: out of memory while configuring\n");
         return -1;
     }
+    mkdir (confdir, 0755);
+#endif
+
+
+#if PORTABLE
+    if (snprintf (dbdocdir, sizeof (dbdocdir), "%s/doc", dbinstalldir) > sizeof (dbdocdir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+    if (snprintf (dbplugindir, sizeof (dbplugindir), "%s/plugins", dbinstalldir) > sizeof (dbplugindir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+    if (snprintf (dbpixmapdir, sizeof (dbpixmapdir), "%s/pixmaps", dbinstalldir) > sizeof (dbpixmapdir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+    mkdir (dbplugindir, 0755);
+#else
+    if (snprintf (dbdocdir, sizeof (dbdocdir), "%s", DOCDIR) > sizeof (dbdocdir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+    if (snprintf (dbplugindir, sizeof (dbplugindir), "%s/deadbeef", LIBDIR) > sizeof (dbplugindir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+    if (snprintf (dbpixmapdir, sizeof (dbpixmapdir), "%s/share/deadbeef/pixmaps", PREFIX) > sizeof (dbpixmapdir)) {
+        fprintf (stderr, "fatal: too long install path %s\n", dbinstalldir);
+        return -1;
+    }
+#endif
+    trace ("installdir: %s\n", dbinstalldir);
+    trace ("confdir: %s\n", confdir);
+    trace ("docdir: %s\n", dbdocdir);
+    trace ("plugindir: %s\n", dbplugindir);
+    trace ("pixmapdir: %s\n", dbpixmapdir);
+
     mkdir (dbconfdir, 0755);
 
     char cmdline[2048];
@@ -569,7 +706,8 @@ main (int argc, char *argv[]) {
     memcpy (remote.sun_path, server_id, sizeof (server_id));
     len = offsetof(struct sockaddr_un, sun_path) + sizeof (server_id)-1;
 #else
-    snprintf (remote.sun_path, sizeof (remote.sun_path), "%s/socket", dbconfdir);
+    char *socketdirenv = getenv ("DDB_SOCKET_DIR");
+    snprintf (remote.sun_path, sizeof (remote.sun_path), "%s/socket", socketdirenv ? socketdirenv : dbconfdir);
     len = offsetof(struct sockaddr_un, sun_path) + strlen (remote.sun_path);
 #endif
     if (connect(s, (struct sockaddr *)&remote, len) == 0) {
@@ -625,7 +763,9 @@ main (int argc, char *argv[]) {
     conf_load (); // required by some plugins at startup
     volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
     messagepump_init (); // required to push messages while handling commandline
-    plug_load_all (); // required to add files to playlist from commandline
+    if (plug_load_all ()) { // required to add files to playlist from commandline
+        exit (-1);
+    }
     pl_load_all ();
     plt_set_curr (conf_get_int ("playlist.current", 0));
 
@@ -649,16 +789,26 @@ main (int argc, char *argv[]) {
     if (server_start () < 0) {
         exit (-1);
     }
+#if 0
     signal (SIGTERM, sigterm_handler);
     atexit (atexit_handler); // helps to save in simple cases
+#endif
 
     // start all subsystems
     plug_trigger_event_playlistchanged ();
 
     streamer_init ();
 
+    plug_connect_all ();
+
+    if (!noloadpl) {
+        restore_resume_state ();
+    }
+
     // this runs in main thread (blocks right here)
     player_mainloop ();
+
+    save_resume_state ();
 
     // save config
     pl_save_all ();
@@ -676,9 +826,10 @@ main (int argc, char *argv[]) {
     server_close ();
 
     // stop streaming and playback before unloading plugins
-    p_stop ();
-    p_free ();
+    DB_output_t *output = plug_get_output ();
+    output->stop ();
     streamer_free ();
+    output->free ();
 
     // plugins might still hood references to playitems,
     // and query configuration in background
@@ -691,7 +842,9 @@ main (int argc, char *argv[]) {
     conf_free ();
     messagepump_free ();
     plug_cleanup ();
+#if 0
     sigterm_handled = 1;
+#endif
     fprintf (stderr, "hej-hej!\n");
     return 0;
 }

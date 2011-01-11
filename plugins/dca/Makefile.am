@@ -4,28 +4,27 @@ pkglib_LTLIBRARIES = dca.la
 
 dca_la_SOURCES = dcaplug.c\
 extract_dca.c\
-getopt.c\
 gettimeofday.c\
 parse.c\
 bitstream.c\
 downmix.c\
-convert2s16.c\
-plugins/dca/audio_out.h\
-plugins/dca/dca.h\
-plugins/dca/dts.h\
-plugins/dca/getopt.h\
-plugins/dca/gettimeofday.h\
-plugins/dca/tendra.h\
-plugins/dca/dca_internal.h\
-plugins/dca/tables_adpcm.h\
-plugins/dca/tables_fir.h\
-plugins/dca/tables.h\
-plugins/dca/tables_huffman.h\
-plugins/dca/tables_quantization.h\
-plugins/dca/tables_vq.h
+audio_out.h\
+dca.h\
+dts.h\
+gettimeofday.h\
+tendra.h\
+dca_internal.h\
+tables_adpcm.h\
+tables_fir.h\
+tables.h\
+tables_huffman.h\
+tables_quantization.h\
+tables_vq.h\
+bitstream.h
 
 dca_la_LDFLAGS = -module
+dca_la_LIBADD = $(LDADD) -lm
 
-AM_CFLAGS = $(CFLAGS) -fPIC
+AM_CFLAGS = $(CFLAGS) -fPIC -std=c99
 
 endif

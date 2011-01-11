@@ -1,6 +1,6 @@
 /*
     DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2010 Alexey Yakovenko <waker@users.sourceforge.net>
+    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
-#define trace(...) { fprintf (stderr, __VA_ARGS__); }
-//#define trace(fmt,...)
+//#define trace(...) { fprintf (stderr, __VA_ARGS__); }
+#define trace(fmt,...)
 
 static DB_decoder_t plugin;
 DB_functions_t *deadbeef;
@@ -49,7 +49,7 @@ typedef struct {
 } tta_info_t;
 
 static DB_fileinfo_t *
-tta_open (void) {
+tta_open (uint32_t hints) {
     DB_fileinfo_t *_info = malloc (sizeof (tta_info_t));
     tta_info_t *info = (tta_info_t *)_info;
     memset (info, 0, sizeof (tta_info_t));
@@ -60,6 +60,7 @@ static int
 tta_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     tta_info_t *info = (tta_info_t *)_info;
 
+    trace ("open_tta_file %s\n", it->fname);
     if (open_tta_file (it->fname, &info->tta, 0) != 0) {
         fprintf (stderr, "tta: failed to open %s\n", it->fname);
         return -1;
@@ -70,9 +71,12 @@ tta_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
 
-    _info->bps = info->tta.BPS;
-    _info->channels = info->tta.NCH;
-    _info->samplerate = info->tta.SAMPLERATE;
+    _info->fmt.bps = info->tta.BPS;
+    _info->fmt.channels = info->tta.NCH;
+    _info->fmt.samplerate = info->tta.SAMPLERATE;
+    for (int i = 0; i < _info->fmt.channels; i++) {
+        _info->fmt.channelmask |= 1 << i;
+    }
     _info->readpos = 0;
     _info->plugin = &plugin;
 
@@ -85,6 +89,7 @@ tta_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         info->startsample = 0;
         info->endsample = (info->tta.DATALENGTH)-1;
     }
+    trace ("open_tta_file %s success!\n", it->fname);
     return 0;
 }
 
@@ -99,61 +104,52 @@ tta_free (DB_fileinfo_t *_info) {
 }
 
 static int
-tta_read_int16 (DB_fileinfo_t *_info, char *bytes, int size) {
+tta_read (DB_fileinfo_t *_info, char *bytes, int size) {
     tta_info_t *info = (tta_info_t *)_info;
-    if (info->currentsample + size / (2 * _info->channels) > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * 2 * _info->channels;
+    int samplesize = _info->fmt.channels * _info->fmt.bps / 8;
+    if (info->currentsample + size / samplesize > info->endsample) {
+        size = (info->endsample - info->currentsample + 1) * samplesize;
         if (size <= 0) {
             return 0;
         }
     }
 
     int initsize = size;
-    int out_channels = _info->channels;
-    if (out_channels > 2) {
-        out_channels = 2;
-    }
-    int sample_size = ((_info->bps >> 3) * out_channels);
 
     while (size > 0) {
         if (info->samples_to_skip > 0 && info->remaining > 0) {
             int skip = min (info->remaining, info->samples_to_skip);
             if (skip < info->remaining) {
-                memmove (info->buffer, info->buffer + skip * info->tta.BSIZE * info->tta.NCH, (info->remaining - skip) * info->tta.BSIZE * info->tta.NCH);
+                memmove (info->buffer, info->buffer + skip * samplesize, (info->remaining - skip) * samplesize);
             }
             info->remaining -= skip;
             info->samples_to_skip -= skip;
         }
         if (info->remaining > 0) {
-            int n = size / sample_size;
+            int n = size / samplesize;
             n = min (n, info->remaining);
             int nn = n;
             char *p = info->buffer;
-            while (n > 0) {
-                *((int16_t*)bytes) = (int16_t)(((uint8_t)p[1]<<8) | (uint8_t)p[0]);
-                bytes += 2;
-                if (_info->channels == 2) {
-                    *((int16_t*)bytes) = (int16_t)(((uint8_t)(p+info->tta.BSIZE)[1]<<8) | (uint8_t)(p+info->tta.BSIZE)[0]);
-                    bytes += 2;
-                }
-                n--;
-                size -= sample_size;
-                p += info->tta.NCH * info->tta.BSIZE;
-            }
+
+            memcpy (bytes, p, n * samplesize);
+            bytes += n * samplesize;
+            size -= n * samplesize;
+            p += n * samplesize;
+
             if (info->remaining > nn) {
-                memmove (info->buffer, p, (info->remaining - nn) * info->tta.BSIZE * info->tta.NCH);
+                memmove (info->buffer, p, (info->remaining - nn) * samplesize);
             }
             info->remaining -= nn;
         }
 
         if (size > 0 && !info->remaining) {
             info->remaining = get_samples (&info->tta, info->buffer);
-            if (!info->remaining) {
+            if (info->remaining <= 0) {
                 break;
             }
         }
     }
-    info->currentsample += (initsize-size) / sample_size;
+    info->currentsample += (initsize-size) / samplesize;
     return initsize-size;
 }
 
@@ -169,14 +165,14 @@ tta_seek_sample (DB_fileinfo_t *_info, int sample) {
 
     info->currentsample = sample + info->startsample;
     info->remaining = 0;
-    _info->readpos = sample / _info->samplerate;
+    _info->readpos = sample / _info->fmt.samplerate;
     return 0;
 }
 
 static int
 tta_seek (DB_fileinfo_t *_info, float time) {
     tta_info_t *info = (tta_info_t *)_info;
-    return tta_seek_sample (_info, time * _info->samplerate);
+    return tta_seek_sample (_info, time * _info->fmt.samplerate);
 }
 
 static DB_playItem_t *
@@ -187,10 +183,10 @@ tta_insert (DB_playItem_t *after, const char *fname) {
         return NULL;
     }
 
-    if (tta.BPS != 16) {
-        fprintf (stderr, "tta: only 16 bit is supported yet, skipped %s\n", fname);
-        return NULL;
-    }
+//    if (tta.BPS != 16) {
+//        fprintf (stderr, "tta: only 16 bit is supported yet, skipped %s\n", fname);
+//        return NULL;
+//    }
 
     int totalsamples = tta.DATALENGTH;
     double dur = tta.LENGTH;
@@ -295,12 +291,12 @@ static const char *filetypes[] = { "TTA", NULL };
 // define plugin interface
 static DB_decoder_t plugin = {
     DB_PLUGIN_SET_API_VERSION
-    .plugin.version_major = 0,
-    .plugin.version_minor = 1,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "tta",
     .plugin.name = "tta decoder",
-    .plugin.descr = "tta decoder using libmppdec",
+    .plugin.descr = "tta decoder based on TTA Hardware Players Library Version 1.2",
     .plugin.author = "Alexey Yakovenko",
     .plugin.email = "waker@users.sourceforge.net",
     .plugin.website = "http://deadbeef.sf.net",
@@ -309,8 +305,7 @@ static DB_decoder_t plugin = {
     .open = tta_open,
     .init = tta_init,
     .free = tta_free,
-    .read_int16 = tta_read_int16,
-//    .read_float32 = tta_read_float32,
+    .read = tta_read,
     .seek = tta_seek,
     .seek_sample = tta_seek_sample,
     .insert = tta_insert,

@@ -24,9 +24,6 @@
 #include "rol.h"
 #include "debug.h"
 
-extern "C" void android_trace (const char *fmt, ...);
-#define trace(...) { android_trace(__VA_ARGS__); }
-
 int   const CrolPlayer::kSizeofDataRecord    =  30;
 int   const CrolPlayer::kMaxTickBeat         =  60;
 int   const CrolPlayer::kSilenceNote         = -12;
@@ -62,7 +59,6 @@ CrolPlayer::uint16 const CrolPlayer::kNoteTable[12] =
 
 CPlayer *CrolPlayer::factory(Copl *newopl)
 {
-    trace ("CrolPlayer factory enter, newopl=%p\n", newopl);
   return new CrolPlayer(newopl);
 }
 //---------------------------------------------------------
@@ -78,7 +74,6 @@ CrolPlayer::CrolPlayer(Copl *newopl)
   ,n_tempo_events(0)
   ,n_used_ins(0)
 {
-    trace ("CrolPlayer ctor enter\n");
     int n;
 
     mTempoEvents = 0;
@@ -88,11 +83,9 @@ CrolPlayer::CrolPlayer(Copl *newopl)
     memset(bxRegister,  0, sizeof(bxRegister) );
     memset(volumeCache, 0, sizeof(volumeCache) );
     memset(freqCache,   0, sizeof(freqCache) );
-    trace ("memsets done\n");
 
     for(n=0; n<11; n++)
       pitchCache[n]=1.0f;    
-    trace ("ctor done\n");
 }
 //---------------------------------------------------------
 CrolPlayer::~CrolPlayer()
