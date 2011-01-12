@@ -25,6 +25,9 @@
 #include "internal/it.h"
 #include "../../deadbeef.h"
 
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+#define trace(fmt,...)
+
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
 
