@@ -152,9 +152,9 @@ jni_setformat(ddb_waveformat_t *fmt)
     return 0;
 }
 
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
-  (JNIEnv *env, jclass cls) {
-      trace("ddb_start");
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls) {
+    trace("ddb_start");
       // initialize ddb
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C");
@@ -204,12 +204,11 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
   (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
     short b[size];
     memset (b, 0, sizeof (b));
-    if (streamer_ok_to_read (size*2)) {
-        int bytesread = streamer_read ((char *)b, size*2);
-    }
-    else
-    {
+    if (jni_out_state != OUTPUT_STATE_PLAYING || !streamer_ok_to_read (-1)) {
         trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
+    }
+    else {
+        int bytesread = streamer_read ((char *)b, size*2);
     }
     (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
 }
@@ -424,6 +423,7 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1toggle_1pause
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1play
   (JNIEnv *env, jclass cls)
 {
+    trace ("out_play\n");
     jni_out_play ();
 }
 

@@ -14,6 +14,6 @@ LOCAL_MODULE    := deadbeef
 LOCAL_SRC_FILES := deadbeef-jni.c
 
 LOCAL_ARM_MODE := arm
-LOCAL_LDLIBS    := -llog
+LOCAL_LDLIBS    := -llog -lz
 
 include $(BUILD_SHARED_LIBRARY)
