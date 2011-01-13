@@ -148,7 +148,11 @@ static DB_output_t jni_out = {
 static int
 jni_setformat(ddb_waveformat_t *fmt)
 {
-    memcpy (&jni_out.fmt, fmt, sizeof (ddb_waveformat_t));
+    jni_out.fmt.samplerate = fmt->samplerate;
+    jni_out.fmt.channels = 2;
+    jni_out.fmt.channelmask = 3;
+    jni_out.fmt.bps = 16;
+    jni_out.fmt.is_float = 0;
     return 0;
 }
 
@@ -200,17 +204,24 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
     return 0;
 }
 
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
-  (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
+JNIEXPORT int JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
+    int bytesread = 0;
     short b[size];
-    memset (b, 0, sizeof (b));
+    //memset (b, 0, sizeof (b));
     if (jni_out_state != OUTPUT_STATE_PLAYING || !streamer_ok_to_read (-1)) {
         trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
     }
     else {
-        int bytesread = streamer_read ((char *)b, size*2);
+        bytesread = streamer_read ((char *)b, size*2);
     }
     (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
+    return bytesread;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_getSamplerate (JNIEnv *env, jclass cls) {
+    return jni_out.fmt.samplerate;
 }
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count

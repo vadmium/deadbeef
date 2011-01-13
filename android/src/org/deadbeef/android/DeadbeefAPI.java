@@ -4,7 +4,9 @@ public class DeadbeefAPI
 {
 	public static native int start();
 	public static native int stop();
-	public static native void getBuffer(int size, short buffer[]);
+	// returns number of bytes read
+	public static native int getBuffer(int size, short buffer[]);
+	public static native int getSamplerate();
 	
 	// playlist access
 	public static native int pl_get_count ();

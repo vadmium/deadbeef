@@ -26,10 +26,18 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    getBuffer
- * Signature: (I[S)V
+ * Signature: (I[S)I
  */
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_getBuffer
   (JNIEnv *, jclass, jint, jshortArray);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    getSamplerate
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_getSamplerate
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI

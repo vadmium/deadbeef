@@ -188,7 +188,7 @@ public class Deadbeef extends ListActivity {
         
         mTimer = new Timer();
         mTimerTask = new ProgressTask();
-        mTimer.schedule (mTimerTask, 250, 250);
+        mTimer.schedule (mTimerTask, 0, 250);
    }
     
     @Override
