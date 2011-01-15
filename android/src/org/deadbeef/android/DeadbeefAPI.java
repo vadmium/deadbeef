@@ -32,8 +32,8 @@ public class DeadbeefAPI
 	public static native void play_play ();
 	public static native void play_pause ();
 	public static native void play_stop ();
-	public static native boolean play_is_paused ();
-	public static native boolean play_is_playing ();
+	public static native int play_is_paused ();
+	public static native int play_is_playing ();
 	
 
 	static {

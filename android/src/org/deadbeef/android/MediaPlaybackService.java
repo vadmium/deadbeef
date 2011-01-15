@@ -46,7 +46,6 @@ public class MediaPlaybackService extends Service {
     private WakeLock mWakeLock;
     private int mServiceStartId = -1;
     private boolean mServiceInUse = false;
-    private boolean mIsSupposedToBePlaying = false;
     // used to track what type of audio focus loss caused the playback to pause
     private boolean mPausedByTransientLossOfFocus = false;
 
@@ -306,11 +305,8 @@ public class MediaPlaybackService extends Service {
             registerReceiver(mUnmountReceiver, iFilter);
         }
     }
-
-   /**
-     * Starts playback of a previously opened file.
-     */
-    public void play() {
+    
+    private void playbackStarted () {
     	RemoteViews views = new RemoteViews(getPackageName(), R.layout.statusbar);
     	views.setImageViewResource(R.id.icon, R.drawable.ddb_24);
 
@@ -322,18 +318,30 @@ public class MediaPlaybackService extends Service {
     			new Intent("org.deadbeef.android.PLAYBACK_VIEWER")
     	.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 0);
     	startForeground(PLAYBACKSERVICE_STATUS, status);
-    	if (!mIsSupposedToBePlaying) {
-    		mIsSupposedToBePlaying = true;
-            }
-    	mPlayer.paused = false;
-		int curr = DeadbeefAPI.pl_get_current_idx ();
-		if (curr < 0) {
-			DeadbeefAPI.play_idx (0);
-		}
+    }
+
+    // play current (or 1st)
+    public void play() {
+        synchronized(this) {
+        	int paused = DeadbeefAPI.play_is_paused (); 
+        	if (1==paused) {
+        		DeadbeefAPI.play_play ();
+        	}
+        	else {
+        		DeadbeefAPI.play_idx (0);
+        	}
+        }
+    }
+    
+    // play specific
+    public void playIdx (int idx) {
+        synchronized(this) {
+        	DeadbeefAPI.play_idx (idx);
+        }
     }
     
     public void refreshStatus () {
-    	if (!mIsSupposedToBePlaying) {
+    	if (!isPlaying ()) {
     		return;
     	}
 		// update statusbar
@@ -352,26 +360,15 @@ public class MediaPlaybackService extends Service {
     }
 
     public boolean isPaused() {
-    	return mPlayer.paused;
+    	return DeadbeefAPI.play_is_paused () == 1 ? true : false;
     }
 
-    private void stop(boolean remove_status_icon) {
-    	mPlayer.stop();
-        if (remove_status_icon) {
-            gotoIdleState();
-        } else {
-            stopForeground(false);
+    private void stop() {
+        synchronized(this) {
+        	mPlayer.stop();
+        	gotoIdleState();
+        	stopForeground(false);
         }
-        if (remove_status_icon) {
-            mIsSupposedToBePlaying = false;
-        }
-    }
-
-    /**
-     * Stops playback.
-     */
-    public void stop() {
-        stop(true);
     }
 
     /**
@@ -380,20 +377,14 @@ public class MediaPlaybackService extends Service {
     public void pause() {
         synchronized(this) {
             if (isPlaying()) {
-                mPlayer.paused = true;
+            	DeadbeefAPI.play_pause ();
                 gotoIdleState();
-                mIsSupposedToBePlaying = false;
             }
         }
     }
 
-    /** Returns whether something is currently playing
-     *
-     * @return true if something is playing (or will be playing shortly, in case
-     * we're currently transitioning between tracks), false if not.
-     */
     public boolean isPlaying() {
-        return mIsSupposedToBePlaying;
+        return DeadbeefAPI.play_is_playing ()==1?true:false;
     }
 
     public void prev() {
@@ -415,33 +406,45 @@ public class MediaPlaybackService extends Service {
      * Returns the duration of the file in seconds
      */
     public float duration() {
-    	return DeadbeefAPI.play_get_duration_seconds ();
+    	synchronized(this) {
+    		return DeadbeefAPI.play_get_duration_seconds ();
+    	}
     }
 
     /**
      * Returns the current playback position in seconds
      */
     public float position() {
-        return DeadbeefAPI.play_get_pos_seconds ();
+    	synchronized(this) {
+    		return DeadbeefAPI.play_get_pos_seconds ();
+    	}
     }
 
     public void seek(float pos) {
-    	DeadbeefAPI.play_seek (pos);
+    	synchronized(this) {
+    		DeadbeefAPI.play_seek (pos);
+    	}
     }
     
     String getAlbumName () {
-    	int track = DeadbeefAPI.pl_get_current_idx ();
-    	return DeadbeefAPI.pl_get_metadata (track, "album");
+    	synchronized(this) {
+    		int track = DeadbeefAPI.pl_get_current_idx ();
+    		return DeadbeefAPI.pl_get_metadata (track, "album");
+    	}
     }
 
     String getArtistName () {
-    	int track = DeadbeefAPI.pl_get_current_idx ();
-    	return DeadbeefAPI.pl_get_metadata (track, "artist");
+    	synchronized(this) {
+    		int track = DeadbeefAPI.pl_get_current_idx ();
+    		return DeadbeefAPI.pl_get_metadata (track, "artist");
+    	}
     }
     
     String getTrackName () {
-    	int track = DeadbeefAPI.pl_get_current_idx ();
-    	return DeadbeefAPI.pl_get_metadata (track, "title");
+    	synchronized(this) {
+	    	int track = DeadbeefAPI.pl_get_current_idx ();
+	    	return DeadbeefAPI.pl_get_metadata (track, "title");
+    	}
     }
     
    /*
@@ -457,7 +460,7 @@ public class MediaPlaybackService extends Service {
        }
 
        public boolean isPlaying() {
-           return !mService.get().mPlayer.paused;
+           return mService.get().isPlaying();
        }
        public void stop() {
            mService.get().stop();
@@ -492,11 +495,15 @@ public class MediaPlaybackService extends Service {
        public void seek(float pos) {
            mService.get().seek(pos);
        }
-      public boolean isPaused() {
+       public boolean isPaused() {
     	   return mService.get().isPaused();
        }
        public void refreshStatus () {
     	   mService.get().refreshStatus();
+       }
+       
+       public void playIdx(int idx) {
+    	   	mService.get().playIdx(idx);
        }
 
    }

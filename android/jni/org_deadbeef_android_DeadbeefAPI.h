@@ -202,17 +202,17 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1stop
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_is_paused
- * Signature: ()Z
+ * Signature: ()I
  */
-JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
   (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_is_playing
- * Signature: ()Z
+ * Signature: ()I
  */
-JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *, jclass);
 
 #ifdef __cplusplus

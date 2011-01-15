@@ -19,7 +19,6 @@ class Player {
     		AudioFormat.ENCODING_PCM_16BIT);
     
     
-    public boolean paused = true;
     public boolean playing = true;
     private Thread playThread;
     
@@ -63,19 +62,18 @@ class Player {
         	    	audio.play();
         	    }
 
-        	    int nb = 0;
         	    if (prevsize != minSize) {
         	    	buffer = null;
         	    	buffer = new short[minSize];
         	    	prevsize = minSize;
         	    }
-        	    nb = DeadbeefAPI.getBuffer(minSize, buffer);
+        	    DeadbeefAPI.getBuffer(minSize, buffer);
     			audio.write(buffer, 0, minSize);
     			
-		    	if (paused && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
+		    	if (0==DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
 		    		audio.pause ();
 		    	}
-    			while (paused) {
+    			while (0 == DeadbeefAPI.play_is_playing ()) {
     				try {
     					Thread.sleep(200);
     				} catch (InterruptedException e) {
@@ -83,7 +81,7 @@ class Player {
     				}
     			}
     			
-		    	if (!paused && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
+		    	if (1==DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
 		    		audio.play ();
 		    	}    			
     		}

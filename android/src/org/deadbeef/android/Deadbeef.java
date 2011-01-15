@@ -31,7 +31,7 @@ public class Deadbeef extends ListActivity {
     boolean dontUpdatePlayPos = false;
     
     int curr_track = -1;
-    int curr_state = -1; // -1=unknown, 0 = paused/stopped, 1 = playing
+    boolean curr_state = false; // false=stopped/paused
     
 	private TextView current_pos_tv;
 	private TextView duration_tv;
@@ -99,11 +99,11 @@ public class Deadbeef extends ListActivity {
 	    			return;
 	    		}
 	    		
-	    		int new_state = mPlaybackService.isPaused() ? 0 : 1;
+	    		boolean new_state = mPlaybackService.isPlaying ();
 	    		if (new_state != curr_state) {
 	    			curr_state = new_state;
 	        		ImageButton button = (ImageButton)findViewById(R.id.play);
-	        		if (curr_state == 0) {
+	        		if (!curr_state) {
 	        			button.setImageResource (R.drawable.ic_media_play);
 	        		}
 	        		else {
@@ -289,31 +289,12 @@ public class Deadbeef extends ListActivity {
     
     private void PlayPause () {
     	try {
-    		if (mPlaybackService.isPaused()) {
+    		if (!mPlaybackService.isPlaying()) {
     			mPlaybackService.play ();
-	    		ImageButton button = (ImageButton)findViewById(R.id.play);
-	            button.setImageResource (R.drawable.ic_media_pause);    		
     		}
     		else {
     			mPlaybackService.pause ();
-	    		ImageButton button = (ImageButton)findViewById(R.id.play);
-	            button.setImageResource (R.drawable.ic_media_play);    		
-    			
     		}
-    		/*
-    		mPlaybackService.playpause ();
-	    	if (!mPlaybackService.isPaused()) {
-	    		int curr = DeadbeefAPI.pl_get_current_idx ();
-	    		if (curr < 0) {
-	    			DeadbeefAPI.play_idx (0);
-	    		}
-	    		ImageButton button = (ImageButton)findViewById(R.id.play);
-	            button.setImageResource (R.drawable.ic_media_pause);    		
-	    	}
-	    	else {
-	    		ImageButton button = (ImageButton)findViewById(R.id.play);
-	            button.setImageResource (R.drawable.ic_media_play);    		
-	    	}*/
     	}
     	catch (RemoteException e) {
     		Log.e(TAG,"remote exception on PlayPause");
@@ -328,11 +309,8 @@ public class Deadbeef extends ListActivity {
 
     @Override
     public void onListItemClick (ListView l, View v, int position, long id) {
-   		DeadbeefAPI.play_idx (position);
    		try {
-	   		if (mPlaybackService.isPaused ()) {
-	   			mPlaybackService.play ();
-	   		}
+   			mPlaybackService.playIdx (position);
    		}
    		catch (RemoteException e) {
    			Log.e(TAG,"remote exception in onListItemClick");

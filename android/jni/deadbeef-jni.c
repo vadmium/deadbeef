@@ -207,14 +207,17 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
 JNIEXPORT int JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
     int bytesread = 0;
-    jboolean jb = 0;
-    short *b = (*env)->GetShortArrayElements (env, buffer, &jb);
-    if (jni_out_state != OUTPUT_STATE_PLAYING || !streamer_ok_to_read (-1)) {
-        //trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
+    char b[size*2];
+    if (jni_out_state == OUTPUT_STATE_PLAYING && streamer_ok_to_read (-1)) {
+        bytesread = streamer_read (b, size*2);
+        if (bytesread != size*2) {
+            memset (b+bytesread, 0, size*2-bytesread);
+        }
     }
     else {
-        bytesread = streamer_read ((char *)b, size*2);
+        memset (b, 0, sizeof (b));
     }
+    (*env)->SetShortArrayRegion(env, buffer, 0, size, (short *)b);
     return bytesread;
 }
 
@@ -336,6 +339,7 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1next
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1idx
   (JNIEnv *env, jclass cls, jint idx)
 {
+    trace ("play_idx: %d\n", idx);
     jni_out_stop ();
     streamer_set_nextsong (idx, 1);
 }
@@ -449,15 +453,15 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1stop
     jni_out_stop ();
 }
 
-JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
+JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
   (JNIEnv *env, jclass cls)
 {
-    jni_out_get_state () == OUTPUT_STATE_PAUSED;
+    return jni_out_get_state () == OUTPUT_STATE_PAUSED;
 }
 
-JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *env, jclass cls)
 {
-    jni_out_get_state () == OUTPUT_STATE_PLAYING;
+    return jni_out_get_state () == OUTPUT_STATE_PLAYING;
 }
 
