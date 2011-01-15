@@ -12,12 +12,12 @@ class Player {
 		playThread = new Thread(playRunnable);
 		playThread.start();
 	}
-    private int minSize = AudioTrack.getMinBufferSize(44100,
+    private AudioTrack audio = null;
+    int current_samplerate = 44100;
+    private int minSize = AudioTrack.getMinBufferSize(current_samplerate,
     		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
     		AudioFormat.ENCODING_PCM_16BIT);
     
-    private AudioTrack audio = null;
-    int current_samplerate = 44100;
     
     public boolean paused = true;
     public boolean playing = true;
@@ -27,11 +27,15 @@ class Player {
 		audio = null;
 		current_samplerate = samplerate;
 		
+		minSize = AudioTrack.getMinBufferSize(current_samplerate,
+	    		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
+	    		AudioFormat.ENCODING_PCM_16BIT);
+		
 		audio = new AudioTrack(
 		AudioManager.STREAM_MUSIC, samplerate,
 		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 		AudioFormat.ENCODING_PCM_16BIT,
-		minSize < 4096 ? 4096 : minSize,
+		minSize,
 		AudioTrack.MODE_STREAM);
     }
 
@@ -39,9 +43,9 @@ class Player {
 
     	public void run() {
     		Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+    		int prevsize = minSize;
+    	    short buffer[] = new short[minSize];
 
-    		short buffer[] = new short[minSize];
-   		
     		while (playing) {
     			int samplerate = DeadbeefAPI.getSamplerate ();
     			if (0 == samplerate) {
@@ -60,6 +64,11 @@ class Player {
         	    }
 
         	    int nb = 0;
+        	    if (prevsize != minSize) {
+        	    	buffer = null;
+        	    	buffer = new short[minSize];
+        	    	prevsize = minSize;
+        	    }
         	    nb = DeadbeefAPI.getBuffer(minSize, buffer);
     			audio.write(buffer, 0, minSize);
     			

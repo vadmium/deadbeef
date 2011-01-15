@@ -19,14 +19,12 @@
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="Song Title"
-      android:textColor="@drawable/selector"
       />
   <TextView android:id="@+id/artist"
       android:textAppearance="?android:attr/textAppearanceSmall"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="Song Artist"
-      android:textColor="@drawable/selector"
       />
 </LinearLayout>
 
@@ -35,7 +33,6 @@
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="0:00"
-      android:textColor="@drawable/selector"
       />
       
 </LinearLayout>

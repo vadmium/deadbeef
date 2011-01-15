@@ -45,6 +45,12 @@ public class Deadbeef extends ListActivity {
     private IMediaPlaybackService mPlaybackService;
     private boolean mIsBound = false;
     
+    private boolean isVisible = true;
+    
+    public void onWindowFocusChanged (boolean hasFocus) { 
+    	isVisible = hasFocus;
+    }
+    
     private ServiceConnection mConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder obj) {
         	mPlaybackService = IMediaPlaybackService.Stub.asInterface(obj);
@@ -82,6 +88,9 @@ public class Deadbeef extends ListActivity {
     
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run() {
+    		if (!isVisible) {
+    			return;
+    		}
     		try {
 	    		TextView tv;
 	    		int track = DeadbeefAPI.pl_get_current_idx ();
@@ -180,8 +189,6 @@ public class Deadbeef extends ListActivity {
         seekbar = (SeekBar)findViewById(R.id.seekbar);
 
         doBindService();
-
-        getListView().setBackgroundResource(android.R.color.background_light);
 
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
         setListAdapter(adapter);

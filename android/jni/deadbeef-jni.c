@@ -207,15 +207,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
 JNIEXPORT int JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint size, jshortArray buffer) {
     int bytesread = 0;
-    short b[size];
-    //memset (b, 0, sizeof (b));
+    jboolean jb = 0;
+    short *b = (*env)->GetShortArrayElements (env, buffer, &jb);
     if (jni_out_state != OUTPUT_STATE_PLAYING || !streamer_ok_to_read (-1)) {
-        trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
+        //trace("stream failed, buffer fill: %d bytes, requested: %d bytes\n", streamer_get_fill (), size*2);
     }
     else {
         bytesread = streamer_read ((char *)b, size*2);
     }
-    (*env)->SetShortArrayRegion(env, buffer, 0, size, b);
     return bytesread;
 }
 

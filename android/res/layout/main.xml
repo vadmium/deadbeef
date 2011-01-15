@@ -4,7 +4,6 @@
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
-              android:background = "#FFFFFF"
               >
 
 	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -49,7 +48,7 @@
 	<TextView android:id="@+id/current_pos_text"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
-              android:text="0:00"/>
+              android:text="0:00" android:singleLine="true"/>
 	               
     <SeekBar android:id="@+id/seekbar"
 	              android:layout_width="fill_parent" 
@@ -65,7 +64,7 @@
 	<TextView android:id="@+id/duration_text"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
-              android:text="0:00"/>
+              android:text="0:00" android:singleLine="true"/>
 
 	</LinearLayout> 
 

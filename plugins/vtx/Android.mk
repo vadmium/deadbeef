@@ -5,7 +5,7 @@ LOCAL_MODULE := vtx
 
 LOCAL_SRC_FILES += vtx.c ay8912.c ayemu_8912.h ayemu.h ayemu_vtxfile.h lh5dec.c vtxfile.c
 
-LOCAL_CFLAGS += -std=c99
+LOCAL_CFLAGS += -std=c99 -O2
 
 LOCAL_ARM_MODE := arm
 
