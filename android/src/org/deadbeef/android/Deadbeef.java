@@ -47,8 +47,28 @@ public class Deadbeef extends ListActivity {
     
     private boolean isVisible = true;
     
-    public void onWindowFocusChanged (boolean hasFocus) { 
+    private Timer mTimer;
+    private ProgressTask mTimerTask;
+    
+    private class ProgressTask extends TimerTask {
+    	public void run () {
+    		handler.post(UpdateInfoRunnable);
+    	}
+    }
+    
+    public void onWindowFocusChanged (boolean hasFocus) {
+		Log.e(TAG, "hasFocus="+hasFocus);
     	isVisible = hasFocus;
+    	
+    	if (isVisible) {
+	        mTimer = new Timer();
+	        mTimerTask = new ProgressTask();
+	        mTimer.schedule (mTimerTask, 0, 250);
+    	}
+    	else {
+    		mTimer.cancel ();
+    		mTimer.purge ();
+    	}
     }
     
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -154,15 +174,6 @@ public class Deadbeef extends ListActivity {
     	}
     };
     
-    private Timer mTimer;
-    private ProgressTask mTimerTask;
-    
-    private class ProgressTask extends TimerTask {
-    	public void run () {
-    		handler.post(UpdateInfoRunnable);
-    	}
-    }
-    
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -192,10 +203,6 @@ public class Deadbeef extends ListActivity {
 
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
         setListAdapter(adapter);
-        
-        mTimer = new Timer();
-        mTimerTask = new ProgressTask();
-        mTimer.schedule (mTimerTask, 0, 250);
     }
     
     @Override

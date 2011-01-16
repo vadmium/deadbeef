@@ -305,20 +305,6 @@ public class MediaPlaybackService extends Service {
             registerReceiver(mUnmountReceiver, iFilter);
         }
     }
-    
-    private void playbackStarted () {
-    	RemoteViews views = new RemoteViews(getPackageName(), R.layout.statusbar);
-    	views.setImageViewResource(R.id.icon, R.drawable.ddb_24);
-
-    	Notification status = new Notification();
-    	status.contentView = views;
-    	status.flags |= Notification.FLAG_ONGOING_EVENT;
-    	status.icon = R.drawable.ddb_24;
-    	status.contentIntent = PendingIntent.getActivity(this, 0,
-    			new Intent("org.deadbeef.android.PLAYBACK_VIEWER")
-    	.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 0);
-    	startForeground(PLAYBACKSERVICE_STATUS, status);
-    }
 
     // play current (or 1st)
     public void play() {
@@ -330,6 +316,7 @@ public class MediaPlaybackService extends Service {
         	else {
         		DeadbeefAPI.play_idx (0);
         	}
+       		refreshStatus ();
         }
     }
     
@@ -337,6 +324,7 @@ public class MediaPlaybackService extends Service {
     public void playIdx (int idx) {
         synchronized(this) {
         	DeadbeefAPI.play_idx (idx);
+        	refreshStatus ();
         }
     }
     
@@ -348,11 +336,11 @@ public class MediaPlaybackService extends Service {
     	RemoteViews views = new RemoteViews(getPackageName(), R.layout.statusbar);
     	views.setTextViewText(R.id.trackname, getTrackName());
     	views.setTextViewText(R.id.artistalbum, getArtistName() + " - " + getAlbumName());
-    	views.setImageViewResource(R.id.icon, R.drawable.ddb_24);
+    	views.setImageViewResource(R.id.icon, R.drawable.stat_notify_musicplayer);
     	Notification status = new Notification();
     	status.contentView = views;
     	status.flags |= Notification.FLAG_ONGOING_EVENT;
-    	status.icon = R.drawable.ddb_24;
+    	status.icon = R.drawable.stat_notify_musicplayer;
     	status.contentIntent = PendingIntent.getActivity(this, 0,
     			new Intent("org.deadbeef.android.PLAYBACK_VIEWER")
     	.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 0);
