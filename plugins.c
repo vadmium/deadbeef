@@ -45,7 +45,9 @@
 #include "premix.h"
 #include "dsppreset.h"
 
-#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+extern void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 //#define trace(fmt,...)
 
 #ifndef PATH_MAX
@@ -593,13 +595,13 @@ plug_load_all (void) {
 #if DISABLE_VERSIONCHECK
     trace ("\033[0;31mDISABLE_VERSIONCHECK=1! do not distribute!\033[0;m\n");
 #endif
-
-#ifndef ANDROID
-    const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
     trace ("plug: mutex_create\n");
     mutex = mutex_create ();
     const char *dirname = deadbeef->get_plugin_dir ();
     struct dirent **namelist = NULL;
+
+#ifndef ANDROID
+    const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
 
     char *xdg_local_home = getenv ("XDG_LOCAL_HOME");
     char xdg_plugin_dir[1024];
@@ -623,6 +625,9 @@ plug_load_all (void) {
     }
 
     const char *plugins_dirs[] = { dirname, xdg_plugin_dir, NULL };
+#else
+    const char *plugins_dirs[] = { dirname, NULL };
+#endif
 
     int k = 0, n;
 
@@ -643,11 +648,18 @@ plug_load_all (void) {
         }
         else
         {
+            trace ("plug_load_all: scandir found %d files\n", n);
             int i;
             for (i = 0; i < n; i++)
             {
                 // skip hidden files and fallback plugins
-                while (namelist[i]->d_name[0] != '.' && !strstr (namelist[i]->d_name, ".fallback."))
+                while (namelist[i]->d_name[0] != '.'
+#ifndef ANDROID
+                && !strstr (namelist[i]->d_name, ".fallback.")
+#else
+                && !strstr (namelist[i]->d_name, "libdeadbeef")
+#endif
+                )
                 {
                     int l = strlen (namelist[i]->d_name);
                     if (l < 3) {
@@ -658,6 +670,7 @@ plug_load_all (void) {
                     }
                     char d_name[256];
                     memcpy (d_name, namelist[i]->d_name, l+1);
+#ifndef ANDROID
                     // no blacklisted
                     const uint8_t *p = conf_blacklist_plugins;
                     while (*p) {
@@ -680,12 +693,16 @@ plug_load_all (void) {
                         trace ("plugin %s is blacklisted in config file\n", d_name);
                         break;
                     }
+#endif
                     char fullname[PATH_MAX];
                     snprintf (fullname, PATH_MAX, "%s/%s", plugdir, d_name);
                     trace ("loading plugin %s\n", d_name);
                     void *handle = dlopen (fullname, RTLD_NOW);
                     if (!handle) {
                         trace ("dlopen error: %s\n", dlerror ());
+#ifdef ANDROID
+                        break;
+#else
                         strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
                         trace ("trying %s...\n", fullname);
                         handle = dlopen (fullname, RTLD_NOW);
@@ -696,10 +713,15 @@ plug_load_all (void) {
                         else {
                             fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
                         }
+#endif
                     }
                     d_name[l-3] = 0;
                     strcat (d_name, "_load");
+#ifndef ANDROID
                     DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
+#else
+                    DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
+#endif
                     if (!plug_load) {
                         trace ("dlsym error: %s\n", dlerror ());
                         dlclose (handle);
@@ -718,7 +740,7 @@ plug_load_all (void) {
             free (namelist);
         }
     }
-#endif
+
 // load all compiled-in modules
 #define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
 #include "moduleconf.h"
