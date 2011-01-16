@@ -100,9 +100,9 @@ dumb-kode54/src/helpers/resamp2.inc\
 dumb-kode54/src/helpers/resamp3.inc\
 cdumb.c
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/dumb-kode54/include -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../..
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/dumb-kode54/include -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O2
 
 LOCAL_ARM_MODE := arm
 
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_SHARED_LIBRARY)
 

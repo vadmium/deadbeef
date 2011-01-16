@@ -28,10 +28,8 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
-extern "C" void android_trace (const char *fmt, ...);
-#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf (stderr, __VA_ARGS__); }
-//#define trace(fmt,...)
+#define trace(fmt,...)
 
 int _Unwind_Resume_or_Rethrow;
 int _Unwind_RaiseException;

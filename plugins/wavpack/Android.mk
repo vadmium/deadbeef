@@ -5,11 +5,13 @@ LOCAL_MODULE := wavpack
 
 LOCAL_SRC_FILES += wavpack.c
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/libwv/include -std=c99
+LOCAL_STATIC_LIBRARIES := wv
+
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/libwv/include -std=c99 -O2
 #LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/tinywv -std=c99 -DTINYWV
 
 LOCAL_ARM_MODE := arm
 
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_SHARED_LIBRARY)
 
 

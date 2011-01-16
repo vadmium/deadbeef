@@ -24,10 +24,10 @@ LOCAL_SRC_FILES +=\
 	requant.h\
 	streaminfo.h
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../..
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../.. -O2
 
 LOCAL_ARM_MODE := arm
 
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_SHARED_LIBRARY)
 
 

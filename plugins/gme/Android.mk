@@ -105,8 +105,9 @@ LOCAL_SRC_FILES +=\
 	Game_Music_Emu-0.5.2/gme/Ym2413_Emu.h\
 	Game_Music_Emu-0.5.2/gme/Ym2612_Emu.h
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/Game_Music_Emu-0.5.2 -std=c99
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/Game_Music_Emu-0.5.2 -std=c99 -O2
 
 LOCAL_ARM_MODE := arm
+LOCAL_LDLIBS    := -lz
 
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_SHARED_LIBRARY)

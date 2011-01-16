@@ -18,7 +18,7 @@ LOCAL_SRC_FILES += \
 	src/arml.S\
 	src/arm.S
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/libwv/include -DCPU_ARM -finline-functions -std=c99
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/libwv/include -DCPU_ARM -finline-functions -std=c99 -O2
 
 LOCAL_ARM_MODE := arm
 

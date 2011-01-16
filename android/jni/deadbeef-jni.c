@@ -168,6 +168,9 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls) {
     strcpy (dbconfdir, "/sdcard/deadbeef");
     mkdir (dbconfdir, 0755);
 
+    strcpy (dbinstalldir, "");
+    strcpy (dbplugindir, "/data/data/org.deadbeef.android/lib");
+
     pl_init ();
     conf_load (); // required by some plugins at startup
     volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start

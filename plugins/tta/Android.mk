@@ -9,6 +9,6 @@ LOCAL_CFLAGS += -std=c99
 
 LOCAL_ARM_MODE := arm
 
-include $(BUILD_STATIC_LIBRARY)
+include $(BUILD_SHARED_LIBRARY)
 
 

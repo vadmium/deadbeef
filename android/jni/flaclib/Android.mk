@@ -26,7 +26,7 @@ LOCAL_SRC_FILES +=\
 	libFLAC/stream_encoder_framing.c\
 	libFLAC/window.c
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/libFLAC/include -I$(LOCAL_PATH)/include -I$(LOCAL_PATH)/../libogg/include -DVERSION=\"1.2.1\"
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/libFLAC/include -I$(LOCAL_PATH)/include -I$(LOCAL_PATH)/../libogg/include -DVERSION=\"1.2.1\" -O2
 
 LOCAL_ARM_MODE := arm
 
