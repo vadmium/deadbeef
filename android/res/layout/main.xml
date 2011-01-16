@@ -17,7 +17,7 @@
               android:layout_width="fill_parent"
                android:layout_height="fill_parent"
                android:layout_weight="1"
-               android:choiceMode="singleChoice">
+               android:choiceMode="singleChoice" android:fastScrollEnabled="true" android:scrollbarStyle="insideOverlay">
     </ListView>
     
     <TextView android:id="@id/android:empty"
@@ -66,20 +66,25 @@
               android:layout_height="wrap_content"
               android:text="0:00" android:singleLine="true"/>
 
-	</LinearLayout> 
+</LinearLayout> 
 
 
+<LinearLayout android:id="@+id/LinearLayout01" android:layout_height="wrap_content" android:layout_width="fill_parent">
+		
+	<ImageButton android:layout_height="wrap_content" android:layout_width="wrap_content" android:src="@drawable/ic_media_shuffle_off" android:id="@+id/ShuffleMode"></ImageButton>
+	
+	<LinearLayout android:id="@+id/LinearLayout02" android:layout_height="wrap_content" android:orientation="vertical" android:layout_width="wrap_content" android:layout_weight="1">
 	<!-- artist -->
-		<LinearLayout android:id="@+id/LinearLayout01" android:layout_height="wrap_content" android:layout_width="fill_parent"><ImageButton android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/ImageButton02" android:src="@drawable/ic_media_shuffle"></ImageButton>
-
-<LinearLayout android:id="@+id/LinearLayout02" android:layout_height="wrap_content" android:orientation="vertical" android:layout_width="wrap_content" android:layout_weight="1"><TextView android:layout_height="wrap_content" android:text="@+id/TextView01" android:layout_width="fill_parent" android:id="@+id/np_album" android:gravity="center_horizontal"></TextView><TextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/np_artist" android:gravity="center_horizontal" android:text="@+id/TextView01"></TextView>
-
-</LinearLayout><ImageButton android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/ImageButton01" android:src="@drawable/ic_media_repeat"></ImageButton>
+	<TextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/np_album" android:gravity="center_horizontal"></TextView>
+	<!--  album -->
+	<TextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/np_artist" android:gravity="center_horizontal"></TextView>
+	</LinearLayout>
+	
+<ImageButton android:layout_height="wrap_content" android:layout_width="wrap_content" android:src="@drawable/ic_media_repeat_off" android:id="@+id/RepeatMode"></ImageButton>
 
 </LinearLayout>
 
 
-	<!--  album -->
 		
 	              
 	              

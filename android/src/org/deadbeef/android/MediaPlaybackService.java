@@ -417,14 +417,22 @@ public class MediaPlaybackService extends Service {
     String getAlbumName () {
     	synchronized(this) {
     		int track = DeadbeefAPI.pl_get_current_idx ();
-    		return DeadbeefAPI.pl_get_metadata (track, "album");
+    		String album = DeadbeefAPI.pl_get_metadata (track, "album");
+    		if (album == "" || album == null) {
+    			album = "Unknown Album";
+    		}
+    		return album;
     	}
     }
 
     String getArtistName () {
     	synchronized(this) {
     		int track = DeadbeefAPI.pl_get_current_idx ();
-    		return DeadbeefAPI.pl_get_metadata (track, "artist");
+    		String artist = DeadbeefAPI.pl_get_metadata (track, "artist");
+    		if (artist == "" || artist == null) {
+    			artist = "Unknown Artist";
+    		}
+    		return artist;
     	}
     }
     
@@ -492,6 +500,25 @@ public class MediaPlaybackService extends Service {
        
        public void playIdx(int idx) {
     	   	mService.get().playIdx(idx);
+       }
+       public void cycleRepeatMode () {
+    	   int mode = DeadbeefAPI.get_play_mode();
+    	   mode++;
+    	   if (mode > 2) {
+    		   mode = 0;
+    	   }
+    	   DeadbeefAPI.set_play_mode(mode);
+       }
+       public void cycleShuffleMode () {
+    	   int mode = DeadbeefAPI.get_play_order();
+    	   mode++;
+    	   if (mode == 2) { // skip random mode -- shuffle is enough
+    		   mode = 3;
+    	   }
+    	   if (mode > 3) {
+    		   mode = 0;
+    	   }
+    	   DeadbeefAPI.set_play_order(mode);
        }
 
    }

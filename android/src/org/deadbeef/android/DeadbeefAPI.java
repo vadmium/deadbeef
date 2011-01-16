@@ -34,7 +34,13 @@ public class DeadbeefAPI
 	public static native void play_stop ();
 	public static native int play_is_paused ();
 	public static native int play_is_playing ();
-	
+
+	// 0=loop_all,1=noloop,2=loopsingle
+	public static native void set_play_mode (int mode);
+	public static native int get_play_mode ();
+	// 0=linear,1=shuffletracks,2=random,3=shufflealbums
+	public static native void set_play_order (int order);
+	public static native int get_play_order ();
 
 	static {
 		System.loadLibrary("deadbeef");

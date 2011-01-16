@@ -17,5 +17,7 @@ interface IMediaPlaybackService
     String getAlbumName();
     String getArtistName();
     void refreshStatus();
+    void cycleRepeatMode();
+    void cycleShuffleMode();
 }
 

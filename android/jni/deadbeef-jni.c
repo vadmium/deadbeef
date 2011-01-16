@@ -468,3 +468,23 @@ JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
     return jni_out_get_state () == OUTPUT_STATE_PLAYING;
 }
 
+JNIEXPORT void
+JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1mode (JNIEnv *env, jclass cls, jint mode) {
+    conf_set_int ("playback.loop", mode);
+}
+
+JNIEXPORT jint
+JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1mode (JNIEnv *env, jclass cls) {
+    return conf_get_int ("playback.loop", 0);
+}
+
+JNIEXPORT void
+JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1order (JNIEnv *env, jclass cls, jint order) {
+    conf_set_int ("playback.order", order);
+    streamer_configchanged ();
+}
+
+JNIEXPORT jint
+JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1order (JNIEnv *env, jclass cls) {
+    return pl_get_order ();
+}

@@ -13,16 +13,7 @@ LOCAL_SRC_FILES +=\
 	requant.c\
 	streaminfo.c\
 	synth_filter.c\
-	crc32.c\
-	decoder.h\
-	huffman.h\
-	internal.h\
-	mpc_bits_reader.h\
-	mpcdec.h\
-	mpcdec_math.h\
-	reader.h\
-	requant.h\
-	streaminfo.h
+	crc32.c
 
 LOCAL_CFLAGS += -I$(LOCAL_PATH)/../.. -O2
 

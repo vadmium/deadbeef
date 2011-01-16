@@ -39,6 +39,8 @@ public class Deadbeef extends ListActivity {
 	private String duration_text = "-:--";
     private SeekBar seekbar;
     private int seekbar_pos = -1;
+    private int play_mode = -1;
+    private int play_order = -1;
 
     private static final int REQUEST_ADD_FOLDER = 1;
     
@@ -66,8 +68,14 @@ public class Deadbeef extends ListActivity {
 	        mTimer.schedule (mTimerTask, 0, 250);
     	}
     	else {
-    		mTimer.cancel ();
-    		mTimer.purge ();
+    		if (null != mTimerTask) {
+    			mTimerTask.cancel ();
+    			mTimerTask = null;
+    		}
+    		if (null != mTimer) {
+    			mTimer.cancel ();
+    			mTimer = null;
+    		}
     	}
     }
     
@@ -119,6 +127,7 @@ public class Deadbeef extends ListActivity {
 	    			return;
 	    		}
 	    		
+	    		// playpause button
 	    		boolean new_state = mPlaybackService.isPlaying ();
 	    		if (new_state != curr_state) {
 	    			curr_state = new_state;
@@ -131,17 +140,49 @@ public class Deadbeef extends ListActivity {
 	        		}
 	    		}
 	    		
+	    		// shuffle button
+	    		int new_order = DeadbeefAPI.get_play_order ();
+	    		if (new_order != play_order) {
+	    			play_order = new_order;
+	        		ImageButton button = (ImageButton)findViewById(R.id.ShuffleMode);
+	    			if (play_order == 0) {
+	        			button.setImageResource (R.drawable.ic_media_shuffle_off);
+	    			}
+	    			else if (play_order == 1) {
+	        			button.setImageResource (R.drawable.ic_media_shuffle_tracks);
+	    			}
+	    			else if (play_order == 3) {
+	        			button.setImageResource (R.drawable.ic_media_shuffle_albums);
+	    			}
+	    		}
+	    		
+	    		// repeat button
+	    		int new_mode = DeadbeefAPI.get_play_mode ();
+	    		if (new_mode != play_mode) {
+	    			play_mode = new_mode;
+	        		ImageButton button = (ImageButton)findViewById(R.id.RepeatMode);
+	    			if (play_mode == 0) {
+	        			button.setImageResource (R.drawable.ic_media_repeat_on);
+	    			}
+	    			else if (play_mode == 1) {
+	        			button.setImageResource (R.drawable.ic_media_repeat_off);
+	    			}
+	    			else if (play_mode == 2) {
+	        			button.setImageResource (R.drawable.ic_media_repeat_track);
+	    			}
+	    		}
+	    		
 	    		if (track != curr_track) {
 	    			curr_track = track;
 	    			
 	    			if (curr_track >= 0) {
 	    	    		// update album/artist/title
 	    	    		tv = (TextView)findViewById(R.id.np_album);
-	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "album"));
+	    	    		tv.setText(mPlaybackService.getAlbumName ());
 	    	    		tv = (TextView)findViewById(R.id.np_artist);
-	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "artist"));
+	    	    		tv.setText(mPlaybackService.getArtistName ());
 	    	    		tv = (TextView)findViewById(R.id.np_title);
-	    	    		tv.setText(DeadbeefAPI.pl_get_metadata (curr_track, "title"));
+	    	    		tv.setText(mPlaybackService.getTrackName ());
 	    	    		
 	    	    		mPlaybackService.refreshStatus();
 	    			}
@@ -191,6 +232,12 @@ public class Deadbeef extends ListActivity {
         button = (ImageButton)findViewById(R.id.play);
         button.setOnClickListener(mPlayPauseListener);
         
+        button = (ImageButton)findViewById(R.id.ShuffleMode);
+        button.setOnClickListener(mShuffleModeListener);
+        
+        button = (ImageButton)findViewById(R.id.RepeatMode);
+        button.setOnClickListener(mRepeatModeListener);
+
         SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
         sb.setMax(100);
         sb.setOnSeekBarChangeListener(sbChangeListener);
@@ -283,12 +330,6 @@ public class Deadbeef extends ListActivity {
         	mTimer.cancel ();
         	mTimerTask = null;
         	mTimer = null;
-/*	        try {
-	        	mPlaybackService.stop();
-	        }
-	        catch (RemoteException e) {
-	        	Log.e(TAG, "remote exception on quit");
-	        }*/
             finish ();
         }
         return true;
@@ -311,6 +352,26 @@ public class Deadbeef extends ListActivity {
     private OnClickListener mPlayPauseListener = new OnClickListener() {
         public void onClick(View v) {
         	PlayPause();
+        }
+    };
+
+    private OnClickListener mRepeatModeListener = new OnClickListener() {
+        public void onClick(View v) {
+        	try {
+        		mPlaybackService.cycleRepeatMode ();
+        	}
+        	catch (RemoteException e) {
+        	}
+        }
+    };
+    
+    private OnClickListener mShuffleModeListener = new OnClickListener() {
+        public void onClick(View v) {
+        	try {
+        		mPlaybackService.cycleShuffleMode ();
+        	}
+        	catch (RemoteException e) {
+        	}
         }
     };
 

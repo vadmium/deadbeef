@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := sid
 
 LOCAL_SRC_FILES +=\
-	plugin.c csid.cpp csid.h\
+	plugin.c csid.cpp\
 	sidplay-libs/libsidplay/src/mixer.cpp\
 	sidplay-libs/libsidplay/src/player.cpp\
 	sidplay-libs/libsidplay/src/mos656x/mos656x.cpp\

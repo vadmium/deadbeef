@@ -215,6 +215,38 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *, jclass);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    set_play_mode
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1mode
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    get_play_mode
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1mode
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    set_play_order
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1order
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    get_play_order
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1order
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif
