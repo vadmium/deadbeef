@@ -23,7 +23,8 @@
       android:layout_alignParentRight="true"
       android:text="0:00"
       android:layout_marginLeft="6dip"
-      android:singleLine="true" android:textColor="#ff91fb80"/>
+      android:singleLine="true"
+      android:textColor="#ff91fb80"/>
 
   <TextView android:id="@+id/title"
       android:textAppearance="?android:attr/textAppearanceMedium"
