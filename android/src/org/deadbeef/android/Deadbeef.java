@@ -188,15 +188,10 @@ public class Deadbeef extends ListActivity {
 	    			}
 	    		}
 		    	// update numbers
-	    		String new_pos_text = DeadbeefAPI.play_get_pos_formatted ();
+	    		String new_pos_text = DeadbeefAPI.play_get_pos_formatted () + "/" + DeadbeefAPI.play_get_duration_formatted ();
 	    		if (!new_pos_text.equals (current_pos_text)) {
 	    			current_pos_text = new_pos_text;
 		    		current_pos_tv.setText(current_pos_text);
-	    		}
-	    		String new_duration_text = DeadbeefAPI.play_get_duration_formatted ();
-	    		if (!new_duration_text.equals (duration_text)) {
-	    			duration_text = new_duration_text;
-	    			duration_tv.setText (duration_text);
 	    		}
 		
 		    	// update seekbar
@@ -242,8 +237,7 @@ public class Deadbeef extends ListActivity {
         sb.setMax(100);
         sb.setOnSeekBarChangeListener(sbChangeListener);
 
-		current_pos_tv = (TextView)findViewById(R.id.current_pos_text);
-		duration_tv = (TextView)findViewById(R.id.duration_text); 
+		current_pos_tv = (TextView)findViewById(R.id.pos_duration_text);
         seekbar = (SeekBar)findViewById(R.id.seekbar);
 
         doBindService();
