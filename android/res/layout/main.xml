@@ -4,6 +4,7 @@
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
+               android:background="#414441"
               >
 
 	    <ImageButton android:id="@+id/play"
@@ -99,13 +100,31 @@
 			    android:layout_above="@id/seekbar"
               />
 
+    <View
+    android:id="@+id/separator"
+     android:layout_above="@+id/np_title"
+     android:layout_width="fill_parent"
+      android:layout_height="4px"
+        android:layout_alignLeft="@+id/np_title"
+         android:layout_alignRight="@+id/np_title"
+     android:background="#ffffffff"
+    >
+
+	</View>
+    
     <ListView android:id="@id/android:list"
               android:layout_width="fill_parent"
                android:layout_height="fill_parent"
-               android:choiceMode="singleChoice" android:fastScrollEnabled="true" android:scrollbarStyle="insideOverlay"
-               			    android:layout_above="@id/np_title"
+               android:choiceMode="singleChoice"
+               android:fastScrollEnabled="true"
+               android:scrollbarStyle="insideOverlay"
+               android:layout_above="@id/separator"
+               android:cacheColorHint="#0000"
+               android:divider="@null"
+               android:background="#7f907b"
                >
     </ListView>
     
 	
+
 </RelativeLayout>
