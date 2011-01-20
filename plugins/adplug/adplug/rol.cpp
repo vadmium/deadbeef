@@ -24,6 +24,7 @@
 #include "rol.h"
 #include "debug.h"
 
+
 int   const CrolPlayer::kSizeofDataRecord    =  30;
 int   const CrolPlayer::kMaxTickBeat         =  60;
 int   const CrolPlayer::kSilenceNote         = -12;
