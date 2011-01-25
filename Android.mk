@@ -19,7 +19,8 @@ LOCAL_SRC_FILES +=\
 	md5/md5.c\
 	ringbuf.c\
 	dsppreset.c\
-	premix.c
+	premix.c\
+	ConvertUTF/ConvertUTF.c
 
 
 LOCAL_CFLAGS += -O2 -I$(LOCAL_PATH) -std=c99 -DVERSION=\"0.4.4\"

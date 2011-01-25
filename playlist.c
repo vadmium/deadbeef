@@ -98,7 +98,7 @@ static int pl_order; // mirrors "playback.order" config variable
 
 void
 pl_set_order (int order) {
-    if (pl_order != order) {
+    if (pl_order != order && (pl_order == PLAYBACK_ORDER_SHUFFLE_TRACKS || PLAYBACK_ORDER_SHUFFLE_ALBUMS)) {
         pl_order = order;
         for (playlist_t *plt = playlists_head; plt; plt = plt->next) {
             plt_reshuffle (plt, NULL, NULL);
@@ -355,7 +355,6 @@ plt_add (int before, const char *title) {
 // NOTE: caller must ensure that configuration is saved after that call
 void
 plt_remove (int plt) {
-    trace ("plt_remove %d\n", plt);
     int i;
     assert (plt >= 0 && plt < playlists_count);
     PLT_LOCK;
@@ -412,12 +411,18 @@ plt_remove (int plt) {
             prev->next = p->next;
         }
     }
+    playlist_t *next = p->next;
     playlist_t *old = playlist;
     playlist = p;
     pl_clear ();
     playlist = old;
     if (p == playlist) {
-        playlist = prev ? prev : playlists_head;
+        if (next) {
+            playlist = next;
+        }
+        else {
+            playlist = prev ? prev : playlists_head;
+        }
     }
     free (p->title);
     free (p);
@@ -967,9 +972,11 @@ pl_insert_cue_from_buffer (playItem_t *after, playItem_t *origin, const uint8_t 
         }
         else if (!strncmp (p, "TRACK ", 6)) {
             trace ("cue: adding track: %s %s %s\n", origin->fname, title, track);
-            // add previous track
-            after = pl_process_cue_track (after, origin->fname, &prev, track, index00, index01, pregap, title, performer, albumtitle, genre, date, replaygain_album_gain, replaygain_album_peak, replaygain_track_gain, replaygain_track_peak, origin->decoder_id, origin->filetype, samplerate);
-            trace ("cue: added %p (%p)\n", after);
+            if (title[0]) {
+                // add previous track
+                after = pl_process_cue_track (after, origin->fname, &prev, track, index00, index01, pregap, title, performer, albumtitle, genre, date, replaygain_album_gain, replaygain_album_peak, replaygain_track_gain, replaygain_track_peak, origin->decoder_id, origin->filetype, samplerate);
+                trace ("cue: added %p (%p)\n", after);
+            }
 
             track[0] = 0;
             title[0] = 0;
@@ -1006,7 +1013,7 @@ pl_insert_cue_from_buffer (playItem_t *after, playItem_t *origin, const uint8_t 
 //            fprintf (stderr, "got unknown line:\n%s\n", p);
         }
     }
-    if (ins == after) {
+    if (!title[0]) {
         UNLOCK;
         return NULL;
     }
@@ -2339,7 +2346,6 @@ pl_load (const char *fname) {
         }
         pl_insert_item (playlist->tail[PL_MAIN], it);
         pl_item_unref (it);
-        trace ("last playlist item refc: %d\n", it->_refc);
         it = NULL;
     }
     GLOBAL_UNLOCK;
@@ -2464,14 +2470,26 @@ pl_reshuffle (playItem_t **ppmin, playItem_t **ppmax) {
 void
 pl_delete_all_meta (playItem_t *it) {
     LOCK;
-    while (it->meta) {
-        DB_metaInfo_t *m = it->meta;
-        it->meta = m->next;
-        metacache_remove_string (m->key);
-        metacache_remove_string (m->value);
-        free (m);
+    DB_metaInfo_t *m = it->meta;
+    DB_metaInfo_t *prev = NULL;
+    while (m) {
+        DB_metaInfo_t *next = m->next;
+        if (m->key[0] == ':') {
+            prev = m;
+        }
+        else {
+            if (prev) {
+                prev->next = next;
+            }
+            else {
+                it->meta = next;
+            }
+            metacache_remove_string (m->key);
+            metacache_remove_string (m->value);
+            free (m);
+        }
+        m = next;
     }
-    it->meta = NULL;
     UNLOCK;
 }
 
@@ -2697,7 +2715,7 @@ pl_format_title_int (const char *escape_chars, playItem_t *it, int idx, char *s,
                     nm[l] = 0;
                     meta = pl_find_meta (it, nm);
                     if (!meta) {
-                        meta = "<INVALID CONVERSION>";
+                        meta = "?";
                     }
                     fmt = e;
                 }

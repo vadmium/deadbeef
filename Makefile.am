@@ -26,7 +26,7 @@ deadbeef_SOURCES =\
 	conf.c  conf.h\
 	threading_pthread.c threading.h\
 	volume.c volume.h\
-	junklib.h junklib.c utf8.c utf8.h u8_lc_map.h\
+	junklib.h junklib.c utf8.c utf8.h u8_lc_map.h ConvertUTF/ConvertUTF.c ConvertUTF/ConvertUTF.h\
 	optmath.h\
 	vfs.c vfs.h vfs_stdio.c\
 	md5/md5.c md5/md5.h\
@@ -53,6 +53,6 @@ docs_DATA = README help.txt about.txt translators.txt ChangeLog\
 desktopdir = $(datadir)/applications
 desktop_DATA = deadbeef.desktop
 
-EXTRA_DIST = $(docs_DATA) $(desktop_DATA) $(INTLTOOL_FILES) translation/extra.c
+EXTRA_DIST = $(docs_DATA) $(desktop_DATA) $(INTLTOOL_FILES) translation/extra.c sj_to_unicode.h
 
 ACLOCAL_AMFLAGS = -I m4
