@@ -1,6 +1,7 @@
 // based on stock Music app mediaplaybackservice 
 package org.deadbeef.android;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 
 import android.app.Notification;
@@ -144,7 +145,8 @@ public class MediaPlaybackService extends Service {
         
         registerExternalStorageListener();
 
-		DeadbeefAPI.start();
+        File filesDir = getFilesDir ();
+		DeadbeefAPI.start(filesDir.getAbsolutePath());
         mPlayer = new Player();
 
         IntentFilter commandFilter = new IntentFilter();

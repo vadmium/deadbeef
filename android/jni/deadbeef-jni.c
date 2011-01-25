@@ -68,7 +68,6 @@ android_trace (const char *fmt, ...) {
 
 // some common global variables
 char sys_install_path[PATH_MAX]; // see deadbeef->get_prefix
-char confdir[PATH_MAX]; // $HOME/.config
 char dbconfdir[PATH_MAX]; // $HOME/.config/deadbeef
 char dbinstalldir[PATH_MAX]; // see deadbeef->get_prefix
 char dbdocdir[PATH_MAX]; // see deadbeef->get_doc_dir
@@ -157,16 +156,20 @@ jni_setformat(ddb_waveformat_t *fmt)
 }
 
 JNIEXPORT jint JNICALL
-Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls) {
+Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir) {
     trace("ddb_start");
       // initialize ddb
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C");
     srand (time (NULL));
-    strcpy (confdir, "/sdcard/deadbeef");
-    mkdir (confdir, 0755);
-    strcpy (dbconfdir, "/sdcard/deadbeef");
-    mkdir (dbconfdir, 0755);
+     const jbyte *str;
+     str = (*env)->GetStringUTFChars(env, android_config_dir, NULL);
+     if (str == NULL) {
+         return -1;
+     }
+    strcpy (dbconfdir, str);
+    trace ("dbconfdir: %s\n", dbconfdir);
+     (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
 
     strcpy (dbinstalldir, "");
     strcpy (dbplugindir, "/data/data/org.deadbeef.android/lib");
@@ -471,6 +474,7 @@ JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
 JNIEXPORT void
 JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1mode (JNIEnv *env, jclass cls, jint mode) {
     conf_set_int ("playback.loop", mode);
+    conf_save ();
 }
 
 JNIEXPORT jint
@@ -482,6 +486,7 @@ JNIEXPORT void
 JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1order (JNIEnv *env, jclass cls, jint order) {
     conf_set_int ("playback.order", order);
     streamer_configchanged ();
+    conf_save ();
 }
 
 JNIEXPORT jint
