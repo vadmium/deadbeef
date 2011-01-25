@@ -63,12 +63,12 @@ public class Deadbeef extends ListActivity {
 		Log.e(TAG, "hasFocus="+hasFocus);
     	isVisible = hasFocus;
     	
-    	if (isVisible) {
+    	if (isVisible && null == mTimer) {
 	        mTimer = new Timer();
 	        mTimerTask = new ProgressTask();
 	        mTimer.schedule (mTimerTask, 0, 250);
     	}
-    	else {
+    	else if (null != mTimer) {
     		if (null != mTimerTask) {
     			mTimerTask.cancel ();
     			mTimerTask = null;

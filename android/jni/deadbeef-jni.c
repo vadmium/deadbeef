@@ -182,11 +182,12 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     pl_load_all ();
     plt_set_curr (conf_get_int ("playlist.current", 0));
     plug_trigger_event_playlistchanged ();
-    streamer_init ();
 
     // setup fake output plugin
     extern DB_output_t *output_plugin;
     output_plugin = &jni_out;
+
+    streamer_init ();
 
     // start song #0 in playlist
     //streamer_set_nextsong (0, 1);
