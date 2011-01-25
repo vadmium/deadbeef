@@ -3,8 +3,11 @@ package org.deadbeef.android;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -54,6 +57,70 @@ public class MediaPlaybackService extends Service {
     
     // interval after which we stop the service when idle
     private static final int IDLE_DELAY = 60000;
+    
+    
+    private static final Class[] mStartForegroundSignature = new Class[] {
+    int.class, Notification.class};
+    private static final Class[] mStopForegroundSignature = new Class[] {
+    boolean.class};
+
+    private NotificationManager mNM;
+    private Method mStartForeground;
+    private Method mStopForeground;
+    private Object[] mStartForegroundArgs = new Object[2];
+    private Object[] mStopForegroundArgs = new Object[1];
+
+	/**
+	 * This is a wrapper around the new startForeground method, using the older
+	 * APIs if it is not available.
+	 */
+	void startForegroundCompat(int id, Notification notification) {
+	    // If we have the new startForeground API, then use it.
+	    if (mStartForeground != null) {
+	        mStartForegroundArgs[0] = Integer.valueOf(id);
+	        mStartForegroundArgs[1] = notification;
+	        try {
+	            mStartForeground.invoke(this, mStartForegroundArgs);
+	        } catch (InvocationTargetException e) {
+	            // Should not happen.
+	            Log.w("ApiDemos", "Unable to invoke startForeground", e);
+	        } catch (IllegalAccessException e) {
+	            // Should not happen.
+	            Log.w("ApiDemos", "Unable to invoke startForeground", e);
+	        }
+	        return;
+	    }
+	
+	    // Fall back on the old API.
+	    setForeground(true);
+	    mNM.notify(id, notification);
+	}
+	
+	/**
+	 * This is a wrapper around the new stopForeground method, using the older
+	 * APIs if it is not available.
+	 */
+	void stopForegroundCompat(int id) {
+	    // If we have the new stopForeground API, then use it.
+	    if (mStopForeground != null) {
+	        mStopForegroundArgs[0] = Boolean.TRUE;
+	        try {
+	            mStopForeground.invoke(this, mStopForegroundArgs);
+	        } catch (InvocationTargetException e) {
+	            // Should not happen.
+	            Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+	        } catch (IllegalAccessException e) {
+	            // Should not happen.
+	            Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+	        }
+	        return;
+	    }
+	
+	    // Fall back on the old API.  Note to cancel BEFORE changing the
+	    // foreground state, since we could be killed at that point.
+	    mNM.cancel(id);
+	    setForeground(false);
+	}    
     
     private Handler mMediaplayerHandler = new Handler() {
         float mCurrentVolume = 1.0f;
@@ -140,6 +207,16 @@ public class MediaPlaybackService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+	    try {
+	        mStartForeground = getClass().getMethod("startForeground",
+	                mStartForegroundSignature);
+	        mStopForeground = getClass().getMethod("stopForeground",
+	                mStopForegroundSignature);
+	    } catch (NoSuchMethodException e) {
+	        // Running on an older platform.
+	        mStartForeground = mStopForeground = null;
+	    }        
 
         mPreferences = getSharedPreferences("Music", MODE_WORLD_READABLE | MODE_WORLD_WRITEABLE);
         
@@ -203,8 +280,7 @@ public class MediaPlaybackService extends Service {
         mServiceInUse = true;
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    private void handleCommand (Intent intent, int startId) {
         mServiceStartId = startId;
         mDelayedStopHandler.removeCallbacksAndMessages(null);
 
@@ -243,8 +319,21 @@ public class MediaPlaybackService extends Service {
         mDelayedStopHandler.removeCallbacksAndMessages(null);
         Message msg = mDelayedStopHandler.obtainMessage();
         mDelayedStopHandler.sendMessageDelayed(msg, IDLE_DELAY);
-        return START_STICKY;
     }
+    
+	// This is the old onStart method that will be called on the pre-2.0
+	// platform.  On 2.0 or later we override onStartCommand() so this
+	// method will not be called.
+	@Override
+	public void onStart(Intent intent, int startId) {
+	    handleCommand(intent, startId);
+	}
+
+/*	@Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+		handleCommand(intent, startId);
+        return START_STICKY;
+    }*/
     
     @Override
     public boolean onUnbind(Intent intent) {
@@ -346,7 +435,7 @@ public class MediaPlaybackService extends Service {
     	status.contentIntent = PendingIntent.getActivity(this, 0,
     			new Intent("org.deadbeef.android.PLAYBACK_VIEWER")
     	.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 0);
-    	startForeground(PLAYBACKSERVICE_STATUS, status);
+    	startForegroundCompat(PLAYBACKSERVICE_STATUS, status);
     }
 
     public boolean isPaused() {
@@ -357,7 +446,7 @@ public class MediaPlaybackService extends Service {
         synchronized(this) {
         	mPlayer.stop();
         	gotoIdleState();
-        	stopForeground(false);
+        	stopForegroundCompat(PLAYBACKSERVICE_STATUS);
         }
     }
 
@@ -389,7 +478,7 @@ public class MediaPlaybackService extends Service {
         mDelayedStopHandler.removeCallbacksAndMessages(null);
         Message msg = mDelayedStopHandler.obtainMessage();
         mDelayedStopHandler.sendMessageDelayed(msg, IDLE_DELAY);
-        stopForeground(true);
+        stopForegroundCompat(PLAYBACKSERVICE_STATUS);
     }
     
     /**

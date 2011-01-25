@@ -41,6 +41,7 @@ public class Deadbeef extends ListActivity {
     private int seekbar_pos = -1;
     private int play_mode = -1;
     private int play_order = -1;
+    private boolean playback_state = false;
 
     private static final int REQUEST_ADD_FOLDER = 1;
     
@@ -172,8 +173,10 @@ public class Deadbeef extends ListActivity {
 	    			}
 	    		}
 	    		
-	    		if (track != curr_track) {
+	    		boolean state = mPlaybackService.isPlaying ();
+	    		if (track != curr_track || (playback_state != state && state)) {
 	    			curr_track = track;
+	    			playback_state = state;
 	    			
 	    			if (curr_track >= 0) {
 	    	    		// update album/artist/title
