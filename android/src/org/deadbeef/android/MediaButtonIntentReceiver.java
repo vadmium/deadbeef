@@ -45,7 +45,8 @@ public class MediaButtonIntentReceiver extends BroadcastReceiver {
             i.setAction(MediaPlaybackService.SERVICECMD);
             i.putExtra(MediaPlaybackService.CMDNAME, MediaPlaybackService.CMDPAUSE);
             context.startService(i);
-        } else if (Intent.ACTION_MEDIA_BUTTON.equals(intentAction)) {
+        }
+        else if (Intent.ACTION_MEDIA_BUTTON.equals(intentAction)) {
             KeyEvent event = (KeyEvent)
                     intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
             
