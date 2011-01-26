@@ -1,4 +1,4 @@
-// based on stock Music app mediaplaybackservice 
+// based on source of google's official Music app 
 package org.deadbeef.android;
 
 import java.io.File;
@@ -11,10 +11,12 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -69,6 +71,8 @@ public class MediaPlaybackService extends Service {
     private Method mStopForeground;
     private Object[] mStartForegroundArgs = new Object[2];
     private Object[] mStopForegroundArgs = new Object[1];
+    
+    private AudioManager mAudioManager;
 
 	/**
 	 * This is a wrapper around the new startForeground method, using the older
@@ -207,6 +211,10 @@ public class MediaPlaybackService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        mAudioManager.registerMediaButtonEventReceiver(new ComponentName(getPackageName(),
+        MediaButtonIntentReceiver.class.getName()));
+        
         mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 	    try {
 	        mStartForeground = getClass().getMethod("startForeground",
