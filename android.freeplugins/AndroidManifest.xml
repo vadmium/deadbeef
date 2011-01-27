@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="org.deadbeef.android.freeplugins"
+      android:versionCode="1"
+      android:versionName="1.0">
+    <application
+    	
+    	android:icon="@drawable/icon"
+    	android:label="@string/app_name"
+    	android:testOnly="false" android:debuggable="false">
+	
+        <activity
+        		android:icon="@drawable/icon"
+        		android:name="org.deadbeef.android.freeplugins"
+                android:label="@string/app_name"
+                android:taskAffinity=""
+                android:launchMode="singleTask"
+                android:clearTaskOnLaunch="true"
+                android:excludeFromRecents="true" >
+        </activity>
+    </application>
+
+
+
+</manifest> 

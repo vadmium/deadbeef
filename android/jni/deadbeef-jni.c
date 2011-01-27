@@ -156,7 +156,7 @@ jni_setformat(ddb_waveformat_t *fmt)
 }
 
 JNIEXPORT jint JNICALL
-Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir) {
+Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
       // initialize ddb
     setlocale (LC_ALL, "");
@@ -173,6 +173,12 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 
     strcpy (dbinstalldir, "");
     strcpy (dbplugindir, "/data/data/org.deadbeef.android/lib");
+
+     str = (*env)->GetStringUTFChars(env, plugins_path, NULL);
+     conf_set_str ("android.plugin_path", str);
+
+     (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
+
 
     pl_init ();
     conf_load (); // required by some plugins at startup

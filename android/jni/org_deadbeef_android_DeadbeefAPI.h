@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    start
- * Signature: (Ljava/lang/String;)I
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_start
-  (JNIEnv *, jclass, jstring);
+  (JNIEnv *, jclass, jstring, jstring);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI

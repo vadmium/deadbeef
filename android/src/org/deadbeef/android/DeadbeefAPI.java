@@ -2,7 +2,7 @@ package org.deadbeef.android;
 
 public class DeadbeefAPI
 {
-	public static native int start(String confdir);
+	public static native int start(String confdir, String pluginpath);
 	public static native int stop();
 	// returns number of bytes read
 	public static native int getBuffer(int size, short buffer[]);
