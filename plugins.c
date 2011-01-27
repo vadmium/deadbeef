@@ -591,6 +591,115 @@ plug_remove_plugin (void *p) {
 }
 
 int
+load_plugin_dir (const char *plugdir) {
+    int n = 0;
+    trace ("loading plugins from %s\n", plugdir);
+    struct dirent **namelist = NULL;
+    n = scandir (plugdir, &namelist, NULL, dirent_alphasort);
+    if (n < 0)
+    {
+        if (namelist) {
+            free (namelist);
+        }
+        return 0;
+    }
+    else
+    {
+        trace ("plug_load_all: scandir found %d files\n", n);
+        int i;
+        for (i = 0; i < n; i++)
+        {
+            // skip hidden files and fallback plugins
+            while (namelist[i]->d_name[0] != '.'
+#ifndef ANDROID
+                    && !strstr (namelist[i]->d_name, ".fallback.")
+#else
+                    && !strstr (namelist[i]->d_name, "libdeadbeef")
+#endif
+                  )
+            {
+                int l = strlen (namelist[i]->d_name);
+                if (l < 3) {
+                    break;
+                }
+                if (strcasecmp (&namelist[i]->d_name[l-3], ".so")) {
+                    break;
+                }
+                char d_name[256];
+                memcpy (d_name, namelist[i]->d_name, l+1);
+#ifndef ANDROID
+                // no blacklisted
+                const uint8_t *p = conf_blacklist_plugins;
+                while (*p) {
+                    const uint8_t *e = p;
+                    while (*e && *e > 0x20) {
+                        e++;
+                    }
+                    if (l-3 == e-p) {
+                        if (!strncmp (p, d_name, e-p)) {
+                            p = NULL;
+                            break;
+                        }
+                    }
+                    p = e;
+                    while (*p && *p <= 0x20) {
+                        p++;
+                    }
+                }
+                if (!p) {
+                    trace ("plugin %s is blacklisted in config file\n", d_name);
+                    break;
+                }
+#endif
+                char fullname[PATH_MAX];
+                snprintf (fullname, PATH_MAX, "%s/%s", plugdir, d_name);
+                trace ("loading plugin %s\n", d_name);
+                void *handle = dlopen (fullname, RTLD_NOW);
+                if (!handle) {
+                    trace ("dlopen error: %s\n", dlerror ());
+#ifdef ANDROID
+                    break;
+#else
+                    strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
+                    trace ("trying %s...\n", fullname);
+                    handle = dlopen (fullname, RTLD_NOW);
+                    if (!handle) {
+                        trace ("dlopen error: %s\n", dlerror ());
+                        break;
+                    }
+                    else {
+                        fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
+                    }
+#endif
+                }
+                d_name[l-3] = 0;
+                strcat (d_name, "_load");
+#ifndef ANDROID
+                DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
+#else
+                DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
+#endif
+                if (!plug_load) {
+                    trace ("dlsym error: %s\n", dlerror ());
+                    dlclose (handle);
+                    break;
+                }
+                if (plug_init_plugin (plug_load, handle) < 0) {
+                    d_name[l-3] = 0;
+                    trace ("plugin %s is incompatible with current version of deadbeef, please upgrade the plugin\n", d_name);
+                    dlclose (handle);
+                    break;
+                }
+                break;
+            }
+            free (namelist[i]);
+        }
+        free (namelist);
+    }
+    return 0;
+}
+
+int
 plug_load_all (void) {
 #if DISABLE_VERSIONCHECK
     trace ("\033[0;31mDISABLE_VERSIONCHECK=1! do not distribute!\033[0;m\n");
@@ -598,7 +707,6 @@ plug_load_all (void) {
     trace ("plug: mutex_create\n");
     mutex = mutex_create ();
     const char *dirname = deadbeef->get_plugin_dir ();
-    struct dirent **namelist = NULL;
 
 #ifndef ANDROID
     const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
@@ -629,117 +737,42 @@ plug_load_all (void) {
     const char *plugins_dirs[] = { dirname, NULL };
 #endif
 
-    int k = 0, n;
+    int k = 0;
 
     while (plugins_dirs[k]) {
         const char *plugdir = plugins_dirs[k++];
         if (!(*plugdir)) {
             continue;
         }
-        trace ("loading plugins from %s\n", plugdir);
-        namelist = NULL;
-        n = scandir (plugdir, &namelist, NULL, dirent_alphasort);
-        if (n < 0)
-        {
-            if (namelist) {
-                free (namelist);
-            }
+        load_plugin_dir (plugdir);
+    }
+
+#ifdef ANDROID
+    char plugin_path[1000];
+    strncpy (plugin_path, conf_get_str ("android.plugin_path", ""), sizeof (plugin_path)-1);
+    plugin_path[sizeof(plugin_path)-1] = 0;
+    char *p = plugin_path;
+    while (*p) {
+        while (*p == ':') {
+            p++;
+        }
+        if (!(*p)) {
             break;
         }
-        else
-        {
-            trace ("plug_load_all: scandir found %d files\n", n);
-            int i;
-            for (i = 0; i < n; i++)
-            {
-                // skip hidden files and fallback plugins
-                while (namelist[i]->d_name[0] != '.'
-#ifndef ANDROID
-                && !strstr (namelist[i]->d_name, ".fallback.")
-#else
-                && !strstr (namelist[i]->d_name, "libdeadbeef")
-#endif
-                )
-                {
-                    int l = strlen (namelist[i]->d_name);
-                    if (l < 3) {
-                        break;
-                    }
-                    if (strcasecmp (&namelist[i]->d_name[l-3], ".so")) {
-                        break;
-                    }
-                    char d_name[256];
-                    memcpy (d_name, namelist[i]->d_name, l+1);
-#ifndef ANDROID
-                    // no blacklisted
-                    const uint8_t *p = conf_blacklist_plugins;
-                    while (*p) {
-                        const uint8_t *e = p;
-                        while (*e && *e > 0x20) {
-                            e++;
-                        }
-                        if (l-3 == e-p) {
-                            if (!strncmp (p, d_name, e-p)) {
-                                p = NULL;
-                                break;
-                            }
-                        }
-                        p = e;
-                        while (*p && *p <= 0x20) {
-                            p++;
-                        }
-                    }
-                    if (!p) {
-                        trace ("plugin %s is blacklisted in config file\n", d_name);
-                        break;
-                    }
-#endif
-                    char fullname[PATH_MAX];
-                    snprintf (fullname, PATH_MAX, "%s/%s", plugdir, d_name);
-                    trace ("loading plugin %s\n", d_name);
-                    void *handle = dlopen (fullname, RTLD_NOW);
-                    if (!handle) {
-                        trace ("dlopen error: %s\n", dlerror ());
-#ifdef ANDROID
-                        break;
-#else
-                        strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
-                        trace ("trying %s...\n", fullname);
-                        handle = dlopen (fullname, RTLD_NOW);
-                        if (!handle) {
-                            trace ("dlopen error: %s\n", dlerror ());
-                            break;
-                        }
-                        else {
-                            fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
-                        }
-#endif
-                    }
-                    d_name[l-3] = 0;
-                    strcat (d_name, "_load");
-#ifndef ANDROID
-                    DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
-#else
-                    DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
-#endif
-                    if (!plug_load) {
-                        trace ("dlsym error: %s\n", dlerror ());
-                        dlclose (handle);
-                        break;
-                    }
-                    if (plug_init_plugin (plug_load, handle) < 0) {
-                        d_name[l-3] = 0;
-                        trace ("plugin %s is incompatible with current version of deadbeef, please upgrade the plugin\n", d_name);
-                        dlclose (handle);
-                        break;
-                    }
-                    break;
-                }
-                free (namelist[i]);
-            }
-            free (namelist);
+        char *e = strchr (p, ':');
+        if (e) {
+            *e = 0;
         }
+
+        char path[PATH_MAX];
+        snprintf (path, sizeof (path), "/data/data/%s/lib", p);
+        load_plugin_dir (path);
+        if (!e) {
+            break;
+        }
+        p = e+1;
     }
+#endif
 
 // load all compiled-in modules
 #define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
