@@ -681,6 +681,12 @@ public class MediaPlaybackService extends Service {
 			DeadbeefAPI.set_play_order(mode);
 		}
 
+		public void startFile (String fname) {
+			int idx = DeadbeefAPI.pl_add_file (fname);
+			if (idx != -1) {
+				DeadbeefAPI.play_idx(idx);
+			}
+		}
 	}
 
 	private final IBinder mBinder = new ServiceStub(this);

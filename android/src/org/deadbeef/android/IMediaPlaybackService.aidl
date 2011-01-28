@@ -19,5 +19,6 @@ interface IMediaPlaybackService
     void refreshStatus();
     void cycleRepeatMode();
     void cycleShuffleMode();
+    void startFile(String fname);
 }
 

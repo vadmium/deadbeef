@@ -276,6 +276,26 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
      return res;
 }
 
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1file (JNIEnv *env, jclass cls, jstring path) {
+     const jbyte *str;
+     str = (*env)->GetStringUTFChars(env, path, NULL);
+     if (str == NULL) {
+         return -1;
+     }
+     trace ("adding %s...\n", str);
+     int idx = pl_getcount (PL_MAIN);
+     int res = pl_add_file (str, NULL, NULL);
+     pl_save_current ();
+
+     trace ("added %s; new pl_count: %d\n", str, pl_getcount (PL_MAIN));
+
+     (*env)->ReleaseStringUTFChars(env, path, str);
+     if (res != 0) {
+         idx = -1;
+     }
+     return idx;
+}
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1clear
   (JNIEnv *env, jclass cls)
 {

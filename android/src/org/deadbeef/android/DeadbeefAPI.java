@@ -12,6 +12,7 @@ public class DeadbeefAPI
 	public static native int pl_get_count ();
 	public static native String pl_get_item_text (int idx);
 	public static native int pl_add_folder (String path);
+	public static native int pl_add_file (String path);
 	public static native void pl_clear ();
 	public static native int pl_get_current_idx ();
 	public static native String pl_get_metadata (int idx, String key);

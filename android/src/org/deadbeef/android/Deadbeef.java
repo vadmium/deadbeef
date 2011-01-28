@@ -4,10 +4,12 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import android.app.ListActivity;
+import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -212,6 +214,13 @@ public class Deadbeef extends ListActivity {
     		}
     	}
     };
+
+
+    @Override
+    public void onResume() {
+    	super.onResume();
+    }
+    
     
     /** Called when the activity is first created. */
     @Override
@@ -246,7 +255,7 @@ public class Deadbeef extends ListActivity {
         doBindService();
 
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-        setListAdapter(adapter);
+        setListAdapter(adapter);   
     }
     
     @Override
