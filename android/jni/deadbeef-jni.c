@@ -568,3 +568,34 @@ JNIEXPORT jint
 JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1order (JNIEnv *env, jclass cls) {
     return pl_get_order ();
 }
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1for_1idx (JNIEnv *env, jclass cls, jint idx) {
+    return (jint)pl_get_for_idx_and_iter (PL_MAIN, idx);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1meta (JNIEnv *env, jclass cls, jint trk) {
+    return (jint)pl_get_metadata ((playItem_t *)trk);
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_meta_1get_1key (JNIEnv *env, jclass cls, jint meta) {
+    return (*env)->NewStringUTF(env, ((DB_metaInfo_t*)meta)->key);
+
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_meta_1get_1value (JNIEnv *env, jclass cls, jint meta) {
+    return (*env)->NewStringUTF(env, ((DB_metaInfo_t*)meta)->value);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_meta_1get_1next (JNIEnv *env, jclass cls, jint meta) {
+    return (jint)(((DB_metaInfo_t *)meta)->next);
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1item_1unref (JNIEnv *env, jclass cls, jint trk) {
+    pl_item_unref ((playItem_t *)trk);
+}

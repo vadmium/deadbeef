@@ -8,4 +8,9 @@
     <string name="playback_service_started">Disconnected</string>
     <string name="playback_service_stopped">Stopped</string>
     <string name="playback_service_label">Deadbeef</string>
+<string name="ctx_menu_add_files">Add file(s)</string>
+<string name="ctx_menu_add_folder">Add folder</string>
+<string name="ctx_menu_remove">Remove from playlist</string>
+<string name="ctx_menu_move_to_playlist">Move to another playlist</string>
+<string name="ctx_menu_properties">Properties</string>
 </resources>

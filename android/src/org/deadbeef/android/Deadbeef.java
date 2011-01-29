@@ -5,14 +5,15 @@ import java.util.TimerTask;
 
 import android.app.ListActivity;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -240,6 +241,8 @@ public class Deadbeef extends ListActivity {
 
         final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
         setListAdapter(adapter);   
+        
+        registerForContextMenu(findViewById(android.R.id.list));
     }
     
     @Override
@@ -380,6 +383,33 @@ public class Deadbeef extends ListActivity {
    		}
     };
     
+    
+    static public int MENU_ACT_ADD_FILES = 0;
+    static public int MENU_ACT_ADD_FOLDER = 0;
+    static public int MENU_ACT_REMOVE = 0;
+    static public int MENU_ACT_MOVE_TO_PLAYLIST = 0;
+    static public int MENU_ACT_PROPERTIES = 0;
+    
+	@Override
+	public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+		Log.e("DDB","onCreateContextMenu");
+		int sel = ((ListView)v).getSelectedItemPosition();
+		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
+		menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
+		menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
+		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
+		
+		Intent i = new Intent (this, TrackPropertiesViewer.class);
+		i.setData(Uri.fromParts("track", String.valueOf(sel), null));
+		menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
+	}
+	
+	@Override
+	public boolean onContextItemSelected (MenuItem item) {
+		Log.e("DDB","onContextItemSelected");
+		return false;
+	}
+
 	void PlayerSeek (float value) {
 		try {
 	   		MusicUtils.sService.seek(value);
@@ -408,6 +438,7 @@ public class Deadbeef extends ListActivity {
 			PlayerSeek (trackedPos);
 		}
 	};
+	
 
 }
 
