@@ -165,8 +165,8 @@ public class Deadbeef extends ListActivity {
 		        	seekbar.setProgress (seekbar_pos);
 		    	}
 		    	
-		    	TextView fmt = (TextView)findViewById(R.id.fmt);
-		    	fmt.setText("ch:"+Player.current_channels + " sr:"+Player.current_samplerate);
+		    	TextView st = (TextView)findViewById(R.id.status);
+		    	st.setText("ch:"+Player.current_channels + " sr:"+Player.current_samplerate);
     		}
     		catch (RemoteException e) {
     			Log.e(TAG, "playback service error");

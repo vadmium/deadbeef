@@ -6,40 +6,50 @@
               android:orientation="vertical"
                android:background="#414441"
               >
+	<TextView android:id="@+id/status"
+              android:layout_width="fill_parent"
+              android:layout_height="wrap_content"
+              android:singleLine="true"
+              android:text="status"
+	          android:layout_alignParentBottom="true"
+              android:layout_centerHorizontal="true"
+              android:textSize="10sp"
+              />
+             
 
 	    <ImageButton android:id="@+id/play"
 	            android:layout_width="wrap_content"
 	            android:layout_height="wrap_content"
 	            android:src="@drawable/ic_media_play"
-	            android:layout_alignParentBottom="true"
+			    android:layout_above="@id/status"
 				android:layout_centerHorizontal="true"
 	            />
 	    <ImageButton android:id="@+id/prev"
 	            android:layout_width="wrap_content"
 	            android:layout_height="wrap_content"
 	            android:src="@drawable/ic_media_previous"
-	            android:layout_alignParentBottom="true"
 	            android:layout_toLeftOf="@id/play"
+			    android:layout_above="@id/status"
 	            />
 	    <ImageButton android:id="@+id/next"
 	            android:layout_width="wrap_content"
 	            android:layout_height="wrap_content"
 	            android:src="@drawable/ic_media_next"
-	            android:layout_alignParentBottom="true"
+			    android:layout_above="@id/status"
 	            android:layout_toRightOf="@id/play"
 	            />
 		<ImageButton android:layout_height="wrap_content"
 		 android:layout_width="wrap_content"
 		  android:src="@drawable/ic_media_shuffle_off"
 		   android:id="@+id/ShuffleMode"
-	            android:layout_alignParentBottom="true"
+			    android:layout_above="@id/status"
 	            android:layout_alignParentLeft="true"
 		   />
 		<ImageButton android:layout_height="wrap_content"
 		 android:layout_width="wrap_content"
 		  android:src="@drawable/ic_media_repeat_off"
 		   android:id="@+id/RepeatMode"
-	            android:layout_alignParentBottom="true"
+			    android:layout_above="@id/status"
 	            android:layout_alignParentRight="true"
 		   />
 
