@@ -284,18 +284,39 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1file (JNIEnv *env, jclass cls, js
          return -1;
      }
      trace ("adding %s...\n", str);
+     // replace %20 with spaces
+     char outname[PATH_MAX];
+
+     const char *p = str;
+     if (!strncmp (str, "file://", 7)) {
+         p += 7;
+     }
+     char *out = outname;
+     while (*p) {
+         if (!strncmp (p, "%20", 3)) {
+             *out++ = 0x20;
+             p += 3;
+         }
+         else {
+             *out++ = *p++;
+         }
+     }
+     *out = 0;
+     (*env)->ReleaseStringUTFChars(env, path, str);
+
      int idx = pl_getcount (PL_MAIN);
-     int res = pl_add_file (str, NULL, NULL);
+     trace ("converted to %s...\n", outname);
+     int res = pl_add_file (outname, NULL, NULL);
      pl_save_current ();
 
-     trace ("added %s; new pl_count: %d\n", str, pl_getcount (PL_MAIN));
+     trace ("added %s; new pl_count: %d\n", outname, pl_getcount (PL_MAIN));
 
-     (*env)->ReleaseStringUTFChars(env, path, str);
      if (res != 0) {
          idx = -1;
      }
      return idx;
 }
+
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1clear
   (JNIEnv *env, jclass cls)
 {
