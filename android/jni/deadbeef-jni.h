@@ -225,6 +225,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    is_streamer_active
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_is_1streamer_1active
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    set_play_mode
  * Signature: (I)V
  */

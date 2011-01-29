@@ -4,7 +4,9 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
+import android.os.RemoteException;
 import android.util.Log;
+import android.widget.TextView;
 
 class Player {
 	public Player() {
@@ -39,6 +41,9 @@ class Player {
     }
 
     private class PlayRunnable implements Runnable {
+	    private int curr_track = -1;
+	    private boolean curr_state = false; // false=stopped/paused
+	    private boolean playback_state = false;
 
     	public void run() {
     		Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
@@ -56,7 +61,6 @@ class Player {
     				}
     				continue;
     			}
-
     			
         	    if (audio == null || samplerate != current_samplerate) {
         	    	initAudio (samplerate);
@@ -70,6 +74,23 @@ class Player {
         	    }
         	    DeadbeefAPI.getBuffer(minSize, buffer);
     			audio.write(buffer, 0, minSize);
+
+    			if (null != MusicUtils.sService) {
+	    			try {
+		    			boolean state = MusicUtils.sService.isPlaying ();
+		    			int track = MusicUtils.sService.getCurrentIdx ();
+			    		if (track != curr_track || (playback_state != state && state)) {
+			    			curr_track = track;
+			    			playback_state = state;
+			    			
+			    			if (curr_track >= 0) {
+								MusicUtils.sService.refreshStatus();
+			    			}
+			    		}    			
+					}
+					catch (RemoteException ex) {
+					}
+    			}
     			
 		    	if (0==DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
 		    		audio.pause ();

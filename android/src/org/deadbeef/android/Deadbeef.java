@@ -146,8 +146,6 @@ public class Deadbeef extends ListActivity {
 	    	    		tv.setText(MusicUtils.sService.getArtistName ());
 	    	    		tv = (TextView)findViewById(R.id.np_title);
 	    	    		tv.setText(MusicUtils.sService.getTrackName ());
-	    	    		
-	    	    		MusicUtils.sService.refreshStatus();
 	    			}
 	    		}
 		    	// update numbers

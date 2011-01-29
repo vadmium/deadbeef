@@ -26,7 +26,6 @@ public class StreamStarter extends Activity
 		progressDialog.dismiss();
 		setResult(RESULT_OK);
     	Intent intent = new Intent("org.deadbeef.android.PLAYBACK_VIEWER");
-    	intent.putExtra("oneshot", true);
         startActivity(intent);
         finish ();
 	}

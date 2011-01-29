@@ -381,10 +381,7 @@ public class MediaPlaybackService extends Service {
 	public boolean onUnbind(Intent intent) {
 		mServiceInUse = false;
 
-		if (isPlaying() || mPausedByTransientLossOfFocus) {
-			// something is currently playing, or will be playing once
-			// an in-progress action requesting audio focus ends, so don't stop
-			// the service now.
+		if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
 			return true;
 		}
 

@@ -18,7 +18,7 @@
 */
 #include <stdlib.h>
 #include <jni.h>
-#include "org_deadbeef_android_DeadbeefAPI.h"
+#include "deadbeef-jni.h"
 #include <android/log.h>
 
 #include <stdio.h>
@@ -495,8 +495,18 @@ JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
 JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *env, jclass cls)
 {
-    // this will report "is_playing=1" when streamer is buffering
-    return (jni_out_get_state () == OUTPUT_STATE_PLAYING) || !streamer_ok_to_read(-1);
+    return (jni_out_get_state () == OUTPUT_STATE_PLAYING);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_is_1streamer_1active (JNIEnv *env, jclass cls) {
+    playItem_t *it = streamer_get_playing_track ();
+    if (it) {
+        pl_item_unref (it);
+    }
+    int res = (it ? 1 : 0) || !streamer_ok_to_read (-1);
+    trace ("streamer_active: %d\n", res);
+    return res;
 }
 
 JNIEXPORT void
