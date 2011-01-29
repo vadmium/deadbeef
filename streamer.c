@@ -37,10 +37,10 @@
 #include "premix.h"
 #include "ringbuf.h"
 
-//extern void android_trace (const char *fmt, ...);
-//#define trace(...) { android_trace(__VA_ARGS__); }
+extern void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define trace(fmt,...)
 
 //#define WRITE_DUMP 1
 
@@ -831,7 +831,9 @@ streamer_start_new_song (void) {
                 fprintf (stderr, "streamer_set_output_format %dbit %s %dch %dHz channelmask=%X\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask);
                 streamer_set_output_format ();
             }
+#ifndef ANDROID
             else if (output->state () != OUTPUT_STATE_PLAYING) {
+                trace ("setformat 1\n");
                 // might have failed last time, set default params
                 output_format.bps = 16;
                 output_format.is_float = 0;
@@ -840,6 +842,7 @@ streamer_start_new_song (void) {
                 output_format.channelmask = 3;
                 streamer_set_output_format ();
             }
+#endif
             if (output->state () != OUTPUT_STATE_PLAYING) {
                 if (0 != output->play ()) {
                     memset (&output_format, 0, sizeof (output_format));
@@ -1314,6 +1317,7 @@ streamer_dsp_postinit (void) {
         }
     }
     else if (ctx) {
+        trace ("setformat 2\n");
         dsp_on = 1;
         // set some very generic format, this will allow playback of weird
         // formats after fixing them with dsp plugins
@@ -1524,7 +1528,7 @@ streamer_set_output_format (void) {
     DB_output_t *output = plug_get_output ();
     int playing = (output->state () == OUTPUT_STATE_PLAYING);
 
-    fprintf (stderr, "streamer_set_output_format %dbit %s %dch %dHz channelmask=%X\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask);
+    trace ("streamer_set_output_format %dbit %s %dch %dHz channelmask=%X\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask);
     output->setformat (&output_format);
     if (playing && output->state () != OUTPUT_STATE_PLAYING) {
         if (0 != output->play ()) {

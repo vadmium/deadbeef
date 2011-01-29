@@ -15,7 +15,8 @@ class Player {
 		playThread.start();
 	}
     private AudioTrack audio = null;
-    int current_samplerate = 44100;
+    static public int current_samplerate = 44100;
+    static public int current_channels = 2;
     private int minSize = AudioTrack.getMinBufferSize(current_samplerate,
     		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
     		AudioFormat.ENCODING_PCM_16BIT);
@@ -24,17 +25,18 @@ class Player {
     public boolean playing = true;
     private Thread playThread;
     
-    public void initAudio (int samplerate) {
+    public void initAudio (int samplerate, int channels) {
 		audio = null;
 		current_samplerate = samplerate;
+		current_channels = channels;
 		
 		minSize = AudioTrack.getMinBufferSize(current_samplerate,
-	    		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
+	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
 		
 		audio = new AudioTrack(
 		AudioManager.STREAM_MUSIC, samplerate,
-		AudioFormat.CHANNEL_CONFIGURATION_STEREO,
+		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 		AudioFormat.ENCODING_PCM_16BIT,
 		minSize,
 		AudioTrack.MODE_STREAM);
@@ -53,6 +55,7 @@ class Player {
 
     		while (playing) {
     			int samplerate = DeadbeefAPI.getSamplerate ();
+    			int channels = DeadbeefAPI.getChannels ();
     			if (0 == samplerate) {
     				try {
     					Thread.sleep(200);
@@ -62,8 +65,8 @@ class Player {
     				continue;
     			}
     			
-        	    if (audio == null || samplerate != current_samplerate) {
-        	    	initAudio (samplerate);
+        	    if (audio == null || samplerate != current_samplerate || channels != current_channels) {
+        	    	initAudio (samplerate, channels);
         	    	audio.play();
         	    }
 

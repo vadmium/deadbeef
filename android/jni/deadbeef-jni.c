@@ -148,10 +148,21 @@ static int
 jni_setformat(ddb_waveformat_t *fmt)
 {
     jni_out.fmt.samplerate = fmt->samplerate;
-    jni_out.fmt.channels = 2;
-    jni_out.fmt.channelmask = 3;
+    if (jni_out.fmt.samplerate > 96000) {
+        jni_out.fmt.samplerate = 96000;
+    }
+    else if (jni_out.fmt.samplerate < 8000) {
+        jni_out.fmt.samplerate = 8000;
+    }
+    jni_out.fmt.channels = fmt->channels;
+    jni_out.fmt.channelmask = fmt->channelmask;
+    if (jni_out.fmt.channels > 2) {
+        jni_out.fmt.channels = 2;
+        jni_out.fmt.channelmask = 3;
+    }
     jni_out.fmt.bps = 16;
     jni_out.fmt.is_float = 0;
+    trace ("jni_setformat %d %d\n", jni_out.fmt.samplerate, jni_out.fmt.channels);
     return 0;
 }
 
@@ -237,6 +248,11 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_getSamplerate (JNIEnv *env, jclass cls) {
     return jni_out.fmt.samplerate;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_getChannels (JNIEnv *env, jclass cls) {
+    return jni_out.fmt.channels;
 }
 
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count

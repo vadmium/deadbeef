@@ -7,6 +7,7 @@ public class DeadbeefAPI
 	// returns number of bytes read
 	public static native int getBuffer(int size, short buffer[]);
 	public static native int getSamplerate();
+	public static native int getChannels();
 	
 	// playlist access
 	public static native int pl_get_count ();

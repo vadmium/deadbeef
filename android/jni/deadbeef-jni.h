@@ -41,6 +41,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_getSamplerate
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    getChannels
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_getChannels
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    pl_get_count
  * Signature: ()I
  */
