@@ -17,7 +17,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
@@ -60,8 +59,6 @@ public class MediaPlaybackService extends Service {
 	private boolean mServiceInUse = false;
 	// used to track what type of audio focus loss caused the playback to pause
 	private boolean mPausedByTransientLossOfFocus = false;
-
-	private SharedPreferences mPreferences;
 
 	// interval after which we stop the service when idle
 	private static final int IDLE_DELAY = 60000;
@@ -150,8 +147,6 @@ public class MediaPlaybackService extends Service {
 	};
 
 	private Handler mMediaplayerHandler = new Handler() {
-		float mCurrentVolume = 1.0f;
-
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
@@ -241,9 +236,6 @@ public class MediaPlaybackService extends Service {
 			mStartForeground = mStopForeground = null;
 		}
 
-		mPreferences = getSharedPreferences("Music", MODE_WORLD_READABLE
-				| MODE_WORLD_WRITEABLE);
-
 		registerExternalStorageListener();
 
 		File filesDir = getFilesDir();
@@ -299,6 +291,7 @@ public class MediaPlaybackService extends Service {
 		}
 		// release all MediaPlayer resources, including the native player and
 		// wakelocks
+   		Log.e("DDB","mediaPlaybackService onDestroy");
 		mPlayer.stop();
 		mPlayer = null;
 
@@ -420,6 +413,7 @@ public class MediaPlaybackService extends Service {
 	 */
 	public void closeExternalStorageFiles(String storagePath) {
 		// stop playback and clean up if the SD card is going to be unmounted.
+   		Log.e("DDB","closeExternalStorageFiles");
 		mPlayer.stop();
 	}
 
@@ -498,6 +492,7 @@ public class MediaPlaybackService extends Service {
 
 	private void stop() {
 		synchronized (this) {
+			Log.e("DDB","MediaPlaybackService.stop");
 			mPlayer.stop();
 			gotoIdleState();
 			stopForegroundCompat(PLAYBACKSERVICE_STATUS);
@@ -686,6 +681,15 @@ public class MediaPlaybackService extends Service {
 			if (idx != -1) {
 				DeadbeefAPI.play_idx(idx);
 			}
+		}
+		public int getCurrentIdx() {
+			return DeadbeefAPI.pl_get_current_idx ();
+		}
+		public int getPlayOrder() {
+			return DeadbeefAPI.get_play_order ();
+		}
+		public int getPlayMode() {
+			return DeadbeefAPI.get_play_mode ();
 		}
 	}
 

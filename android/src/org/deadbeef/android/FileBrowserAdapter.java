@@ -15,7 +15,6 @@ import android.widget.TextView;
 public class FileBrowserAdapter extends BaseAdapter {
     private Context myContext;
     private List<String> files = new ArrayList<String> ();
-    private String TAG = "DDB FileBrowserAdapter";
     private String currentPath;
 
     public FileBrowserAdapter(Context context, String initPath) {

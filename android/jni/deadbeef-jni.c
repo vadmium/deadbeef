@@ -495,7 +495,8 @@ JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
 JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *env, jclass cls)
 {
-    return jni_out_get_state () == OUTPUT_STATE_PLAYING;
+    // this will report "is_playing=1" when streamer is buffering
+    return (jni_out_get_state () == OUTPUT_STATE_PLAYING) || !streamer_ok_to_read(-1);
 }
 
 JNIEXPORT void

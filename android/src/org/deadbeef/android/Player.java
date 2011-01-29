@@ -4,6 +4,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
+import android.util.Log;
 
 class Player {
 	public Player() {
@@ -43,6 +44,7 @@ class Player {
     		Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
     		int prevsize = minSize;
     	    short buffer[] = new short[minSize];
+    		Log.e("DDB","PlayerRunnable.run started");
 
     		while (playing) {
     			int samplerate = DeadbeefAPI.getSamplerate ();
@@ -85,12 +87,20 @@ class Player {
 		    	}    			
     		}
 
-    		audio.stop();
+    		Log.e("DDB","PlayerRunnable.run exit loop");
+    		if (audio != null) {
+    			audio.stop();
+    			audio = null;
+    		}
+    		Log.e("DDB","PlayerRunnable.run audio stop");
     		DeadbeefAPI.stop();
+    		Log.e("DDB","PlayerRunnable.run stoped");
     	}
     }
     
     public void stop () {
+   		Log.e("DDB","Player.stop");
+
     	playing = false;
     	try {
     		playThread.join();

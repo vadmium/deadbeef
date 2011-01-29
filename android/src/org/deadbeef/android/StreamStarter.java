@@ -3,10 +3,8 @@ package org.deadbeef.android;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -27,32 +25,41 @@ public class StreamStarter extends Activity
         }
 		progressDialog.dismiss();
 		setResult(RESULT_OK);
-		finish ();
+    	Intent intent = new Intent("org.deadbeef.android.PLAYBACK_VIEWER");
+    	intent.putExtra("oneshot", true);
+        startActivity(intent);
+        finish ();
 	}
 	
-	private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder obj) {
-        	IMediaPlaybackService playbackService = IMediaPlaybackService.Stub.asInterface(obj);
-        	startFile (playbackService);
-        	unbindService(this);
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-        }
-    };
-    
     @Override
     public void onCreate(Bundle icicle) {
+		Log.e("DDB", "StreamStarter.onCreate intent action: " + getIntent().getAction().toString());
         super.onCreate(icicle);
     }
     
     @Override
     public void onResume() {
+		Log.e("DDB", "StreamStarter.onResume");
         super.onResume();
-        if (getIntent().getData() != null) {
-        	bindService(new Intent(StreamStarter.this, 
-        		MediaPlaybackService.class), mConnection, Context.BIND_AUTO_CREATE);
+        if (getIntent().getData() != null) {        	
+        	MusicUtils.bindToService(this, new ServiceConnection() {
+			        public void onServiceConnected(ComponentName className, IBinder obj) {
+			        	IMediaPlaybackService playbackService = IMediaPlaybackService.Stub.asInterface(obj);
+			        	startFile (playbackService);
+			        }
+			
+			        public void onServiceDisconnected(ComponentName className) {
+			        }
+			    }
+        	);
         }
+    }
+    
+    @Override
+    public void onPause() {
+		Log.e("DDB", "StreamStarter.onPause");
+    	MusicUtils.unbindFromService(this);
+        super.onPause();
     }
     
 }
