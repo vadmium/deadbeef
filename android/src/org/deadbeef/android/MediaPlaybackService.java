@@ -2,6 +2,7 @@
 package org.deadbeef.android;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -217,13 +218,55 @@ public class MediaPlaybackService extends Service {
 
 	public MediaPlaybackService() {
 	}
+	
+	static {
+       initCompatibility();
+    };
+    
+    private static Method mRegisterMediaButtonEventReceiver;
+    private static void initCompatibility() {
+       try {
+           mRegisterMediaButtonEventReceiver = AudioManager.class.getMethod(
+                   "registerMediaButtonEventReceiver", new Class[] { ComponentName.class } );
+           /* success, this is a newer device */
+       } catch (NoSuchMethodException nsme) {
+           /* failure, must be older device */
+       }
+   }
+    
+    private static void registerMediaButtonEventReceiver(AudioManager audioManager, ComponentName componentName) throws IOException {
+       try {
+           mRegisterMediaButtonEventReceiver.invoke(audioManager, componentName);
+       } catch (InvocationTargetException ite) {
+           /* unpack original exception when possible */
+           Throwable cause = ite.getCause();
+           if (cause instanceof IOException) {
+               throw (IOException) cause;
+           } else if (cause instanceof RuntimeException) {
+               throw (RuntimeException) cause;
+           } else if (cause instanceof Error) {
+               throw (Error) cause;
+           } else {
+               /* unexpected checked exception; wrap and re-throw */
+               throw new RuntimeException(ite);
+           }
+       } catch (IllegalAccessException ie) {
+           System.err.println("unexpected " + ie);
+       }
+   }
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-		mAudioManager.registerMediaButtonEventReceiver(new ComponentName(
-				getPackageName(), MediaButtonIntentReceiver.class.getName()));
+		if (mRegisterMediaButtonEventReceiver != null) {
+			try {
+				registerMediaButtonEventReceiver(mAudioManager, new ComponentName(
+						getPackageName(), MediaButtonIntentReceiver.class.getName()));
+			}
+			catch (IOException ex) {
+			}
+		}
 
 		mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		try {
