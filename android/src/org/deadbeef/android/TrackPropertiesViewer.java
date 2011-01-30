@@ -27,7 +27,7 @@ public class TrackPropertiesViewer extends ListActivity {
         		String key = DeadbeefAPI.meta_get_key (meta); 
         		String val = DeadbeefAPI.meta_get_value (meta);
         		if (key.startsWith(":")) {
-        			key = "<" + key.substring(1) + ">";
+        			key = key.substring(1);
         		}
        			mAdapter.add(key + ": " + val);
        			meta = DeadbeefAPI.meta_get_next (meta);
