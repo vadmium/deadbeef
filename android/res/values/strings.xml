@@ -13,4 +13,11 @@
 <string name="ctx_menu_remove">Remove from playlist</string>
 <string name="ctx_menu_move_to_playlist">Move to another playlist</string>
 <string name="ctx_menu_properties">Properties</string>
+<string name="new_playlist">Create new playlist</string>
+
+<string name="alert_dialog_ok">OK</string>
+<string name="alert_dialog_cancel">Cancel</string>
+<string name="rename_playlist">Rename playlist</string>
+<string name="delete_playlist">Delete playlist</string>
+<string name="delete_playlist_confirm">Sure?</string>
 </resources>

@@ -414,12 +414,6 @@ public class Deadbeef extends ListActivity {
 		i.setData(Uri.fromParts("track", "0", String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
 		menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
 	}
-	
-	@Override
-	public boolean onContextItemSelected (MenuItem item) {
-		Log.e("DDB","onContextItemSelected");
-		return false;
-	}
 
 	void PlayerSeek (float value) {
 		try {
