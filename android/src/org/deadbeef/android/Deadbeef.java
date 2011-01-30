@@ -44,6 +44,7 @@ public class Deadbeef extends ListActivity {
     private boolean playback_state = false;
 
     private static final int REQUEST_ADD_FOLDER = 1;
+    private static final int REQUEST_SELECT_PLAYLIST = 2;
     
     private boolean isVisible = true;
     
@@ -289,15 +290,21 @@ public class Deadbeef extends ListActivity {
     private void AddFolder () {
         Log.i(TAG,"AddFolder ()");
         Intent i = new Intent (this, FileBrowser.class);
-    	startActivityForResult(
-        		i,
-                REQUEST_ADD_FOLDER);
+    	startActivityForResult(i, REQUEST_ADD_FOLDER);
     }
 
     @Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
+	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
+    	}
+    	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode == RESULT_OK) {
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
@@ -330,6 +337,10 @@ public class Deadbeef extends ListActivity {
 	        	mTimer = null;
    	    	}
             finish ();
+        }
+        else if (id == R.id.menu_manage_playlists) {
+        	Intent i = new Intent (this, SelectPlaylist.class);
+	    	startActivityForResult(i, REQUEST_SELECT_PLAYLIST);
         }
         return true;
     };

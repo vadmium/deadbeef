@@ -88,7 +88,14 @@
 	        </intent-filter>
         </activity>
 	
-<service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/ddb_24" android:process="@string/app_name" android:enabled="true"></service>
+        <activity android:name="SelectPlaylist">
+	        <intent-filter>
+	            <action android:name="org.deadbeef.android.PLAYLIST_MANAGER" />
+	            <category android:name="android.intent.category.DEFAULT" />
+	        </intent-filter>
+        </activity>
+
+<service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/app_name" android:enabled="true"></service>
 
 </application>
 

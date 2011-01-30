@@ -599,3 +599,67 @@ JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1item_1unref (JNIEnv *env, jclass cls, jint trk) {
     pl_item_unref ((playItem_t *)trk);
 }
+
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1count (JNIEnv *env, jclass cls) {
+    return plt_get_count ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1sel_1count (JNIEnv *env, jclass cls, jint idx) {
+    return plt_get_sel_count (idx);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1add (JNIEnv *env, jclass cls, jint before, jstring title) {
+     const char *str = (*env)->GetStringUTFChars(env, title, NULL);
+     if (str == NULL) {
+         return -1;
+     }
+     int res = plt_add (before, str);
+     (*env)->ReleaseStringUTFChars(env, title, str);
+     return res;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1remove (JNIEnv *env, jclass cls, jint idx) {
+    plt_remove (idx);
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr (JNIEnv *env, jclass cls, jint idx) {
+    plt_set_curr (idx);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1curr (JNIEnv *env, jclass cls) {
+    return plt_get_curr ();
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1title (JNIEnv *env, jclass cls, jint idx) {
+    char buf[1000];
+    int res = plt_get_title (idx, buf, sizeof (buf));
+    if (res < 0) {
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, buf);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1title (JNIEnv *env, jclass cls, jint idx, jstring title) {
+     const char *str = (*env)->GetStringUTFChars(env, title, NULL);
+     if (str == NULL) {
+         return -1;
+     }
+     int res = plt_set_title (idx, str);
+     (*env)->ReleaseStringUTFChars(env, title, str);
+     return res;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1move (JNIEnv *env, jclass cls, jint from, jint to) {
+    plt_move (from, to);
+}
+

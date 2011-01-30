@@ -161,6 +161,78 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1item_1unref
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_count
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1count
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_sel_count
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1sel_1count
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_add
+ * Signature: (ILjava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1add
+  (JNIEnv *, jclass, jint, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_remove
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1remove
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_set_curr
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_curr
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1curr
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_title
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1title
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_set_title
+ * Signature: (ILjava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1title
+  (JNIEnv *, jclass, jint, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_move
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1move
+  (JNIEnv *, jclass, jint, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_prev
  * Signature: ()V
  */

@@ -4,10 +4,16 @@
   <item android:id="@+id/menu_add_folder"
    android:icon="@drawable/ic_menu_add"
    android:title="Add Folder" />
+  <item android:id="@+id/menu_add_file"
+   android:icon="@drawable/ic_menu_add"
+   android:title="Add File" />
   <item android:id="@+id/menu_clear_playlist"
    android:icon="@drawable/ic_menu_clear_playlist"
    android:title="Clear playlist" />
+  <item android:id="@+id/menu_manage_playlists"
+   android:icon="@drawable/ic_menu_playlists"
+   android:title="Manage Playlists" />
   <item android:id="@+id/menu_quit"
-   android:icon="@drawable/quit"
+   android:icon="@drawable/ic_menu_exit"
    android:title="Quit" />
 </menu>
