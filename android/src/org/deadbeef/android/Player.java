@@ -76,7 +76,7 @@ class Player {
         	    	prevsize = minSize;
         	    }
         	    DeadbeefAPI.getBuffer(minSize, buffer);
-    			audio.write(buffer, 0, minSize);
+        	    audio.write(buffer, 0, minSize);
 
     			if (null != MusicUtils.sService) {
 	    			try {
@@ -96,7 +96,7 @@ class Player {
     			}
     			
 		    	if (!DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
-		    		audio.pause ();
+		    		audio.stop ();
 		    	}
     			while (!DeadbeefAPI.play_is_playing ()) {
     				try {
