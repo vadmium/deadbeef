@@ -49,61 +49,7 @@ LOCAL_SRC_FILES +=\
 	Game_Music_Emu-0.5.2/gme/Hes_Cpu.cpp\
 	Game_Music_Emu-0.5.2/gme/Nes_Cpu.cpp\
 	Game_Music_Emu-0.5.2/gme/Sap_Emu.cpp\
-	Game_Music_Emu-0.5.2/gme/Ym2612_Emu.cpp\
-	Game_Music_Emu-0.5.2/gme/Ay_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Ay_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/Ay_Emu.h\
-	Game_Music_Emu-0.5.2/gme/blargg_common.h\
-	Game_Music_Emu-0.5.2/gme/blargg_config.h\
-	Game_Music_Emu-0.5.2/gme/blargg_endian.h\
-	Game_Music_Emu-0.5.2/gme/blargg_source.h\
-	Game_Music_Emu-0.5.2/gme/Blip_Buffer.h\
-	Game_Music_Emu-0.5.2/gme/Classic_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Data_Reader.h\
-	Game_Music_Emu-0.5.2/gme/Dual_Resampler.h\
-	Game_Music_Emu-0.5.2/gme/Effects_Buffer.h\
-	Game_Music_Emu-0.5.2/gme/Fir_Resampler.h\
-	Game_Music_Emu-0.5.2/gme/Gb_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Gb_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/gb_cpu_io.h\
-	Game_Music_Emu-0.5.2/gme/Gb_Oscs.h\
-	Game_Music_Emu-0.5.2/gme/Gbs_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Gme_File.h\
-	Game_Music_Emu-0.5.2/gme/gme.h\
-	Game_Music_Emu-0.5.2/gme/Gym_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Hes_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Hes_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/hes_cpu_io.h\
-	Game_Music_Emu-0.5.2/gme/Hes_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Kss_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/Kss_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Kss_Scc_Apu.h\
-	Game_Music_Emu-0.5.2/gme/M3u_Playlist.h\
-	Game_Music_Emu-0.5.2/gme/Multi_Buffer.h\
-	Game_Music_Emu-0.5.2/gme/Music_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/nes_cpu_io.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Fme7_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Namco_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Oscs.h\
-	Game_Music_Emu-0.5.2/gme/Nes_Vrc6_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Nsfe_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Nsf_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Sap_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Sap_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/sap_cpu_io.h\
-	Game_Music_Emu-0.5.2/gme/Sap_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Sms_Apu.h\
-	Game_Music_Emu-0.5.2/gme/Sms_Oscs.h\
-	Game_Music_Emu-0.5.2/gme/Snes_Spc.h\
-	Game_Music_Emu-0.5.2/gme/Spc_Cpu.h\
-	Game_Music_Emu-0.5.2/gme/Spc_Dsp.h\
-	Game_Music_Emu-0.5.2/gme/Spc_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Vgm_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Vgm_Emu_Impl.h\
-	Game_Music_Emu-0.5.2/gme/Ym2413_Emu.h\
-	Game_Music_Emu-0.5.2/gme/Ym2612_Emu.h
+	Game_Music_Emu-0.5.2/gme/Ym2612_Emu.cpp
 
 LOCAL_CFLAGS += -I$(LOCAL_PATH)/Game_Music_Emu-0.5.2 -std=c99 -O2
 

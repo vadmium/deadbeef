@@ -74,30 +74,6 @@ dumb-kode54/src/helpers/riff.c\
 dumb-kode54/src/helpers/memfile.c\
 dumb-kode54/src/helpers/sampbuf.c\
 dumb-kode54/src/helpers/barray.c\
-dumb-kode54/studio/include/guitop.h\
-dumb-kode54/studio/include/dumbgui.h\
-dumb-kode54/studio/include/options.h\
-dumb-kode54/studio/include/subclip.h\
-dumb-kode54/studio/include/main.h\
-dumb-kode54/studio/include/guiproc.h\
-dumb-kode54/studio/include/dumbmenu.h\
-dumb-kode54/studio/include/dumbdesk.h\
-dumb-kode54/src/tools/it/modulus.h\
-dumb-kode54/include/internal/it.h\
-dumb-kode54/include/internal/dumb.h\
-dumb-kode54/include/internal/barray.h\
-dumb-kode54/include/internal/riff.h\
-dumb-kode54/include/internal/aldumb.h\
-dumb-kode54/include/dumb.h\
-dumb-kode54/include/aldumb.h\
-dumb-kode54/winamp/in_duh.h\
-dumb-kode54/winamp/in2.h\
-dumb-kode54/winamp/resource.h\
-dumb-kode54/winamp/out.h\
-dumb-kode54/winamp/gui.h\
-dumb-kode54/src/helpers/resample.inc\
-dumb-kode54/src/helpers/resamp2.inc\
-dumb-kode54/src/helpers/resamp3.inc\
 cdumb.c
 
 LOCAL_CFLAGS += -I$(LOCAL_PATH)/dumb-kode54/include -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O2
