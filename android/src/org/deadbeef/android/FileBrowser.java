@@ -2,6 +2,7 @@ package org.deadbeef.android;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -36,7 +37,19 @@ public class FileBrowser extends ListActivity {
                 "Adding files to playlist...", true);
         new Thread () {
         	public void run () {
-        		((FileBrowserAdapter)getListAdapter()).AddFolder ();
+        		if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
+			        Intent i = getIntent ();
+			        String idx_str = getIntent().getData().getFragment ();
+			        int idx = Integer.parseInt(idx_str);
+			        String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
+			        
+			        int plt = Integer.parseInt(plt_str);
+	        		((FileBrowserAdapter)getListAdapter()).AddFolderAfter (plt, idx);
+		        }
+		        else {
+	        		((FileBrowserAdapter)getListAdapter()).AddFolder ();
+		        }
+        		
         		progressDialog.dismiss();
         		setResult(RESULT_OK);
         		finish ();
@@ -46,7 +59,7 @@ public class FileBrowser extends ListActivity {
 
     private OnClickListener mAddFolderListener = new OnClickListener() {
         public void onClick(View v) {
-            AddCurrentFolder ();
+        	AddCurrentFolder ();
         }
     };
 }

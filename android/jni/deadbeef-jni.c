@@ -622,6 +622,23 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1filetype (JNIEnv *env, jcl
 }
 
 JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir (JNIEnv *env, jclass cls, jint plt, jint after, jstring path) {
+
+    const char *str = (*env)->GetStringUTFChars(env, path, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    playItem_t *it = pl_get_for_idx_and_iter (after, PL_MAIN);
+    int abort = 0;
+    playItem_t *ret = pl_insert_dir (it, str, &abort, NULL, NULL);
+    (*env)->ReleaseStringUTFChars(env, path, str);
+    if (it) {
+        pl_item_unref (it);
+    }
+    return ret ? 0 : -1;
+}
+
+JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1getcount (JNIEnv *env, jclass cls, jint iter) {
     return pl_getcount (iter);
 }

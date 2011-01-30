@@ -117,8 +117,7 @@ public class SelectPlaylist extends ListActivity {
 			showDialog(ACT_CREATE);
 		}
 		else {
-			DeadbeefAPI.plt_set_curr (position - 1);
-			setResult(RESULT_OK);
+			setResult(position-1);
 	        finish ();
 		}
     }

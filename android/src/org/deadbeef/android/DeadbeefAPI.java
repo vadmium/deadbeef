@@ -27,7 +27,7 @@ public class DeadbeefAPI
 	public static native float pl_get_totaltime ();
 	public static native float pl_get_item_duration (int trk);
 	public static native String pl_get_track_filetype (int trk);
-	
+	public static native int pl_insert_dir (int plt, int after, String path);
 	
 	// playlist manager
 	public static native int plt_get_count ();

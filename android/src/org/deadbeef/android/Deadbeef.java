@@ -45,11 +45,14 @@ public class Deadbeef extends ListActivity {
 
     private static final int REQUEST_ADD_FOLDER = 1;
     private static final int REQUEST_SELECT_PLAYLIST = 2;
+    private static final int REQUEST_ADD_FOLDER_AFTER = 3;
     
     private boolean isVisible = true;
     
     private Timer mTimer;
     private ProgressTask mTimerTask;
+    
+    private int mSelected; // track selected for ctx menu
     
     private class ProgressTask extends TimerTask {
     	public void run () {
@@ -386,7 +389,16 @@ public class Deadbeef extends ListActivity {
 	            }
 	        });
     	}
-    	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode == RESULT_OK) {
+    	if (requestCode == REQUEST_ADD_FOLDER_AFTER && resultCode == RESULT_OK) {
+	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
+    	}
+    	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
+    		DeadbeefAPI.plt_set_curr (resultCode);
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
@@ -478,14 +490,15 @@ public class Deadbeef extends ListActivity {
     };
     
     
-    static public int MENU_ACT_ADD_FILES = 0;
-    static public int MENU_ACT_ADD_FOLDER = 0;
-    static public int MENU_ACT_REMOVE = 0;
-    static public int MENU_ACT_MOVE_TO_PLAYLIST = 0;
-    static public int MENU_ACT_PROPERTIES = 0;
+    public static final int MENU_ACT_ADD_FILES = 0;
+    public static final int MENU_ACT_ADD_FOLDER = 1;
+    public static final int MENU_ACT_REMOVE = 2;
+    public static final int MENU_ACT_MOVE_TO_PLAYLIST = 3;
+    public static final int MENU_ACT_PROPERTIES = 4;
     
 	@Override
 	public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+		mSelected = ((AdapterContextMenuInfo)menuInfo).position;
 		Log.e("DDB","onCreateContextMenu");
 		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
 		menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
@@ -493,10 +506,29 @@ public class Deadbeef extends ListActivity {
 		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
 		
 		Intent i = new Intent (this, TrackPropertiesViewer.class);
-		i.setData(Uri.fromParts("track", "0", String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
+		i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
 		menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
 	}
 
+	@Override
+	public boolean onContextItemSelected (MenuItem item) {
+		switch (item.getItemId()) {
+		case MENU_ACT_ADD_FILES:
+			break;
+		case MENU_ACT_ADD_FOLDER:
+	        Intent i = new Intent (this, FileBrowser.class);
+	        i.setAction("ADD_FOLDER_AFTER");
+	        i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(mSelected)));
+	    	startActivityForResult(i, REQUEST_ADD_FOLDER_AFTER);
+			break;
+		case MENU_ACT_REMOVE:
+			break;
+		case MENU_ACT_MOVE_TO_PLAYLIST:
+			break;
+		}
+		return false;
+	}
+    
 	void PlayerSeek (float value) {
 		try {
 	   		MusicUtils.sService.seek(value);
