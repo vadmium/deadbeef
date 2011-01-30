@@ -4,13 +4,13 @@
   android:layout_width="fill_parent"
   android:layout_height="fill_parent">
   <TextView android:id="@+id/property"
-      android:textAppearance="?android:attr/textAppearanceSmall"
+      android:textAppearance="?android:attr/textAppearanceMedium"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_alignParentRight="true"
-      android:text="0:00"
+      android:text="Track: Property Example"
       android:layout_marginLeft="6dip"
-      android:singleLine="true"
-      android:textColor="#ff91fb80"/>
+      android:textColor="#f000"
+      android:padding="10dip"
+      />
   
 </LinearLayout>

@@ -19,6 +19,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.SeekBar;
@@ -393,14 +394,13 @@ public class Deadbeef extends ListActivity {
 	@Override
 	public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
 		Log.e("DDB","onCreateContextMenu");
-		int sel = ((ListView)v).getSelectedItemPosition();
 		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
 		menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
 		menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
 		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
 		
 		Intent i = new Intent (this, TrackPropertiesViewer.class);
-		i.setData(Uri.fromParts("track", String.valueOf(sel), null));
+		i.setData(Uri.fromParts("track", "0", String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
 		menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
 	}
 	

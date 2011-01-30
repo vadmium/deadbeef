@@ -571,7 +571,7 @@ JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1order (JNIEnv *env, jcl
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1for_1idx (JNIEnv *env, jclass cls, jint idx) {
-    return (jint)pl_get_for_idx_and_iter (PL_MAIN, idx);
+    return (jint)pl_get_for_idx_and_iter (idx, PL_MAIN);
 }
 
 JNIEXPORT jint JNICALL
