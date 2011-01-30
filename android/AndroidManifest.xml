@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="org.deadbeef.android"
+<manifest package="org.deadbeef.android"
       android:versionCode="1"
-      android:versionName="1.0">
+      android:versionName="1.0alpha1" xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-sdk android:minSdkVersion="4" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <application
     	
     	android:icon="@drawable/icon"
@@ -98,6 +99,7 @@
 <service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/app_name" android:enabled="true"></service>
 
 </application>
+
 
 
 
