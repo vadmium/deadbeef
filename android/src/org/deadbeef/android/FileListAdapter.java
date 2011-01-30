@@ -17,7 +17,7 @@ public class FileListAdapter extends BaseAdapter
     }
     
     public int getCount() {
-    	return DeadbeefAPI.pl_get_count ();
+    	return DeadbeefAPI.pl_getcount (0);
     }
     
     public Object	 getItem(int position) {

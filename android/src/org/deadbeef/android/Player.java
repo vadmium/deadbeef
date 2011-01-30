@@ -95,10 +95,10 @@ class Player {
 					}
     			}
     			
-		    	if (0==DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
+		    	if (!DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
 		    		audio.pause ();
 		    	}
-    			while (0 == DeadbeefAPI.play_is_playing ()) {
+    			while (!DeadbeefAPI.play_is_playing ()) {
     				try {
     					Thread.sleep(200);
     				} catch (InterruptedException e) {
@@ -106,7 +106,7 @@ class Player {
     				}
     			}
     			
-		    	if (1==DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
+		    	if (DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
 		    		audio.play ();
 		    	}    			
     		}

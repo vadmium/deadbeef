@@ -78,6 +78,84 @@ public class Deadbeef extends ListActivity {
     	}
     }
     
+    private long last_br_update = 0;
+    void updateStatusbar () {
+    	String sbtext_new;
+    	float songpos;
+
+	    int track = DeadbeefAPI.streamer_get_playing_track ();
+	    int fmt = DeadbeefAPI.streamer_get_current_fileinfo_format (); // FIXME: might crash streamer
+	    
+	
+	    float duration = track != 0 ? DeadbeefAPI.pl_get_item_duration (track) : -1;
+	
+        try {
+		    if (MusicUtils.sService.isStopped() || 0 == track || 0 == fmt) {
+		    	sbtext_new = "Stopped";
+		        songpos = 0;
+		    }
+		    else {
+		        float playpos = DeadbeefAPI.streamer_get_playpos ();
+		        int minpos = (int)(playpos / 60);
+		        int secpos = (int)(playpos - minpos * 60);
+		        int mindur = (int)(duration / 60);
+		        int secdur = (int)(duration - mindur * 60);
+		
+		        String mode;
+		        int channels = DeadbeefAPI.fmt_get_channels (fmt);
+		        if (channels <= 2) {
+		            mode = channels == 1 ? "Mono" : "Stereo";
+		        }
+		        else {
+		            mode = String.format ("%dch Multichannel", channels);
+		        }
+		        int samplerate = DeadbeefAPI.fmt_get_samplerate (fmt);
+		        int bitspersample = DeadbeefAPI.fmt_get_bps (fmt);
+		        songpos = playpos;
+		
+		        String t;
+		        if (duration >= 0) {
+		            t = String.format("%d:%02d", mindur, secdur);
+		        }
+		        else {
+		            t = "-:--";
+		        }
+	
+		        String spaused = MusicUtils.sService.isPaused() ? "Paused | " : "";
+		        String ft = DeadbeefAPI.pl_get_track_filetype (track);
+		        sbtext_new = String.format ("%s%s | %dHz | %d bit | %s | %d:%02d / %s", spaused, ft != null ? ft : "-", samplerate, bitspersample, mode, minpos, secpos, t);
+		    }
+		    TextView st = (TextView)findViewById(R.id.status);
+		    st.setText(sbtext_new);
+        }
+        catch (RemoteException ex) {
+        }
+	
+	    if (0 != track) {
+	        DeadbeefAPI.pl_item_unref (track);
+	    }
+    }
+    
+    private String getTotalTimeFormatted () {
+    	float pl_totaltime = DeadbeefAPI.pl_get_totaltime ();
+	    int daystotal = (int)pl_totaltime / (3600*24);
+	    int hourtotal = ((int)pl_totaltime / 3600) % 24;
+	    int mintotal = ((int)pl_totaltime/60) % 60;
+	    int sectotal = ((int)pl_totaltime) % 60;
+	    String totaltime_str;
+	    if (daystotal == 0) {
+	        totaltime_str = String.format ("%d:%02d:%02d", hourtotal, mintotal, sectotal);
+	    }
+	    else if (daystotal == 1) {
+	        totaltime_str = String.format("1 day %d:%02d:%02d", hourtotal, mintotal, sectotal);
+	    }
+	    else {
+	        totaltime_str = String.format ("%d days %d:%02d:%02d", daystotal, hourtotal, mintotal, sectotal);
+	    }
+	    return totaltime_str;
+    }
+
+    
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run() {
     		if (!isVisible) {
@@ -87,7 +165,15 @@ public class Deadbeef extends ListActivity {
 	    		TextView tv;
 	    		int track = MusicUtils.sService.getCurrentIdx ();
 	    		
+		    	TextView st = (TextView)findViewById(R.id.plstate);
+		    	String totaltime_str = getTotalTimeFormatted ();
+			
+		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
+		    	st.setText(plstate);
+	    		
 	    		if (MusicUtils.sService == null) {
+			    	st = (TextView)findViewById(R.id.status);
+			    	st.setText("Stopped");
 	    			return;
 	    		}
 	    		
@@ -143,21 +229,21 @@ public class Deadbeef extends ListActivity {
 	    			
 	    			if (curr_track >= 0) {
 	    	    		// update album/artist/title
-	    	    		tv = (TextView)findViewById(R.id.np_album);
-	    	    		tv.setText(MusicUtils.sService.getAlbumName ());
-	    	    		tv = (TextView)findViewById(R.id.np_artist);
-	    	    		tv.setText(MusicUtils.sService.getArtistName ());
+	    	    		tv = (TextView)findViewById(R.id.np_artist_album);
+	    	    		tv.setText(MusicUtils.sService.getArtistName () + " - " + MusicUtils.sService.getAlbumName ());
 	    	    		tv = (TextView)findViewById(R.id.np_title);
 	    	    		tv.setText(MusicUtils.sService.getTrackName ());
 	    			}
 	    		}
-		    	// update numbers
+/*		    	// update numbers
 	    		String new_pos_text = DeadbeefAPI.play_get_pos_formatted () + "/" + DeadbeefAPI.play_get_duration_formatted ();
 	    		if (!new_pos_text.equals (current_pos_text)) {
 	    			current_pos_text = new_pos_text;
 		    		current_pos_tv.setText(current_pos_text);
-	    		}
+	    		}*/
 		
+		    	updateStatusbar ();
+		    	
 		    	// update seekbar
 		    	if (dontUpdatePlayPos) {
 		    		return;
@@ -167,9 +253,6 @@ public class Deadbeef extends ListActivity {
 		    		seekbar_pos = new_pos;
 		        	seekbar.setProgress (seekbar_pos);
 		    	}
-		    	
-		    	TextView st = (TextView)findViewById(R.id.status);
-		    	st.setText("ch:"+Player.current_channels + " sr:"+Player.current_samplerate);
     		}
     		catch (RemoteException e) {
     			Log.e(TAG, "playback service error");
@@ -222,7 +305,6 @@ public class Deadbeef extends ListActivity {
         sb.setMax(100);
         sb.setOnSeekBarChangeListener(sbChangeListener);
 
-		current_pos_tv = (TextView)findViewById(R.id.pos_duration_text);
         seekbar = (SeekBar)findViewById(R.id.seekbar);
 
         MusicUtils.bindToService(this, new ServiceConnection() {

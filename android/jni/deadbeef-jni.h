@@ -49,11 +49,11 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_getChannels
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    pl_get_count
- * Signature: ()I
+ * Method:    pl_getcount
+ * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1count
-  (JNIEnv *, jclass);
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1getcount
+  (JNIEnv *, jclass, jint);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
@@ -157,6 +157,30 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_meta_1get_1next
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1item_1unref
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_totaltime
+ * Signature: ()F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1totaltime
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_item_duration
+ * Signature: (I)F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1duration
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_track_filetype
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1filetype
   (JNIEnv *, jclass, jint);
 
 /*
@@ -338,17 +362,25 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1stop
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_is_paused
- * Signature: ()I
+ * Signature: ()Z
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
   (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_is_playing
- * Signature: ()I
+ * Signature: ()Z
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    play_is_stopped
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1stopped
   (JNIEnv *, jclass);
 
 /*
@@ -390,6 +422,78 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_set_1play_1order
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_get_1play_1order
   (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_playing_track
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1playing_1track
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_streaming_track
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1streaming_1track
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_current_fileinfo
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1current_1fileinfo
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_current_fileinfo_format
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1current_1fileinfo_1format
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_playpos
+ * Signature: ()F
+ */
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1playpos
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    streamer_get_apx_bitrate
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1apx_1bitrate
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    fmt_get_channels
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1channels
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    fmt_get_bps
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1bps
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    fmt_get_samplerate
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1samplerate
+  (JNIEnv *, jclass, jint);
 
 #ifdef __cplusplus
 }

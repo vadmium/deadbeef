@@ -443,8 +443,8 @@ public class MediaPlaybackService extends Service {
 	// play current (or 1st)
 	public void play() {
 		synchronized (this) {
-			int paused = DeadbeefAPI.play_is_paused();
-			if (1 == paused) {
+			boolean  paused = DeadbeefAPI.play_is_paused();
+			if (paused) {
 				DeadbeefAPI.play_play();
 			} else {
 				DeadbeefAPI.play_idx(0);
@@ -484,7 +484,7 @@ public class MediaPlaybackService extends Service {
 	}
 
 	public boolean isPaused() {
-		return DeadbeefAPI.play_is_paused() == 1 ? true : false;
+		return DeadbeefAPI.play_is_paused();
 	}
 
 	private void stop() {
@@ -509,7 +509,11 @@ public class MediaPlaybackService extends Service {
 	}
 
 	public boolean isPlaying() {
-		return DeadbeefAPI.play_is_playing() == 1 ? true : false;
+		return DeadbeefAPI.play_is_playing();
+	}
+
+	public boolean isStopped() {
+		return DeadbeefAPI.play_is_stopped();
 	}
 
 	public void prev() {
@@ -594,6 +598,9 @@ public class MediaPlaybackService extends Service {
 
 		public boolean isPlaying() {
 			return mService.get().isPlaying();
+		}
+		public boolean isStopped() {
+			return mService.get().isStopped();
 		}
 
 		public void stop() {

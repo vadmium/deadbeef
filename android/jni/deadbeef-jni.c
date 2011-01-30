@@ -523,16 +523,21 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1stop
     jni_out_stop ();
 }
 
-JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1paused
   (JNIEnv *env, jclass cls)
 {
     return jni_out_get_state () == OUTPUT_STATE_PAUSED;
 }
 
-JNIEXPORT int JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_play_1is_1playing
   (JNIEnv *env, jclass cls)
 {
     return (jni_out_get_state () == OUTPUT_STATE_PLAYING);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_play_1is_1stopped (JNIEnv *env, jclass cls) {
+    return (jni_out_get_state () == OUTPUT_STATE_STOPPED);
 }
 
 JNIEXPORT jboolean JNICALL
@@ -600,6 +605,26 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1item_1unref (JNIEnv *env, jclass cls, 
     pl_item_unref ((playItem_t *)trk);
 }
 
+JNIEXPORT jfloat JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1totaltime (JNIEnv *env, jclass cls) {
+    return pl_get_totaltime ();
+}
+
+JNIEXPORT jfloat JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1duration (JNIEnv *env, jclass cls, jint trk) {
+    return pl_get_item_duration ((playItem_t *)trk);
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1filetype (JNIEnv *env, jclass cls, jint trk) {
+    const char *ft = ((playItem_t *)trk)->filetype;
+    return ft ? (*env)->NewStringUTF(env, ft) : NULL;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1getcount (JNIEnv *env, jclass cls, jint iter) {
+    return pl_getcount (iter);
+}
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1count (JNIEnv *env, jclass cls) {
@@ -663,3 +688,54 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1move (JNIEnv *env, jclass cls, jint f
     plt_move (from, to);
 }
 
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1playing_1track (JNIEnv *env, jclass cls) {
+    return (jint)streamer_get_playing_track ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1streaming_1track (JNIEnv *env, jclass cls) {
+    return (jint)streamer_get_streaming_track ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1current_1fileinfo (JNIEnv *env, jclass cls) {
+    return (jint)streamer_get_current_fileinfo ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1current_1fileinfo_1format (JNIEnv *env, jclass cls) {
+    DB_fileinfo_t *inf = streamer_get_current_fileinfo ();
+    if (inf) {
+        return (jint)&inf->fmt;
+    }
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1channels
+(JNIEnv *env, jclass cls, jint fmt) {
+    return ((ddb_waveformat_t *)fmt)->channels;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1bps
+(JNIEnv *env, jclass cls, jint fmt) {
+    return ((ddb_waveformat_t *)fmt)->bps;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1samplerate
+(JNIEnv *env, jclass cls, jint fmt) {
+    return ((ddb_waveformat_t *)fmt)->samplerate;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1playpos (JNIEnv *env, jclass cls) {
+    return streamer_get_playpos ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1apx_1bitrate (JNIEnv *env, jclass cls) {
+    return streamer_get_apx_bitrate ();
+}

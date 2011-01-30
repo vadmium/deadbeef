@@ -3,7 +3,7 @@
   xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="fill_parent"
   android:layout_height="50dip">
-   <ImageView
+   <!-- ImageView
         android:id="@+id/icon"
         
         android:layout_width="wrap_content"
@@ -13,7 +13,7 @@
         android:layout_alignParentBottom="false"
         android:layout_marginRight="2dip"
         
-        android:src="@drawable/noartwork" />
+        android:src="@drawable/noartwork" /-->
         
   <TextView android:id="@+id/duration"
       android:textAppearance="?android:attr/textAppearanceSmall"
@@ -27,11 +27,10 @@
 
   <TextView android:id="@+id/title"
       android:textAppearance="?android:attr/textAppearanceMedium"
-      android:layout_width="wrap_content"
+      android:layout_width="fill_parent"
       android:layout_height="wrap_content"
       android:text="Song Title"
       android:singleLine="true"
-      android:layout_toRightOf="@id/icon"
       android:layout_toLeftOf="@id/duration"
       />
 
@@ -41,7 +40,6 @@
       android:layout_height="wrap_content"
       android:layout_below="@id/title"
       android:text="Song Artist"
-      android:layout_toRightOf="@id/icon"
       android:singleLine="true"/>
 
       

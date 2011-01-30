@@ -8,6 +8,7 @@ interface IMediaPlaybackService
     void playIdx(int idx);
     boolean isPaused();
     boolean isPlaying();
+    boolean isStopped();
     void prev();
     void next();
     float duration();
