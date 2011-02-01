@@ -4,6 +4,7 @@
       package="org.deadbeef.android.freeplugins"
       android:versionCode="1"
       android:versionName="1.0alpha1">
+      <uses-sdk android:minSdkVersion="4" />
     <application
     	
     	android:icon="@drawable/icon"

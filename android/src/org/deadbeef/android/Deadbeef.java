@@ -175,8 +175,8 @@ public class Deadbeef extends ListActivity {
 		    	TextView st = (TextView)findViewById(R.id.plstate);
 		    	String totaltime_str = getTotalTimeFormatted ();
 			
-		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
-		    	st.setText(plstate);
+//		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
+//		    	st.setText(plstate);
 	    		
 	    		if (MusicUtils.sService == null) {
 			    	st = (TextView)findViewById(R.id.status);
@@ -249,7 +249,7 @@ public class Deadbeef extends ListActivity {
 		    		current_pos_tv.setText(current_pos_text);
 	    		}*/
 		
-		    	updateStatusbar ();
+//		    	updateStatusbar ();
 		    	
 		    	// update seekbar
 		    	if (dontUpdatePlayPos) {
