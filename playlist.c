@@ -1307,12 +1307,30 @@ pl_insert_pls (playItem_t *after, const char *fname, int *pabort, int (*cb)(play
 }
 
 playItem_t *
+pl_insert_dir_int (DB_vfs_t *vfs, playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
+
+playItem_t *
 pl_insert_file (playItem_t *after, const char *fname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
     trace ("count: %d\n", playlist->count[PL_MAIN]);
     trace ("pl_insert_file %s\n", fname);
     if (!fname || !(*fname)) {
         return NULL;
     }
+
+    // check if that is supported container format
+    DB_vfs_t **vfsplugs = plug_get_vfs_list ();
+    for (int i = 0; vfsplugs[i]; i++) {
+        if (vfsplugs[i]->is_container) {
+            trace ("%s cont test\n", fname);
+            if (vfsplugs[i]->is_container (fname)) {
+                playItem_t *it = pl_insert_dir_int (vfsplugs[i], after, fname, pabort, cb, user_data);
+                if (it) {
+                    return it;
+                }
+            }
+        }
+    }
+
 
     // detect decoder
     const char *eol = strrchr (fname, '.');
@@ -1357,6 +1375,28 @@ pl_insert_file (playItem_t *after, const char *fname, int *pabort, int (*cb)(pla
             if (!isalpha (*p)) {
                 detect_on_access = 0;
                 break;
+            }
+        }
+
+        if (detect_on_access) {
+            // find vfs plugin
+            DB_vfs_t **vfsplugs = plug_get_vfs_list ();
+            for (int i = 0; vfsplugs[i]; i++) {
+                if (vfsplugs[i]->get_schemes) {
+                    const char **sch = vfsplugs[i]->get_schemes ();
+                    int s = 0;
+                    for (s = 0; sch[s]; s++) {
+                        if (!strncasecmp (sch[s], fname, strlen (sch[s]))) {
+                            break;
+                        }
+                    }
+                    if (sch[s]) {
+                        if (!vfsplugs[i]->is_streaming || !vfsplugs[i]->is_streaming()) {
+                            detect_on_access = 0;
+                        }
+                        break;
+                    }
+                }
             }
         }
 
@@ -1430,11 +1470,11 @@ static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
 static int follow_symlinks = 0;
 
 playItem_t *
-pl_insert_dir_int (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
+pl_insert_dir_int (DB_vfs_t *vfs, playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
     if (!memcmp (dirname, "file://", 7)) {
         dirname += 7;
     }
-    if (!follow_symlinks) {
+    if (!follow_symlinks && !vfs) {
         struct stat buf;
         lstat (dirname, &buf);
         if (S_ISLNK(buf.st_mode)) {
@@ -1444,7 +1484,12 @@ pl_insert_dir_int (playItem_t *after, const char *dirname, int *pabort, int (*cb
     struct dirent **namelist = NULL;
     int n;
 
-    n = scandir (dirname, &namelist, NULL, dirent_alphasort);
+    if (vfs && vfs->scandir) {
+        n = vfs->scandir (dirname, &namelist, NULL, dirent_alphasort);
+    }
+    else {
+        n = scandir (dirname, &namelist, NULL, dirent_alphasort);
+    }
     if (n < 0)
     {
         if (namelist)
@@ -1459,11 +1504,17 @@ pl_insert_dir_int (playItem_t *after, const char *dirname, int *pabort, int (*cb
             // no hidden files
             if (namelist[i]->d_name[0] != '.')
             {
-                char fullname[PATH_MAX];
-                snprintf (fullname, sizeof (fullname), "%s/%s", dirname, namelist[i]->d_name);
-                playItem_t *inserted = pl_insert_dir_int (after, fullname, pabort, cb, user_data);
-                if (!inserted) {
-                    inserted = pl_insert_file (after, fullname, pabort, cb, user_data);
+                playItem_t *inserted = NULL;
+                if (!vfs) {
+                    char fullname[PATH_MAX];
+                    snprintf (fullname, sizeof (fullname), "%s/%s", dirname, namelist[i]->d_name);
+                    inserted = pl_insert_dir_int (vfs, after, fullname, pabort, cb, user_data);
+                    if (!inserted) {
+                        inserted = pl_insert_file (after, fullname, pabort, cb, user_data);
+                    }
+                }
+                else {
+                    inserted = pl_insert_file (after, namelist[i]->d_name, pabort, cb, user_data);
                 }
                 if (inserted) {
                     after = inserted;
@@ -1482,7 +1533,7 @@ pl_insert_dir_int (playItem_t *after, const char *dirname, int *pabort, int (*cb
 playItem_t *
 pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data) {
     follow_symlinks = conf_get_int ("add_folders_follow_symlinks", 0);
-    return pl_insert_dir_int (after, dirname, pabort, cb, user_data);
+    return pl_insert_dir_int (NULL, after, dirname, pabort, cb, user_data);
 }
 
 int

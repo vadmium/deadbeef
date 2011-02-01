@@ -55,7 +55,7 @@ extern DB_decoder_t sid_plugin;
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
 
-static DB_functions_t *deadbeef;
+DB_functions_t *deadbeef;
 
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
@@ -304,11 +304,11 @@ csid_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     
     // libsidplay crashes if file doesn't exist
     // so i have to check it here
-    FILE *fp = fopen (it->fname, "rb");
+    DB_FILE *fp = deadbeef->fopen (it->fname);
     if (!fp ){
         return -1;
     }
-    fclose (fp);
+    deadbeef->fclose (fp);
 
     info->sidplay = new sidplay2;
     info->resid = new ReSIDBuilder ("wtf");

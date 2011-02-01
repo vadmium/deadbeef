@@ -251,6 +251,7 @@ static DB_functions_t deadbeef_api = {
     .conf_save = conf_save,
     // plugin communication
     .plug_get_decoder_list = plug_get_decoder_list,
+    .plug_get_vfs_list = plug_get_vfs_list,
     .plug_get_output_list = plug_get_output_list,
     .plug_get_dsp_list = plug_get_dsp_list,
     .plug_get_playlist_list = plug_get_playlist_list,
@@ -593,6 +594,7 @@ plug_remove_plugin (void *p) {
 int
 load_plugin_dir (const char *plugdir) {
     int n = 0;
+    const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
     trace ("loading plugins from %s\n", plugdir);
     struct dirent **namelist = NULL;
     n = scandir (plugdir, &namelist, NULL, dirent_alphasort);
@@ -704,13 +706,12 @@ plug_load_all (void) {
 #if DISABLE_VERSIONCHECK
     trace ("\033[0;31mDISABLE_VERSIONCHECK=1! do not distribute!\033[0;m\n");
 #endif
+
     trace ("plug: mutex_create\n");
     mutex = mutex_create ();
     const char *dirname = deadbeef->get_plugin_dir ();
 
 #ifndef ANDROID
-    const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
-
     char *xdg_local_home = getenv ("XDG_LOCAL_HOME");
     char xdg_plugin_dir[1024];
 
@@ -955,14 +956,14 @@ plug_get_decoder_list (void) {
     return g_decoder_plugins;
 }
 
-struct DB_output_s **
-plug_get_output_list (void) {
-    return g_output_plugins;
-}
-
 struct DB_vfs_s **
 plug_get_vfs_list (void) {
     return g_vfs_plugins;
+}
+
+struct DB_output_s **
+plug_get_output_list (void) {
+    return g_output_plugins;
 }
 
 struct DB_dsp_s **
