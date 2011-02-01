@@ -86,6 +86,7 @@ public class Deadbeef extends ListActivity {
     }
     
     private long last_br_update = 0;
+    private String sbtext = "";
     void updateStatusbar () {
     	String sbtext_new;
     	float songpos;
@@ -132,8 +133,11 @@ public class Deadbeef extends ListActivity {
 		        String ft = DeadbeefAPI.pl_get_track_filetype (track);
 		        sbtext_new = String.format ("%s%s | %dHz | %d bit | %s | %d:%02d / %s", spaused, ft != null ? ft : "-", samplerate, bitspersample, mode, minpos, secpos, t);
 		    }
-		    TextView st = (TextView)findViewById(R.id.status);
-		    st.setText(sbtext_new);
+		    if (!sbtext.equals(sbtext_new)) {
+		    	sbtext = sbtext_new;
+		    	TextView st = (TextView)findViewById(R.id.status);
+		    	st.setText(sbtext);
+		    }
         }
         catch (RemoteException ex) {
         }
@@ -162,6 +166,7 @@ public class Deadbeef extends ListActivity {
 	    return totaltime_str;
     }
 
+    private String plstate_prev = "";
     
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run() {
@@ -174,9 +179,12 @@ public class Deadbeef extends ListActivity {
 	    		
 		    	TextView st = (TextView)findViewById(R.id.plstate);
 		    	String totaltime_str = getTotalTimeFormatted ();
-			
-//		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
-//		    	st.setText(plstate);
+
+		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
+		    	if (!plstate_prev.equals(plstate)) {
+		    		plstate_prev = plstate;
+		    		st.setText(plstate);
+		    	}
 	    		
 	    		if (MusicUtils.sService == null) {
 			    	st = (TextView)findViewById(R.id.status);
@@ -249,7 +257,7 @@ public class Deadbeef extends ListActivity {
 		    		current_pos_tv.setText(current_pos_text);
 	    		}*/
 		
-//		    	updateStatusbar ();
+		    	updateStatusbar ();
 		    	
 		    	// update seekbar
 		    	if (dontUpdatePlayPos) {
