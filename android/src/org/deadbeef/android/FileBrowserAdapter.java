@@ -15,6 +15,7 @@ import android.widget.TextView;
 public class FileBrowserAdapter extends BaseAdapter {
     private Context myContext;
     private List<String> files = new ArrayList<String> ();
+    private List<String> history = new ArrayList<String> ();
     private String currentPath;
 
     public FileBrowserAdapter(Context context, String initPath) {
@@ -22,10 +23,10 @@ public class FileBrowserAdapter extends BaseAdapter {
         this.myContext = context;
         setPath (initPath);
     }
+
     
-    public void setPath (String path) {
-    	currentPath = path;
-    	File currentDir = new File (path); 
+    public void setPathReal () {
+    	File currentDir = new File (currentPath); 
     	files.clear ();
     	files.add ("..");
     	File list[] = currentDir.listFiles ();
@@ -37,6 +38,25 @@ public class FileBrowserAdapter extends BaseAdapter {
     			files.add (f.getName ());
     		}
     	}
+	   notifyDataSetChanged ();
+    }
+
+    
+    public void setPath (String path) {
+    	history.add(currentPath);
+    	currentPath = path;
+    	setPathReal ();
+    }
+    
+    public boolean goBack () {
+    	if (history.size() <= 1) {
+    		return false;
+    	}
+    	
+    	currentPath = history.get(history.size () - 1);
+    	history.remove(history.size () - 1);
+    	setPathReal ();
+    	return true;
     }
     
     public int getCount() {
@@ -73,14 +93,14 @@ public class FileBrowserAdapter extends BaseAdapter {
 	        return v;
 	}
    
-   public void Clicked (int position) {
+   public boolean Clicked (int position) {
 	   if (position == 0) {
 		   // step one folder up
 		   File clickedFile = new File(currentPath);
 
 		   clickedFile = clickedFile.getParentFile();
 		   if (clickedFile == null) {
-			   return;
+			   return false;
 		   }
 		   setPath (clickedFile.getAbsolutePath());
 	   }
@@ -94,7 +114,7 @@ public class FileBrowserAdapter extends BaseAdapter {
 			   setPath (clickedFile.getAbsolutePath());
 		   }
 	   }
-	   notifyDataSetChanged ();
+	   return true;
    }
 
     public void AddFolder () {

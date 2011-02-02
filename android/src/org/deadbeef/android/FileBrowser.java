@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -63,4 +64,14 @@ public class FileBrowser extends ListActivity {
         	AddCurrentFolder ();
         }
     };
+    
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+    	if (((FileBrowserAdapter)getListAdapter()).goBack ()) {
+    		return true;
+    	}
+    }
+    return super.onKeyDown(keyCode, event);
+}
 }
