@@ -9,7 +9,7 @@
     	
     	android:icon="@drawable/icon"
     	android:label="@string/app_name"
-    	android:testOnly="false" android:debuggable="true">
+    	android:testOnly="false" android:debuggable="false">
     	 
         <activity
         		android:icon="@drawable/icon"

@@ -6,9 +6,13 @@ import java.util.TimerTask;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
+import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.Bundle;
@@ -167,6 +171,42 @@ public class Deadbeef extends ListActivity {
     }
 
     private String plstate_prev = "";
+    private ProgressDialog progressDialog;
+    
+    BroadcastReceiver mMediaServiceReceiver;
+    void startMediaServiceListener() {
+	    mMediaServiceReceiver = new BroadcastReceiver() {
+	        @Override
+	        public void onReceive(Context context, Intent intent) {
+	        	if (null == progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
+					Log.w("DDB", "received ADD_FILES_START");
+    				progressDialog = ProgressDialog.show(Deadbeef.this,      
+    					"Please wait",
+    					"Adding files to playlist...", true);
+    			}
+	        	else if (null != progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
+					Log.w("DDB", "received ADD_FILES_END");
+    				progressDialog.dismiss();
+    				progressDialog = null;
+			        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+			        handler.post(new Runnable() {
+			            public void run() {
+			                setListAdapter(adapter);
+			            }
+			        });
+    			}
+	        }
+	    };
+	    IntentFilter filter = new IntentFilter();
+	    filter.addAction("org.deadbeef.android.ADD_FILES_START");
+	    filter.addAction("org.deadbeef.android.ADD_FILES_FINISH");
+	    registerReceiver(mMediaServiceReceiver, filter);
+    }
+    
+    void stopMediaServiceListener () {
+    	unregisterReceiver(mMediaServiceReceiver);
+    }
+    			    
     
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run() {
@@ -174,6 +214,7 @@ public class Deadbeef extends ListActivity {
     			return;
     		}
     		try {
+
 	    		TextView tv;
 	    		int track = MusicUtils.sService.getCurrentIdx ();
 	    		
@@ -331,9 +372,11 @@ public class Deadbeef extends ListActivity {
 		                setListAdapter(adapter);
 		            }
 		        });
+		        startMediaServiceListener ();
 	        }
 	
 	        public void onServiceDisconnected(ComponentName className) {
+		        stopMediaServiceListener ();
 	        	MusicUtils.sService = null;
 	        }
 	    });

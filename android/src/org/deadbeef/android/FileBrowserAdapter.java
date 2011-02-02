@@ -116,13 +116,9 @@ public class FileBrowserAdapter extends BaseAdapter {
 	   }
 	   return true;
    }
+   
+   public String getPath () {
+	   return currentPath;
+   }
 
-    public void AddFolder () {
-        // add folder to playlist
-        DeadbeefAPI.pl_add_folder (currentPath);
-    }
-    
-    public void AddFolderAfter (int plt, int trk) {
-        DeadbeefAPI.pl_insert_dir (plt, trk, currentPath);
-    }
 }

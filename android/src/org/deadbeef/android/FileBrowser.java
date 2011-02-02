@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.RemoteException;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -32,8 +33,39 @@ public class FileBrowser extends ListActivity {
    		((FileBrowserAdapter)getListAdapter()).Clicked (position);
     };
 
-    private ProgressDialog progressDialog; 
+    //private ProgressDialog progressDialog; 
     private void AddCurrentFolder() {
+    	try {
+		if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
+	        Intent i = getIntent ();
+	        String idx_str = getIntent().getData().getFragment ();
+	        int idx = Integer.parseInt(idx_str);
+	        String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
+	        
+	        int plt = Integer.parseInt(plt_str);
+	        
+    		MusicUtils.sService.pl_insert_dir(((FileBrowserAdapter)getListAdapter()).getPath (), plt, idx);
+        }
+        else {
+    		MusicUtils.sService.pl_add_dir(((FileBrowserAdapter)getListAdapter()).getPath ());
+        }
+    	}
+    	catch (RemoteException ex) {
+    	}
+		setResult(RESULT_OK);
+        finish ();
+    	
+    	
+/*    public void AddFolder () {
+        // add folder to playlist
+        DeadbeefAPI.pl_add_folder (currentPath);
+    }
+    
+    public void AddFolderAfter (int plt, int trk) {
+        DeadbeefAPI.pl_insert_dir (plt, trk, currentPath);
+    }*/
+    	
+    	/*
         progressDialog = ProgressDialog.show(this,      
                 "Please wait",
                 "Adding files to playlist...", true);
@@ -53,10 +85,12 @@ public class FileBrowser extends ListActivity {
 		        }
         		
         		progressDialog.dismiss();
+        		
         		setResult(RESULT_OK);
         		finish ();
         	}
         }.start ();
+        */
     }
 
     private OnClickListener mAddFolderListener = new OnClickListener() {

@@ -639,7 +639,53 @@ public class MediaPlaybackService extends Service {
 			return DeadbeefAPI.pl_get_metadata(track, "title");
 		}
 	}
+	
+	
+	boolean m_bAddingFiles = false;
+	public boolean busyAddingFiles () {
+		return m_bAddingFiles;
+	}
 
+    public void pl_add_dir (final String dir) {
+		synchronized (this) {
+			if (m_bAddingFiles) {
+				return;
+			}
+			m_bAddingFiles = true;
+			Log.w("DDB", "ADD_DIR_START");
+			sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_START"));
+			new Thread () {
+				public void run () {
+					DeadbeefAPI.pl_add_folder (dir);
+					m_bAddingFiles = false;
+					Log.w("DDB", "ADD_DIR_END");
+					sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_FINISH"));
+				}
+			}.start ();
+		}
+    }
+    
+    public void pl_insert_dir (final String dir, final int plt, final int after) {		
+		synchronized (this) {
+			if (m_bAddingFiles) {
+				return;
+			}
+			final String d = dir;
+			m_bAddingFiles = true;
+			Log.w("DDB", "INSERT_DIR_START");
+			sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_START"));
+			new Thread () {
+				public void run () {
+					DeadbeefAPI.pl_insert_dir (plt, after, dir);
+					m_bAddingFiles = false;
+					Log.w("DDB", "INSERT_DIR_END");
+					sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_FINISH"));
+				}
+			}.start ();
+		}
+    }
+	
+	
 	/*
 	 * By making this a static class with a WeakReference to the Service, we
 	 * ensure that the Service can be GCd even when the system process still has
@@ -751,6 +797,16 @@ public class MediaPlaybackService extends Service {
 		public int getPlayMode() {
 			return DeadbeefAPI.get_play_mode ();
 		}
+		
+	    public void pl_add_dir (String dir) {
+	    	mService.get().pl_add_dir (dir);
+	    }
+	    public void pl_insert_dir (String dir, int plt, int after) {		
+	    	mService.get().pl_insert_dir (dir, plt, after);
+	    }
+	    public boolean busyAddingFiles () {
+	    	return mService.get().busyAddingFiles ();
+	    }
 	}
 
 	private final IBinder mBinder = new ServiceStub(this);
