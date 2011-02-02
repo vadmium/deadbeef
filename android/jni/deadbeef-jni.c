@@ -169,26 +169,28 @@ jni_setformat(ddb_waveformat_t *fmt)
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
-      // initialize ddb
+    // initialize ddb
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C");
     srand (time (NULL));
-     const jbyte *str;
-     str = (*env)->GetStringUTFChars(env, android_config_dir, NULL);
-     if (str == NULL) {
-         return -1;
-     }
-    strcpy (dbconfdir, str);
+    const jbyte *str;
+    str = (*env)->GetStringUTFChars(env, android_config_dir, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    strncpy (dbconfdir, str, sizeof (dbconfdir));
+    dbconfdir[sizeof(dbconfdir)-1] = 0;
+    int err = mkdir (dbconfdir, 0);
     trace ("dbconfdir: %s\n", dbconfdir);
-     (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
+    (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
 
     strcpy (dbinstalldir, "");
     strcpy (dbplugindir, "/data/data/org.deadbeef.android/lib");
 
-     str = (*env)->GetStringUTFChars(env, plugins_path, NULL);
-     conf_set_str ("android.plugin_path", str);
+    str = (*env)->GetStringUTFChars(env, plugins_path, NULL);
+    conf_set_str ("android.plugin_path", str);
 
-     (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
+    (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
 
 
     pl_init ();

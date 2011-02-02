@@ -4,6 +4,7 @@ import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -17,7 +18,7 @@ public class FileBrowser extends ListActivity {
         setContentView(R.layout.filelist);
 
         // FIXME: get default path from savedInstanceState
-        final FileBrowserAdapter adapter = new FileBrowserAdapter(this, "/sdcard");
+        final FileBrowserAdapter adapter = new FileBrowserAdapter(this, Environment.getExternalStorageDirectory().getAbsolutePath());
         setListAdapter(adapter);
 
         Button button = (Button)findViewById(R.id.browse_add_folder);

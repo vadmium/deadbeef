@@ -21,6 +21,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -89,10 +90,10 @@ public class MediaPlaybackService extends Service {
 				mStartForeground.invoke(this, mStartForegroundArgs);
 			} catch (InvocationTargetException e) {
 				// Should not happen.
-				Log.w("ApiDemos", "Unable to invoke startForeground", e);
+				Log.w("DDB", "Unable to invoke startForeground", e);
 			} catch (IllegalAccessException e) {
 				// Should not happen.
-				Log.w("ApiDemos", "Unable to invoke startForeground", e);
+				Log.w("DDB", "Unable to invoke startForeground", e);
 			}
 			return;
 		}
@@ -114,10 +115,10 @@ public class MediaPlaybackService extends Service {
 				mStopForeground.invoke(this, mStopForegroundArgs);
 			} catch (InvocationTargetException e) {
 				// Should not happen.
-				Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+				Log.w("DDB", "Unable to invoke stopForeground", e);
 			} catch (IllegalAccessException e) {
 				// Should not happen.
-				Log.w("ApiDemos", "Unable to invoke stopForeground", e);
+				Log.w("DDB", "Unable to invoke stopForeground", e);
 			}
 			return;
 		}
@@ -128,6 +129,51 @@ public class MediaPlaybackService extends Service {
 		setForeground(false);
 	}
 
+	private void handleExternalStorageState (boolean avail, boolean writable) {
+		Log.i("DDB", "handleExternalStorageState " + avail + " " + writable);
+		if (!avail) {
+			DeadbeefAPI.play_stop ();
+		}
+	}
+	
+    BroadcastReceiver mExternalStorageReceiver;
+	boolean mExternalStorageAvailable = false;
+	boolean mExternalStorageWriteable = false;
+	
+	void updateExternalStorageState() {
+	    String state = Environment.getExternalStorageState();
+	    if (Environment.MEDIA_MOUNTED.equals(state)) {
+	        mExternalStorageAvailable = mExternalStorageWriteable = true;
+	    } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+	        mExternalStorageAvailable = true;
+	        mExternalStorageWriteable = false;
+	    } else {
+	        mExternalStorageAvailable = mExternalStorageWriteable = false;
+	    }
+	    handleExternalStorageState(mExternalStorageAvailable,
+	            mExternalStorageWriteable);
+	}
+	
+	void startWatchingExternalStorage() {
+	    mExternalStorageReceiver = new BroadcastReceiver() {
+	        @Override
+	        public void onReceive(Context context, Intent intent) {
+	            Log.i("test", "Storage: " + intent.getData());
+	            updateExternalStorageState();
+	        }
+	    };
+	    IntentFilter filter = new IntentFilter();
+	    filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+	    filter.addAction(Intent.ACTION_MEDIA_REMOVED);
+	    registerReceiver(mExternalStorageReceiver, filter);
+	    updateExternalStorageState();
+	}
+	
+	void stopWatchingExternalStorage() {
+	    unregisterReceiver(mExternalStorageReceiver);
+	}
+
+	
 	private PhoneStateListener mPhoneStateListener = new PhoneStateListener() {
 		@Override
 		public void onCallStateChanged(int state, String incomingNumber) {
@@ -254,6 +300,7 @@ public class MediaPlaybackService extends Service {
            System.err.println("unexpected " + ie);
        }
    }
+    
 
 	@Override
 	public void onCreate() {
@@ -279,9 +326,7 @@ public class MediaPlaybackService extends Service {
 			mStartForeground = mStopForeground = null;
 		}
 
-		registerExternalStorageListener();
-
-		File filesDir = getFilesDir();
+		startWatchingExternalStorage ();
 
 		// get all packages matching org.android.deadbeef.*
 		PackageManager pkm = getPackageManager();
@@ -299,7 +344,11 @@ public class MediaPlaybackService extends Service {
         	}
         }
 		
-		DeadbeefAPI.start(filesDir.getAbsolutePath(), pluginPath);
+        File dir = Environment.getExternalStorageDirectory();
+		String filesDir = dir.getAbsolutePath();
+		filesDir += "/.deadbeef";
+		
+		DeadbeefAPI.start(filesDir, pluginPath);
 		mPlayer = new Player();
 
 		IntentFilter commandFilter = new IntentFilter();
@@ -337,6 +386,8 @@ public class MediaPlaybackService extends Service {
    		Log.e("DDB","mediaPlaybackService onDestroy");
 		mPlayer.stop();
 		mPlayer = null;
+		DeadbeefAPI.stop();
+		stopWatchingExternalStorage ();
 
 		// make sure there aren't any other messages coming
 		mDelayedStopHandler.removeCallbacksAndMessages(null);
@@ -444,44 +495,6 @@ public class MediaPlaybackService extends Service {
 			stopSelf(mServiceStartId);
 		}
 	};
-
-	/**
-	 * Called when we receive a ACTION_MEDIA_EJECT notification.
-	 * 
-	 * @param storagePath
-	 *            path to mount point for the removed media
-	 */
-	public void closeExternalStorageFiles(String storagePath) {
-		// stop playback and clean up if the SD card is going to be unmounted.
-   		Log.e("DDB","closeExternalStorageFiles");
-		mPlayer.stop();
-	}
-
-	/**
-	 * Registers an intent to listen for ACTION_MEDIA_EJECT notifications. The
-	 * intent will call closeExternalStorageFiles() if the external media is
-	 * going to be ejected, so applications can clean up any files they have
-	 * open.
-	 */
-	public void registerExternalStorageListener() {
-		if (mUnmountReceiver == null) {
-			mUnmountReceiver = new BroadcastReceiver() {
-				@Override
-				public void onReceive(Context context, Intent intent) {
-					String action = intent.getAction();
-					if (action.equals(Intent.ACTION_MEDIA_EJECT)) {
-						closeExternalStorageFiles(intent.getData().getPath());
-					} else if (action.equals(Intent.ACTION_MEDIA_MOUNTED)) {
-					}
-				}
-			};
-			IntentFilter iFilter = new IntentFilter();
-			iFilter.addAction(Intent.ACTION_MEDIA_EJECT);
-			iFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
-			iFilter.addDataScheme("file");
-			registerReceiver(mUnmountReceiver, iFilter);
-		}
-	}
 
 	// play current (or 1st)
 	public void play() {
