@@ -320,11 +320,13 @@ public class Deadbeef extends ListActivity {
     public void onResume() {
     	super.onResume();
     	Intent i = getIntent();
-    	if (i.getAction().equals("android.intent.action.VIEW")) {
-    		try {
-    			MusicUtils.sService.startFile (i.getData().toString());
-    		} catch (RemoteException ex) {
-    		}
+    	if (null != i.getAction()) {
+	    	if (i.getAction().equals("android.intent.action.VIEW")) {
+	    		try {
+	    			MusicUtils.sService.startFile (i.getData().toString());
+	    		} catch (RemoteException ex) {
+	    		}
+	    	}
     	}
     }
 
@@ -363,8 +365,10 @@ public class Deadbeef extends ListActivity {
 
         seekbar = (SeekBar)findViewById(R.id.seekbar);
 
+		Log.e("DDB", "Deadbeef.onCreate bind");
         MusicUtils.bindToService(this, new ServiceConnection() {
 	        public void onServiceConnected(ComponentName className, IBinder obj) {
+	        	Log.e("DDB", "Deadbeef.onCreate connected");
 	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
 		        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
 		        handler.post(new Runnable() {
@@ -381,10 +385,12 @@ public class Deadbeef extends ListActivity {
 	        }
 	    });
 
-        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-        setListAdapter(adapter);   
+//        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+//        setListAdapter(adapter);   
         
+		Log.e("DDB", "Deadbeef.onCreate reg ctxmenu");
         registerForContextMenu(findViewById(android.R.id.list));
+		Log.e("DDB", "Deadbeef.onCreate done");
     }
     
     @Override

@@ -13,6 +13,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.appwidget.AppWidgetManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -48,6 +49,11 @@ public class MediaPlaybackService extends Service {
 	public static final String PAUSE_ACTION = "org.deadbeef.android.musicservicecommand.pause";
 	public static final String PREVIOUS_ACTION = "org.deadbeef.android.musicservicecommand.previous";
 	public static final String NEXT_ACTION = "org.deadbeef.android.musicservicecommand.next";
+	
+	public static final String META_CHANGED = "org.deadbeef.android.metachanged";
+    public static final String PLAYSTATE_CHANGED = "org.deadbeef.android.playstatechanged";
+    public static final String QUEUE_CHANGED = "org.deadbeef.android.queuechanged";
+
 
 	private static final int TRACK_ENDED = 1;
 	private static final int RELEASE_WAKELOCK = 2;
@@ -76,6 +82,7 @@ public class MediaPlaybackService extends Service {
 	private Object[] mStopForegroundArgs = new Object[1];
 
 	private AudioManager mAudioManager;
+    private MediaAppWidgetProvider mAppWidgetProvider = MediaAppWidgetProvider.getInstance();
 
 	/**
 	 * This is a wrapper around the new startForeground method, using the older
@@ -193,6 +200,45 @@ public class MediaPlaybackService extends Service {
 		}
 	};
 
+    /**
+     * Notify the change-receivers that something has changed.
+     * The intent that is sent contains the following data
+     * for the currently playing track:
+     * "id" - Integer: the database row ID
+     * "artist" - String: the name of the artist
+     * "album" - String: the name of the album
+     * "track" - String: the name of the track
+     * The intent has an action that is one of
+     * "com.android.music.metachanged"
+     * "com.android.music.queuechanged",
+     * "com.android.music.playbackcomplete"
+     * "com.android.music.playstatechanged"
+     * respectively indicating that a new track has
+     * started playing, that the playback queue has
+     * changed, that playback has stopped because
+     * the last file in the list has been played,
+     * or that the play-state changed (paused/resumed).
+     */
+    private void notifyChange(String what) {
+        
+        Intent i = new Intent(what);
+        i.putExtra("artist", getArtistName());
+        i.putExtra("album",getAlbumName());
+        i.putExtra("track", getTrackName());
+        i.putExtra("playing", DeadbeefAPI.is_streamer_active());//isPlaying());
+        sendStickyBroadcast(i);
+        
+/*        if (what.equals(QUEUE_CHANGED)) {
+            saveQueue(true);
+        } else {
+            saveQueue(false);
+        }*/
+        
+        // Share this notification directly with our widgets
+        mAppWidgetProvider.notifyChange(this, what);
+    }
+
+	
 	private Handler mMediaplayerHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
@@ -258,7 +304,12 @@ public class MediaPlaybackService extends Service {
 				pause();
 				mPausedByTransientLossOfFocus = false;
 				seek(0);
-			}
+            } else if (MediaAppWidgetProvider.CMDAPPWIDGETUPDATE.equals(cmd)) {
+                // Someone asked us to refresh a set of specific widgets, probably
+                // because they were just added.
+                int[] appWidgetIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS);
+                mAppWidgetProvider.performUpdate(MediaPlaybackService.this, appWidgetIds);
+            }
 		}
 	};
 
@@ -521,6 +572,7 @@ public class MediaPlaybackService extends Service {
 		if (!isPlaying()) {
 			return;
 		}
+        notifyChange(META_CHANGED);
 		// update statusbar
 		RemoteViews views = new RemoteViews(getPackageName(),
 				R.layout.statusbar);
@@ -560,6 +612,7 @@ public class MediaPlaybackService extends Service {
 			if (isPlaying()) {
 				DeadbeefAPI.play_pause();
 				gotoIdleState();
+				notifyChange(PLAYSTATE_CHANGED);
 			}
 		}
 	}
