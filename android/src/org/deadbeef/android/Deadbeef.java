@@ -484,15 +484,6 @@ public class Deadbeef extends ListActivity {
 	            }
 	        });
         }
-        else if (id == R.id.menu_quit) {
-   	    	if (null != mTimer) {
-	        	mTimerTask.cancel ();
-	        	mTimer.cancel ();
-	        	mTimerTask = null;
-	        	mTimer = null;
-   	    	}
-            finish ();
-        }
         else if (id == R.id.menu_manage_playlists) {
         	Intent i = new Intent (this, SelectPlaylist.class);
 	    	startActivityForResult(i, REQUEST_SELECT_PLAYLIST);

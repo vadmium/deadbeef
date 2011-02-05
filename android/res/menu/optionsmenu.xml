@@ -16,7 +16,7 @@
   <item android:id="@+id/menu_about"
    android:icon="@drawable/ic_menu_help"
    android:title="About" />
-  <item android:id="@+id/menu_quit"
+  <!-- item android:id="@+id/menu_quit"
    android:icon="@drawable/ic_menu_exit"
-   android:title="Quit" />
+   android:title="Quit" /-->
 </menu>
