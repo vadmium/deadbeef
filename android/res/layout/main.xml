@@ -24,28 +24,7 @@
               />
              
 
-	    <ImageButton android:id="@+id/play"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content"
-	            android:src="@drawable/ic_media_play"
-			    android:layout_above="@id/status"
-				android:layout_centerHorizontal="true"
-	            />
-	    <ImageButton android:id="@+id/prev"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content"
-	            android:src="@drawable/ic_media_previous"
-	            android:layout_toLeftOf="@id/play"
-			    android:layout_above="@id/status"
-	            />
-	    <ImageButton android:id="@+id/next"
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content"
-	            android:src="@drawable/ic_media_next"
-			    android:layout_above="@id/status"
-	            android:layout_toRightOf="@id/play"
-	            />
-		<ImageButton android:layout_height="wrap_content"
+		<!-- ImageButton android:layout_height="wrap_content"
 		 android:layout_width="wrap_content"
 		  android:src="@drawable/ic_media_shuffle_off"
 		   android:id="@+id/ShuffleMode"
@@ -58,14 +37,70 @@
 		   android:id="@+id/RepeatMode"
 			    android:layout_above="@id/status"
 	            android:layout_alignParentRight="true"
-		   />
+		   /-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/toolbar"
+    android:layout_width="fill_parent"
+    android:layout_height="105px"
+    android:orientation="horizontal"
+    android:background="@drawable/appwidget_bg"
+    android:layout_above="@id/status"
+	android:layout_centerHorizontal="true"
+    >
+
+    <ImageButton
+        android:id="@+id/ShuffleMode"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/btn_playlists_normal"
+        android:background="@drawable/appwidget_button_center"
+        android:scaleType="center"
+        />    
+    <ImageButton
+        android:id="@+id/prev"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/btn_prev_normal"
+        android:background="@drawable/appwidget_button_center"
+        android:scaleType="center"
+        />    
+    <ImageButton
+        android:id="@+id/play"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/btn_play_normal"
+        android:background="@drawable/appwidget_button_center"
+        android:scaleType="center"
+        />    
+    <ImageButton
+        android:id="@+id/next"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/btn_next_normal"
+        android:background="@drawable/appwidget_button_center"
+        android:scaleType="center"
+        />    
+    <ImageButton
+        android:id="@+id/RepeatMode"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/btn_add_normal"
+        android:background="@drawable/appwidget_button_center"
+        android:scaleType="center"
+        />    
+    </LinearLayout>
 
 <TextView
  android:layout_height="wrap_content"
   android:layout_width="fill_parent"
    android:id="@+id/np_artist_album"
     android:gravity="center_horizontal"
-    android:layout_above="@id/play"
+    android:layout_above="@id/toolbar"
     />
 
     <SeekBar android:id="@+id/seekbar"

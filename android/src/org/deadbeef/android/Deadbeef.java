@@ -239,10 +239,10 @@ public class Deadbeef extends ListActivity {
 	    			curr_state = new_state;
 	        		ImageButton button = (ImageButton)findViewById(R.id.play);
 	        		if (!curr_state) {
-	        			button.setImageResource (R.drawable.ic_media_play);
+	        			button.setImageResource (R.drawable.btn_play_normal);
 	        		}
 	        		else {
-	        			button.setImageResource (R.drawable.ic_media_pause);
+	        			button.setImageResource (R.drawable.btn_pause_normal);
 	        		}
 	    		}
 	    		
@@ -266,7 +266,7 @@ public class Deadbeef extends ListActivity {
 	    		int new_mode = MusicUtils.sService.getPlayMode();
 	    		if (new_mode != play_mode) {
 	    			play_mode = new_mode;
-	        		ImageButton button = (ImageButton)findViewById(R.id.RepeatMode);
+	    			ImageButton button = (ImageButton)findViewById(R.id.RepeatMode);
 	    			if (play_mode == 0) {
 	        			button.setImageResource (R.drawable.ic_media_repeat_on);
 	    			}
