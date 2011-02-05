@@ -34,4 +34,5 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 </string>
 <color name="expanding_child_background">#ff404040</color>
 <string name="widget_initial_text">Touch to select music.</string>
+<string name="title_playlist_viewer">Playlist</string>
 </resources>

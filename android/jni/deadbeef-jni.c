@@ -640,6 +640,11 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir (JNIEnv *env, jclass cls, 
     return ret ? 0 : -1;
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1path (JNIEnv *env, jclass cls, jint trk) {
+    return (*env)->NewStringUTF(env, ((playItem_t *)trk)->fname);
+}
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1getcount (JNIEnv *env, jclass cls, jint iter) {
     return pl_getcount (iter);

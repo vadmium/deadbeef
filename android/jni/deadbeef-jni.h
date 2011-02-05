@@ -193,6 +193,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_track_path
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1path
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    plt_get_count
  * Signature: ()I
  */

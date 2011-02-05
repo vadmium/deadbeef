@@ -3,37 +3,41 @@ package org.deadbeef.android;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.os.RemoteException;
+import android.provider.MediaStore;
 import android.util.Log;
-import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ImageButton;
-import android.widget.ListView;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-public class Deadbeef extends ListActivity {
+public class Deadbeef extends Activity {
 	String TAG = "DDB";
 	Handler handler = new Handler();
 	boolean terminate = false;
@@ -51,17 +55,20 @@ public class Deadbeef extends ListActivity {
     private int play_order = -1;
     private boolean playback_state = false;
 
-    private static final int REQUEST_ADD_FOLDER = 1;
-    private static final int REQUEST_SELECT_PLAYLIST = 2;
-    private static final int REQUEST_ADD_FOLDER_AFTER = 3;
-    
     private boolean isVisible = true;
     
     private Timer mTimer;
     private ProgressTask mTimerTask;
+
+    public static final int REQUEST_ADD_FOLDER = 1;
+    public static final int REQUEST_SELECT_PLAYLIST = 2;
+    public static final int REQUEST_ADD_FOLDER_AFTER = 3;
     
-    private int mSelected; // track selected for ctx menu
-    
+    private Worker mAlbumArtWorker;
+    private AlbumArtHandler mAlbumArtHandler;
+    private ImageView mCover;
+    private final static int IDCOLIDX = 0;
+
     private class ProgressTask extends TimerTask {
     	public void run () {
     		handler.post(UpdateInfoRunnable);
@@ -173,6 +180,63 @@ public class Deadbeef extends ListActivity {
     private String plstate_prev = "";
     private ProgressDialog progressDialog;
     
+    private static final int REFRESH = 1;
+    private static final int QUIT = 2;
+    private static final int GET_ALBUM_ART = 3;
+    private static final int ALBUM_ART_DECODED = 4;
+
+    private void queueNextRefresh(long delay) {
+    	try {
+	        if (!MusicUtils.sService.isPaused()) {
+	            Message msg = mHandler.obtainMessage(REFRESH);
+	            mHandler.removeMessages(REFRESH);
+	            mHandler.sendMessageDelayed(msg, delay);
+	        }
+    	}
+        catch (RemoteException ex) {
+        }
+    }
+
+    private long refreshNow() {
+        return 500;
+    }
+
+    private final Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case ALBUM_ART_DECODED:
+                    mCover.setImageBitmap((Bitmap)msg.obj);
+                    mCover.getDrawable().setDither(true);
+                    break;
+
+                case REFRESH:
+                    long next = refreshNow();
+                    queueNextRefresh(next);
+                    break;
+                    
+                case QUIT:
+                    // This can be moved back to onCreate once the bug that prevents
+                    // Dialogs from being started from onCreate/onResume is fixed.
+/*                    new AlertDialog.Builder(MediaPlaybackActivity.this)
+                            .setTitle(R.string.service_start_error_title)
+                            .setMessage(R.string.service_start_error_msg)
+                            .setPositiveButton(R.string.service_start_error_button,
+                                    new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int whichButton) {
+                                            finish();
+                                        }
+                                    })
+                            .setCancelable(false)
+                            .show();*/
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    };
+    
     BroadcastReceiver mMediaServiceReceiver;
     void startMediaServiceListener() {
 	    mMediaServiceReceiver = new BroadcastReceiver() {
@@ -188,12 +252,12 @@ public class Deadbeef extends ListActivity {
 					Log.w("DDB", "received ADD_FILES_END");
     				progressDialog.dismiss();
     				progressDialog = null;
-			        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+			        /*final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
 			        handler.post(new Runnable() {
 			            public void run() {
 			                setListAdapter(adapter);
 			            }
-			        });
+			        });*/
     			}
 	        }
 	    };
@@ -206,8 +270,16 @@ public class Deadbeef extends ListActivity {
     void stopMediaServiceListener () {
     	unregisterReceiver(mMediaServiceReceiver);
     }
-    			    
-    
+
+    private static class AlbumSongIdWrapper {
+        public long albumid;
+        public long songid;
+        AlbumSongIdWrapper(long aid, long sid) {
+            albumid = aid;
+            songid = sid;
+        }
+    }
+
     final Runnable UpdateInfoRunnable = new Runnable() {
     	public void run() {
     		if (!isVisible) {
@@ -289,6 +361,60 @@ public class Deadbeef extends ListActivity {
 	    	    		tv.setText(MusicUtils.sService.getArtistName () + " - " + MusicUtils.sService.getAlbumName ());
 	    	    		tv = (TextView)findViewById(R.id.np_title);
 	    	    		tv.setText(MusicUtils.sService.getTrackName ());
+	    	    		
+	    	    		int trk = DeadbeefAPI.streamer_get_playing_track ();
+	    	    		if (0 != trk) {
+				            String path = DeadbeefAPI.pl_get_track_path (trk);
+				            if (path != null) {
+					            long songid = -1;
+
+							    Cursor mCursor = null;
+							    String[] mCursorCols = new String[] {
+							            "audio._id AS _id",             // index must match IDCOLIDX below
+							            MediaStore.Audio.Media.ALBUM_ID,
+							    };
+					            
+				                ContentResolver resolver = getContentResolver();
+				                Uri uri;
+				                String where;
+				                String selectionArgs[];
+				                if (path.startsWith("content://media/")) {
+				                    uri = Uri.parse(path);
+				                    where = null;
+				                    selectionArgs = null;
+				                } else {
+				                   uri = MediaStore.Audio.Media.getContentUriForPath(path);
+				                   where = MediaStore.Audio.Media.DATA + "=?";
+				                   selectionArgs = new String[] { path };
+				                }
+				                
+				                try {
+				                    mCursor = resolver.query(uri, mCursorCols, where, selectionArgs, null);
+				                    if  (mCursor != null) {
+				                        if (mCursor.getCount() == 0) {
+				                            mCursor.close();
+				                            mCursor = null;
+				                        } else {
+				                            mCursor.moveToNext();
+				                            songid = mCursor.getLong(IDCOLIDX);
+				                        }
+				                    }
+				                } catch (UnsupportedOperationException ex) {
+				                }   	    			
+		    	    					    	    			
+					            if (songid >= 0) {
+					            	if (mCursor != null) {
+		            	                long albumid = mCursor.getLong(mCursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID));
+		            	                //MusicUtils.sService.getAlbumId();
+						                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
+						                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
+						                mCover.setVisibility(View.VISIBLE);
+					            	}
+					            }
+				            }
+	    	    			DeadbeefAPI.pl_item_unref (trk);
+	    	    			
+	    	    		}
 	    			}
 	    		}
 /*		    	// update numbers
@@ -340,24 +466,23 @@ public class Deadbeef extends ListActivity {
     public void onCreate(Bundle savedInstanceState) {
 		Log.e("DDB", "Deadbeef.onCreate");
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
-        
-        ImageButton button;
-        
-        button = (ImageButton)findViewById(R.id.prev);
-        button.setOnClickListener(mPrevListener);
 
-        button = (ImageButton)findViewById(R.id.next);
-        button.setOnClickListener(mNextListener);
+        mAlbumArtWorker = new Worker("album art worker");
+        mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
         
-        button = (ImageButton)findViewById(R.id.play);
-        button.setOnClickListener(mPlayPauseListener);
+        setContentView(R.layout.main);
+
+        mCover = (ImageView) findViewById(R.id.cover);
+
+
         
-        button = (ImageButton)findViewById(R.id.ShuffleMode);
-        button.setOnClickListener(mShuffleModeListener);
-        
-        button = (ImageButton)findViewById(R.id.RepeatMode);
-        button.setOnClickListener(mRepeatModeListener);
+        ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
+        ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);
+        ((ImageButton)findViewById(R.id.play)).setOnClickListener(mPlayPauseListener);
+        ((ImageButton)findViewById(R.id.next)).setOnClickListener(mNextListener);
+        ((ImageButton)findViewById(R.id.add)).setOnClickListener(mAddListener);
+        ((ImageButton)findViewById(R.id.ShuffleMode)).setOnClickListener(mShuffleModeListener);
+        ((ImageButton)findViewById(R.id.RepeatMode)).setOnClickListener(mRepeatModeListener);
 
         SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
         sb.setMax(100);
@@ -370,12 +495,12 @@ public class Deadbeef extends ListActivity {
 	        public void onServiceConnected(ComponentName className, IBinder obj) {
 	        	Log.e("DDB", "Deadbeef.onCreate connected");
 	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
-		        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+		        /*final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
 		        handler.post(new Runnable() {
 		            public void run() {
 		                setListAdapter(adapter);
 		            }
-		        });
+		        });*/
 		        startMediaServiceListener ();
 	        }
 	
@@ -388,13 +513,11 @@ public class Deadbeef extends ListActivity {
 //        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 //        setListAdapter(adapter);   
         
-		Log.e("DDB", "Deadbeef.onCreate reg ctxmenu");
-        registerForContextMenu(findViewById(android.R.id.list));
-		Log.e("DDB", "Deadbeef.onCreate done");
     }
     
     @Override
     public void onDestroy() {
+        mAlbumArtWorker.quit();
     	if (null != mTimer) {
 	    	mTimerTask.cancel ();
 	    	mTimer.cancel ();
@@ -443,46 +566,43 @@ public class Deadbeef extends ListActivity {
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+/*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
 	                setListAdapter(adapter);
 	            }
-	        });
+	        });*/
     	}
     	if (requestCode == REQUEST_ADD_FOLDER_AFTER && resultCode == RESULT_OK) {
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+/*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
 	                setListAdapter(adapter);
 	            }
-	        });
+	        });*/
     	}
     	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
-    		DeadbeefAPI.plt_set_curr (resultCode);
+/*    		DeadbeefAPI.plt_set_curr (resultCode);
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
 	                setListAdapter(adapter);
 	            }
-	        });
+	        });*/
     	}
     }
 
     @Override
     public boolean onOptionsItemSelected (MenuItem item) {
         int id = item.getItemId ();
-        if (id == R.id.menu_add_folder) {
-            AddFolder ();
-        }
-        else if (id == R.id.menu_clear_playlist) {
-        	DeadbeefAPI.pl_clear ();
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
+        if (id == R.id.menu_clear_playlist) {
+        	DeadbeefAPI.pl_clear (); // FIXME
+/*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
 	                setListAdapter(adapter);
 	            }
-	        });
+	        });*/
         }
         else if (id == R.id.menu_manage_playlists) {
         	Intent i = new Intent (this, SelectPlaylist.class);
@@ -531,6 +651,19 @@ public class Deadbeef extends ListActivity {
         }
     };
 
+    private OnClickListener mPlaylistListener = new OnClickListener() {
+        public void onClick(View v) {
+	        Intent i = new Intent (Deadbeef.this, PlaylistViewer.class);
+	    	startActivity(i);
+        }
+    };
+
+    private OnClickListener mAddListener = new OnClickListener() {
+        public void onClick(View v) {
+        	AddFolder ();
+        }
+    };
+
     private OnClickListener mRepeatModeListener = new OnClickListener() {
         public void onClick(View v) {
         	try {
@@ -550,56 +683,7 @@ public class Deadbeef extends ListActivity {
         	}
         }
     };
-
-    @Override
-    public void onListItemClick (ListView l, View v, int position, long id) {
-   		try {
-   			MusicUtils.sService.playIdx (position);
-   		}
-   		catch (RemoteException e) {
-   			Log.e(TAG,"remote exception in onListItemClick");
-   		}
-    };
     
-    
-    public static final int MENU_ACT_ADD_FILES = 0;
-    public static final int MENU_ACT_ADD_FOLDER = 1;
-    public static final int MENU_ACT_REMOVE = 2;
-    public static final int MENU_ACT_MOVE_TO_PLAYLIST = 3;
-    public static final int MENU_ACT_PROPERTIES = 4;
-    
-	@Override
-	public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
-		mSelected = ((AdapterContextMenuInfo)menuInfo).position;
-		Log.e("DDB","onCreateContextMenu");
-//		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
-		menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
-//		menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
-//		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
-		
-		Intent i = new Intent (this, TrackPropertiesViewer.class);
-		i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
-		menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
-	}
-
-	@Override
-	public boolean onContextItemSelected (MenuItem item) {
-		switch (item.getItemId()) {
-		case MENU_ACT_ADD_FILES:
-			break;
-		case MENU_ACT_ADD_FOLDER:
-	        Intent i = new Intent (this, FileBrowser.class);
-	        i.setAction("ADD_FOLDER_AFTER");
-	        i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(mSelected)));
-	    	startActivityForResult(i, REQUEST_ADD_FOLDER_AFTER);
-			break;
-		case MENU_ACT_REMOVE:
-			break;
-		case MENU_ACT_MOVE_TO_PLAYLIST:
-			break;
-		}
-		return false;
-	}
     
 	void PlayerSeek (float value) {
 		try {
@@ -629,7 +713,78 @@ public class Deadbeef extends ListActivity {
 			PlayerSeek (trackedPos);
 		}
 	};
+    
+    public class AlbumArtHandler extends Handler {
+        private long mAlbumId = -1;
+        
+        public AlbumArtHandler(Looper looper) {
+            super(looper);
+        }
+        @Override
+        public void handleMessage(Message msg)
+        {
+            long albumid = ((AlbumSongIdWrapper) msg.obj).albumid;
+            long songid = ((AlbumSongIdWrapper) msg.obj).songid;
+            if (msg.what == GET_ALBUM_ART && (mAlbumId != albumid || albumid < 0)) {
+                // while decoding the new image, show the default album art
+                Message numsg = mHandler.obtainMessage(ALBUM_ART_DECODED, null);
+                mHandler.removeMessages(ALBUM_ART_DECODED);
+                mHandler.sendMessageDelayed(numsg, 300);
+                Bitmap bm = MusicUtils.getArtwork(Deadbeef.this, songid, albumid);
+                if (bm == null) {
+                    bm = MusicUtils.getArtwork(Deadbeef.this, songid, -1);
+                    albumid = -1;
+                }
+                if (bm != null) {
+                    numsg = mHandler.obtainMessage(ALBUM_ART_DECODED, bm);
+                    mHandler.removeMessages(ALBUM_ART_DECODED);
+                    mHandler.sendMessage(numsg);
+                }
+                mAlbumId = albumid;
+            }
+        }
+    }
 	
+    private static class Worker implements Runnable {
+        private final Object mLock = new Object();
+        private Looper mLooper;
+        
+        /**
+         * Creates a worker thread with the given name. The thread
+         * then runs a {@link android.os.Looper}.
+         * @param name A name for the new thread
+         */
+        Worker(String name) {
+            Thread t = new Thread(null, this, name);
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.start();
+            synchronized (mLock) {
+                while (mLooper == null) {
+                    try {
+                        mLock.wait();
+                    } catch (InterruptedException ex) {
+                    }
+                }
+            }
+        }
+        
+        public Looper getLooper() {
+            return mLooper;
+        }
+        
+        public void run() {
+            synchronized (mLock) {
+                Looper.prepare();
+                mLooper = Looper.myLooper();
+                mLock.notifyAll();
+            }
+            Looper.loop();
+        }
+        
+        public void quit() {
+            mLooper.quit();
+        }
+    }
 
 }
 

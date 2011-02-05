@@ -36,6 +36,10 @@
     	 android:label="@string/title_file_browser"
     	 android:launchMode="standard">
 	</activity>
+    <activity android:name="PlaylistViewer"
+    	 android:label="@string/title_playlist_viewer"
+    	 android:launchMode="standard">
+	</activity>
 	    <receiver android:name="MediaButtonIntentReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />

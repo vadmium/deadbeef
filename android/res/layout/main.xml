@@ -4,25 +4,21 @@
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
-               android:background="#414441"
+               android:background="#f012"
               >
-	<TextView android:id="@+id/plstate"
+    
+	<TextView android:id="@+id/dollarz"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:singleLine="true"
 	          android:layout_alignParentBottom="true"
+              android:layout_centerVertical="true"
+              android:textSize="20sp"
+              android:text="ADVERTISEMENT"
+              android:textStyle="bold"
               android:layout_centerHorizontal="true"
-              android:textSize="10sp"
-              />
-	<TextView android:id="@+id/status"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:singleLine="true"
-	          android:layout_above="@id/plstate"
-              android:layout_centerHorizontal="true"
-              android:textSize="10sp"
-              />
-             
+              android:background="@drawable/appwidget_inner_focus_c"/>
+
 
 		<!-- ImageButton android:layout_height="wrap_content"
 		 android:layout_width="wrap_content"
@@ -38,18 +34,80 @@
 			    android:layout_above="@id/status"
 	            android:layout_alignParentRight="true"
 		   /-->
+
+
+	<ImageView
+		android:id="@+id/cover"
+		android:background="@drawable/album_border_large"
+              android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+              android:layout_centerHorizontal="true"
+              android:src="@drawable/albumart_mp_unknown"
+	          android:layout_alignParentTop="true"
+		>
+	</ImageView>
+    <ImageButton
+        android:id="@+id/ShuffleMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_media_shuffle_off"
+        android:scaleType="center"
+        android:layout_alignParentTop="true"
+        android:layout_toLeftOf="@id/cover"
+        />    
+    <ImageButton
+        android:id="@+id/RepeatMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_media_repeat_off"
+        android:scaleType="center"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/cover"
+        />    
+    
+    <SeekBar android:id="@+id/seekbar"
+	              android:layout_width="fill_parent" 
+	              android:layout_height="wrap_content"
+	              android:layout_weight="1"
+	              android:scrollbarSize="3px"
+	              android:progressDrawable="@drawable/ddb_seekbar"
+	              android:thumb="@drawable/ddb_seekbar_thumb"
+	              android:paddingLeft="20sp"
+	              android:paddingRight="20sp"
+			    android:layout_below="@id/cover"
+	              />
+              
+	<TextView android:id="@+id/np_title"
+              android:layout_width="fill_parent"
+              android:layout_height="wrap_content"
+              android:text=""
+              android:gravity="center_horizontal"
+              android:textSize="20sp"
+              android:textStyle="bold" android:singleLine="true"
+              android:ellipsize="marquee" android:textColor="#ff80d7fb"
+              android:marqueeRepeatLimit="marquee_forever"
+			    android:layout_below="@id/seekbar"
+              />
+<TextView
+ android:layout_height="wrap_content"
+  android:layout_width="fill_parent"
+   android:id="@+id/np_artist_album"
+    android:gravity="center_horizontal"
+    android:layout_below="@id/np_title"
+    />
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:id="@+id/toolbar"
     android:layout_width="fill_parent"
     android:layout_height="105px"
     android:orientation="horizontal"
     android:background="@drawable/appwidget_bg"
-    android:layout_above="@id/status"
+    android:layout_below="@id/np_artist_album"
 	android:layout_centerHorizontal="true"
     >
 
     <ImageButton
-        android:id="@+id/ShuffleMode"
+        android:id="@+id/playlist"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
@@ -85,7 +143,7 @@
         android:scaleType="center"
         />    
     <ImageButton
-        android:id="@+id/RepeatMode"
+        android:id="@+id/add"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
@@ -95,63 +153,24 @@
         />    
     </LinearLayout>
 
-<TextView
- android:layout_height="wrap_content"
-  android:layout_width="fill_parent"
-   android:id="@+id/np_artist_album"
-    android:gravity="center_horizontal"
-    android:layout_above="@id/toolbar"
-    />
-
-    <SeekBar android:id="@+id/seekbar"
-	              android:layout_width="fill_parent" 
-	              android:layout_height="wrap_content"
-	              android:layout_weight="1"
-	              android:scrollbarSize="3px"
-	              android:progressDrawable="@drawable/ddb_seekbar"
-	              android:thumb="@drawable/ddb_seekbar_thumb"
-	              android:paddingLeft="20sp"
-	              android:paddingRight="20sp"
-			    android:layout_above="@id/np_artist_album"
-	              />
-              
-	<TextView android:id="@+id/np_title"
-              android:layout_width="fill_parent"
+	<TextView android:id="@+id/status"
+              android:layout_width="wrap_content"
               android:layout_height="wrap_content"
-              android:text=""
-              android:gravity="center_horizontal"
-              android:textSize="20sp"
-              android:textStyle="bold" android:singleLine="true"
-              android:ellipsize="marquee" android:textColor="#ff80d7fb"
-              android:marqueeRepeatLimit="marquee_forever"
-			    android:layout_above="@id/seekbar"
+              android:singleLine="true"
+	          android:layout_below="@id/toolbar"
+              android:layout_centerHorizontal="true"
+              android:textSize="10sp"
               />
 
-    <View
-    android:id="@+id/separator"
-     android:layout_above="@+id/np_title"
-     android:layout_width="fill_parent"
-      android:layout_height="4px"
-        android:layout_alignLeft="@+id/np_title"
-         android:layout_alignRight="@+id/np_title"
-     android:background="#ffffffff"
-    >
-
-	</View>
-    
-    <ListView android:id="@id/android:list"
-              android:layout_width="fill_parent"
-               android:layout_height="fill_parent"
-               android:choiceMode="singleChoice"
-               android:fastScrollEnabled="true"
-               android:scrollbarStyle="insideOverlay"
-               android:layout_above="@id/separator"
-               android:cacheColorHint="#0000"
-               android:divider="#f999"
-               android:dividerHeight="1sp"
-               android:background="#f666"
-               >
-    </ListView>
+	<TextView android:id="@+id/plstate"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:singleLine="true"
+	          android:layout_below="@id/status"
+              android:layout_centerHorizontal="true"
+              android:textSize="10sp"
+              />
+             
     
 	
 
