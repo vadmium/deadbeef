@@ -368,8 +368,9 @@ public class Deadbeef extends Activity {
 	    	    		int trk = DeadbeefAPI.streamer_get_playing_track ();
 	    	    		if (0 != trk) {
 				            String path = DeadbeefAPI.pl_get_track_path (trk);
+				            long songid = -1;
+			                long albumid = -1;
 				            if (path != null) {
-					            long songid = -1;
 
 							    Cursor mCursor = null;
 							    String[] mCursorCols = new String[] {
@@ -404,17 +405,16 @@ public class Deadbeef extends Activity {
 				                    }
 				                } catch (UnsupportedOperationException ex) {
 				                }   	    			
-		    	    					    	    			
+
 					            if (songid >= 0) {
 					            	if (mCursor != null) {
-		            	                long albumid = mCursor.getLong(mCursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID));
-		            	                //MusicUtils.sService.getAlbumId();
-						                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
-						                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
-						                mCover.setVisibility(View.VISIBLE);
+		            	                albumid = mCursor.getLong(mCursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID));
 					            	}
 					            }
 				            }
+			                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
+			                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
+			                mCover.setVisibility(View.VISIBLE);
 	    	    			DeadbeefAPI.pl_item_unref (trk);
 	    	    			
 	    	    		}

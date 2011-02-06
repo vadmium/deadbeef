@@ -4,89 +4,81 @@
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
-               android:background="#f012"
+               android:background="#f000"
               >
+	<LinearLayout
+		android:id="@+id/info"
+		android:orientation="vertical"
+	    android:layout_alignParentTop="true"
+	    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="#f000"
+	>
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:id="@+id/playlist_title"
+		android:text="Playlist Title"
+		android:gravity="center_horizontal"
+		android:textSize="12sp"
+	    android:textColor="#fccc"
+	    />	
+	<TextView android:id="@+id/np_title"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="marquee"
+        android:textColor="#ffff"
+        android:marqueeRepeatLimit="marquee_forever"
+        />
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:id="@+id/np_artist_album"
+		android:gravity="center_horizontal"
+		android:textSize="12sp"
+	    android:textColor="#fccc"
+	    />
+
+	</LinearLayout>
     
-		<!-- ImageButton android:layout_height="wrap_content"
-		 android:layout_width="wrap_content"
-		  android:src="@drawable/ic_media_shuffle_off"
-		   android:id="@+id/ShuffleMode"
-			    android:layout_above="@id/status"
-	            android:layout_alignParentLeft="true"
-		   />
-		<ImageButton android:layout_height="wrap_content"
-		 android:layout_width="wrap_content"
-		  android:src="@drawable/ic_media_repeat_off"
-		   android:id="@+id/RepeatMode"
-			    android:layout_above="@id/status"
-	            android:layout_alignParentRight="true"
-		   /-->
-
-
 	<ImageView
 		android:id="@+id/cover"
               android:layout_width="fill_parent"
-               android:layout_height="fill_parent"
-              android:layout_centerHorizontal="true"
+               android:layout_height="wrap_content"
+              android:layout_below="@id/info"
 	           >
 	</ImageView>
+	
+
     <ImageButton
         android:id="@+id/ShuffleMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_media_shuffle_off"
-        android:scaleType="center"
-        android:layout_alignParentTop="true"
-        android:layout_toLeftOf="@id/cover"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/info"
         />    
     <ImageButton
         android:id="@+id/RepeatMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_media_repeat_off"
-        android:scaleType="center"
-        android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/cover"
-        />    
+        android:layout_alignParentRight="true"
+		android:layout_below="@id/info"
+        />
+            
     
-    <SeekBar android:id="@+id/seekbar"
-	              android:layout_width="fill_parent" 
-	              android:layout_height="wrap_content"
-	              android:layout_weight="1"
-	              android:scrollbarSize="3px"
-	              android:progressDrawable="@drawable/ddb_seekbar"
-	              android:thumb="@drawable/ddb_seekbar_thumb"
-	              android:paddingLeft="20sp"
-	              android:paddingRight="20sp"
-			    android:layout_below="@id/cover"
-	              />
-              
-	<TextView android:id="@+id/np_title"
-              android:layout_width="fill_parent"
-              android:layout_height="wrap_content"
-              android:text=""
-              android:gravity="center_horizontal"
-              android:textSize="20sp"
-              android:textStyle="bold" android:singleLine="true"
-              android:ellipsize="marquee" android:textColor="#ff80d7fb"
-              android:marqueeRepeatLimit="marquee_forever"
-			    android:layout_below="@id/seekbar"
-              />
-<TextView
- android:layout_height="wrap_content"
-  android:layout_width="fill_parent"
-   android:id="@+id/np_artist_album"
-    android:gravity="center_horizontal"
-    android:layout_below="@id/np_title"
-    />
-
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
 	android:id="@+id/toolbar"
     android:layout_width="fill_parent"
     android:layout_height="105px"
     android:orientation="horizontal"
     android:background="@drawable/appwidget_bg"
-    android:layout_below="@id/np_artist_album"
+    android:layout_below="@id/cover"
 	android:layout_centerHorizontal="true"
     >
 
@@ -137,11 +129,23 @@
         />    
     </LinearLayout>
 
+    <SeekBar android:id="@+id/seekbar"
+	              android:layout_width="fill_parent" 
+	              android:layout_height="wrap_content"
+	              android:layout_weight="1"
+	              android:scrollbarSize="3px"
+	              android:progressDrawable="@drawable/ddb_seekbar"
+	              android:thumb="@drawable/ddb_seekbar_thumb"
+	              android:paddingLeft="20sp"
+	              android:paddingRight="20sp"
+        android:layout_below="@id/toolbar"
+	              />
+              
 	<TextView android:id="@+id/status"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:singleLine="true"
-	          android:layout_below="@id/toolbar"
+	          android:layout_below="@id/seekbar"
               android:layout_centerHorizontal="true"
               android:textSize="10sp"
               />
@@ -155,7 +159,4 @@
               android:textSize="10sp"
               />
              
-    
-	
-
 </RelativeLayout>
