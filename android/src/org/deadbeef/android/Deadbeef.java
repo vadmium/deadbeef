@@ -25,6 +25,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.provider.MediaStore;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -32,8 +33,10 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup.LayoutParams;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -471,10 +474,19 @@ public class Deadbeef extends Activity {
         mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
         
         setContentView(R.layout.main);
-
+        
+        // set album art widget to square size
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        
         mCover = (ImageView) findViewById(R.id.cover);
-
-
+        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
+        mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
+        mCover.setVisibility(View.VISIBLE);
+        
+        LayoutParams p = mCover.getLayoutParams();
+        p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = dm.widthPixels;
+        mCover.setLayoutParams(p);
         
         ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
         ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);

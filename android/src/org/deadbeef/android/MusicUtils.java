@@ -107,6 +107,8 @@ public class MusicUtils {
     private static final Uri sArtworkUri = Uri.parse("content://media/external/audio/albumart");
     private static final HashMap<Long, Drawable> sArtCache = new HashMap<Long, Drawable>();
     private static int sArtCacheId = -1;
+    public static int mArtworkWidth = -1;
+    public static int mArtworkHeight = -1;
     
     static {
         // for the cache, 
@@ -146,9 +148,9 @@ public class MusicUtils {
         }
         if (d == null) {
             d = defaultArtwork;
-            final Bitmap icon = defaultArtwork.getBitmap();
-            int w = icon.getWidth();
-            int h = icon.getHeight();
+//            final Bitmap icon = defaultArtwork.getBitmap();
+            int w = mArtworkWidth;//icon.getWidth();
+            int h = mArtworkHeight;//icon.getHeight();
             Bitmap b = MusicUtils.getArtworkQuick(context, artIndex, w, h);
             if (b != null) {
                 d = new FastBitmapDrawable(b);

@@ -7,19 +7,6 @@
                android:background="#f012"
               >
     
-	<TextView android:id="@+id/dollarz"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:singleLine="true"
-	          android:layout_alignParentBottom="true"
-              android:layout_centerVertical="true"
-              android:textSize="20sp"
-              android:text="ADVERTISEMENT"
-              android:textStyle="bold"
-              android:layout_centerHorizontal="true"
-              android:background="@drawable/appwidget_inner_focus_c"/>
-
-
 		<!-- ImageButton android:layout_height="wrap_content"
 		 android:layout_width="wrap_content"
 		  android:src="@drawable/ic_media_shuffle_off"
@@ -38,13 +25,10 @@
 
 	<ImageView
 		android:id="@+id/cover"
-		android:background="@drawable/album_border_large"
-              android:layout_width="wrap_content"
-               android:layout_height="wrap_content"
+              android:layout_width="fill_parent"
+               android:layout_height="fill_parent"
               android:layout_centerHorizontal="true"
-              android:src="@drawable/albumart_mp_unknown"
-	          android:layout_alignParentTop="true"
-		>
+	           >
 	</ImageView>
     <ImageButton
         android:id="@+id/ShuffleMode"
