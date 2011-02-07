@@ -166,6 +166,137 @@ jni_setformat(ddb_waveformat_t *fmt)
     return 0;
 }
 
+
+#define EV_MAX_ARGS 5
+intptr_t jnievent_mutex;
+
+typedef struct jni_event_s {
+    const char *id;
+    char *str_args[EV_MAX_ARGS];
+    int int_args[EV_MAX_ARGS];
+    struct jni_event_s *next;
+} jni_event_t;
+
+static jni_event_t *events;
+static jni_event_t *events_tail;
+
+void
+jnievent_dispatch (void) {
+    if (events) {
+        jni_event_t *next = events->next;
+        for (int i = 0; i < EV_MAX_ARGS; i++) {
+            if (events->str_args[i]) {
+                free (events->str_args[i]);
+            }
+        }
+        free (events);
+        if (events_tail == events) {
+            events_tail = NULL;
+        }
+        events = next;
+    }
+}
+void
+jnievent_init (void) {
+    jnievent_mutex = mutex_create ();
+}
+
+void
+jnievent_free (void) {
+    if (jnievent_mutex) {
+        mutex_lock (jnievent_mutex);
+        while (events) {
+            jnievent_dispatch ();
+        }
+        mutex_free (jnievent_mutex);
+        jnievent_mutex = 0;
+    }
+}
+
+static int
+lastfm_songstarted (DB_event_track_t *e, uintptr_t data) {
+    jni_event_t *ev = malloc (sizeof (jni_event_t));
+    memset (ev, 0, sizeof (jni_event_t));
+    ev->id = "songstarted";
+    const char *artist = pl_find_meta ((playItem_t *)e->track, "artist");
+    const char *album = pl_find_meta ((playItem_t *)e->track, "album");
+    const char *title = pl_find_meta ((playItem_t *)e->track, "title");
+
+    ev->str_args[0] = artist ? strdup (artist) : NULL;
+    ev->str_args[1]= album ? strdup (album) : NULL;
+    ev->str_args[2]= title ? strdup (title) : NULL;
+    ev->int_args[0] = pl_get_item_duration ((playItem_t *)e->track) * 1000;
+    mutex_lock (jnievent_mutex);
+    if (events_tail) {
+        events_tail->next = ev;
+        events_tail = ev;
+    }
+    else {
+        events = events_tail = ev;
+    }
+    mutex_unlock (jnievent_mutex);
+    return 0;
+}
+
+static int
+lastfm_songfinished (DB_event_track_t *e, uintptr_t data) {
+    jni_event_t *ev = malloc (sizeof (jni_event_t));
+    memset (ev, 0, sizeof (jni_event_t));
+    ev->id = "songfinished";
+    mutex_lock (jnievent_mutex);
+    if (events_tail) {
+        events_tail->next = ev;
+        events_tail = ev;
+    }
+    else {
+        events = events_tail = ev;
+    }
+    mutex_unlock (jnievent_mutex);
+    return 0;
+}
+
+
+static int
+lastfm_paused (DB_event_state_t *e, uintptr_t data) {
+    jni_event_t *ev = NULL;
+
+    if (e->state) { // paused
+        ev = malloc (sizeof (jni_event_t));
+        memset (ev, 0, sizeof (jni_event_t));
+        ev->id = "paused";
+    }
+    else { // resumed
+        ev->id = "resumed";
+        playItem_t *trk = streamer_get_playing_track ();
+        if (trk) {
+            ev = malloc (sizeof (jni_event_t));
+            memset (ev, 0, sizeof (jni_event_t));
+            const char *artist = pl_find_meta (trk, "artist");
+            const char *album = pl_find_meta (trk, "album");
+            const char *title = pl_find_meta (trk, "title");
+            ev->str_args[0] = artist ? strdup (artist) : NULL;
+            ev->str_args[1]= album ? strdup (album) : NULL;
+            ev->str_args[2]= title ? strdup (title) : NULL;
+            ev->int_args[0] = pl_get_item_duration (trk) * 1000;
+            ev->int_args[1] = streamer_get_playpos () * 1000;
+            pl_item_unref (trk);
+        }
+    }
+
+    if (ev) {
+        mutex_lock (jnievent_mutex);
+        if (events_tail) {
+            events_tail->next = ev;
+            events_tail = ev;
+        }
+        else {
+            events = events_tail = ev;
+        }
+        mutex_unlock (jnievent_mutex);
+    }
+    return 0;
+}
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
@@ -211,6 +342,12 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     // start song #0 in playlist
     //streamer_set_nextsong (0, 1);
 
+    // subscribe to frameupdate event
+    jnievent_init ();
+    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_SONGSTARTED, DB_CALLBACK (lastfm_songstarted), 0);
+    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_SONGFINISHED, DB_CALLBACK (lastfm_songfinished), 0);
+    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_PAUSED, DB_CALLBACK (lastfm_paused), 0);
+
     trace ("ddb_start done");
     return 0;
 }
@@ -218,6 +355,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
   (JNIEnv *env, jclass cls)
 {
+    jnievent_free ();
     pl_save_all ();
     conf_save ();
     streamer_free ();
@@ -762,4 +900,57 @@ Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1playpos (JNIEnv *env, jclas
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1apx_1bitrate (JNIEnv *env, jclass cls) {
     return streamer_get_apx_bitrate ();
+}
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_event_1is_1pending (JNIEnv *env, jclass cls) {
+    jboolean res = 0;
+    mutex_lock (jnievent_mutex);
+    if (events) {
+        res = 1;
+    }
+    mutex_unlock (jnievent_mutex);
+    return res;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_event_1dispatch (JNIEnv *env, jclass cls) {
+    mutex_lock (jnievent_mutex);
+    jnievent_dispatch ();
+    mutex_unlock (jnievent_mutex);
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_event_1get_1type (JNIEnv *env, jclass cls) {
+    mutex_lock (jnievent_mutex);
+    if (!events) {
+        mutex_unlock (jnievent_mutex);
+        return NULL;
+    }
+    jstring s = (*env)->NewStringUTF(env, events->id);
+    mutex_unlock (jnievent_mutex);
+    return s;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_event_1get_1string (JNIEnv *env, jclass cls, jint idx) {
+    mutex_lock (jnievent_mutex);
+    if (!events) {
+        mutex_unlock (jnievent_mutex);
+        return NULL;
+    }
+    jstring s = events->str_args[idx] ? (*env)->NewStringUTF(env, events->str_args[idx]) : NULL;
+    mutex_unlock (jnievent_mutex);
+    return s;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_event_1get_1int (JNIEnv *env, jclass cls, jint idx) {
+    mutex_lock (jnievent_mutex);
+    if (!events) {
+        mutex_unlock (jnievent_mutex);
+        return -1;
+    }
+    jint res = events->int_args[idx];
+    mutex_unlock (jnievent_mutex);
+    return res;
 }

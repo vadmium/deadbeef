@@ -511,6 +511,46 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1bps
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_fmt_1get_1samplerate
   (JNIEnv *, jclass, jint);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    event_is_pending
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1is_1pending
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    event_dispatch
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1dispatch
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    event_get_type
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1type
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    event_get_string
+ * Signature: (I)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1string
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    event_get_int
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1int
+  (JNIEnv *, jclass, jint);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,12 +1,12 @@
 package org.deadbeef.android;
 
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
 import android.os.RemoteException;
 import android.util.Log;
-import android.widget.TextView;
 
 class Player {
 	public Player() {
@@ -54,13 +54,21 @@ class Player {
     		Log.e("DDB","PlayerRunnable.run started");
 
     		while (playing) {
+    			// handle 
+    			if (DeadbeefAPI.event_is_pending ()) {
+    				try {
+    					MusicUtils.sService.handle_ddb_events ();
+    				}
+    				catch (RemoteException ex) {
+    				}
+    			}
+    			
     			int samplerate = DeadbeefAPI.getSamplerate ();
     			int channels = DeadbeefAPI.getChannels ();
     			if (0 == samplerate) {
     				try {
     					Thread.sleep(200);
     				} catch (InterruptedException e) {
-    					break;
     				}
     				continue;
     			}
@@ -94,18 +102,16 @@ class Player {
 					catch (RemoteException ex) {
 					}
     			}
-    			
 		    	if (!DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
 		    		audio.stop ();
 		    	}
-    			while (!DeadbeefAPI.play_is_playing ()) {
+    			if (!DeadbeefAPI.play_is_playing ()) {
     				try {
     					Thread.sleep(200);
     				} catch (InterruptedException e) {
-    					break;
     				}
+    				continue;
     			}
-    			
 		    	if (DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
 		    		audio.play ();
 		    	}    			

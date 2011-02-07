@@ -79,6 +79,14 @@ public class DeadbeefAPI
 	public static native int fmt_get_channels (int fmt);
 	public static native int fmt_get_bps (int fmt);
 	public static native int fmt_get_samplerate (int fmt);
+	
+	// streamer events
+	
+	public static native boolean event_is_pending ();
+	public static native void event_dispatch ();
+	public static native String event_get_type ();
+	public static native String event_get_string (int idx);
+	public static native int event_get_int (int idx);
 
 	static {
 		System.loadLibrary("deadbeef");

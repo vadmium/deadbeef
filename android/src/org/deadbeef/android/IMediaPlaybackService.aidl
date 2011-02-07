@@ -28,5 +28,7 @@ interface IMediaPlaybackService
     void pl_add_dir (String dir);
     void pl_insert_dir (String dir, int plt, int after);
     boolean busyAddingFiles ();
+    
+    void handle_ddb_events ();
 }
 
