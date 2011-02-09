@@ -23,6 +23,23 @@
 #include <assert.h>
 #include "paramlist.hpp"
 #include "Equ.h"
+#include <sys/time.h>
+
+//#define PROFILE
+
+#ifdef PROFILE
+#include <android/log.h>
+
+void
+android_trace (const char *fmt, ...) {
+    char p[300];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(p, sizeof(p), fmt, ap);
+    va_end(ap);
+    __android_log_write(ANDROID_LOG_INFO,"DDB",p);
+}
+#endif
 
 int _Unwind_Resume_or_Rethrow;
 int _Unwind_RaiseException;
@@ -318,6 +335,10 @@ extern "C" int equ_modifySamples_float (SuperEqState *state, char *buf,int nsamp
   float amax = 1.0f;
   float amin = -1.0f;
   static float hm1 = 0, hm2 = 0;
+#ifdef PROFILE
+                struct timeval tm1;
+                gettimeofday (&tm1, NULL);
+#endif
 
   if (state->chg_ires) {
 	  state->cur_ires = state->chg_ires;
@@ -333,7 +354,6 @@ extern "C" int equ_modifySamples_float (SuperEqState *state, char *buf,int nsamp
 			{
                 state->finbuf[state->nbufsamples*nch+i] = ((float *)buf)[i+p*nch];
 				float s = state->outbuf[state->nbufsamples*nch+i];
-				//if (dither) s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
 				if (s < amin) s = amin;
 				if (amax < s) s = amax;
 				((float *)buf)[i+p*nch] = s;
@@ -385,29 +405,33 @@ extern "C" int equ_modifySamples_float (SuperEqState *state, char *buf,int nsamp
 		}
     }
 
-		for(i=0;i<nsamples*nch;i++)
-			{
-				state->finbuf[state->nbufsamples*nch+i] = ((float *)buf)[i+p*nch];
-				float s = state->outbuf[state->nbufsamples*nch+i];
-				if (state->dither) {
-					float u;
-					s -= hm1;
-					u = s;
-//					s += ditherbuf[(ditherptr++) & (DITHERLEN-1)];
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					hm1 = s - u;
-					((float *)buf)[i+p*nch] = s;
-				} else {
-					if (s < amin) s = amin;
-					if (amax < s) s = amax;
-					((float *)buf)[i+p*nch] = s;
-				}
-			}
-
+    for(i=0;i<nsamples*nch;i++)
+        {
+            state->finbuf[state->nbufsamples*nch+i] = ((float *)buf)[i+p*nch];
+            float s = state->outbuf[state->nbufsamples*nch+i];
+            if (s < amin) s = amin;
+            if (amax < s) s = amax;
+            ((float *)buf)[i+p*nch] = s;
+    }
   p += nsamples;
   state->nbufsamples += nsamples;
+#ifdef PROFILE
+                struct timeval tm2;
+                gettimeofday (&tm2, NULL);
 
+                int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
+                static int iters = 0;
+                static int ms_max = 0;
+                if (ms > ms_max) {
+                    ms_max = ms;
+                }
+                iters ++;
+                if (iters > 10) {
+                    android_trace ("supereq filter time: %d ms\n", ms_max);
+                    iters = 0;
+                    ms_max = 0;
+                }
+#endif
   return p;
 }
 

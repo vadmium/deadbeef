@@ -1151,6 +1151,18 @@ streamer_thread (void *ctx) {
 
         int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
         //trace ("slept %dms (alloc=%dms, bytespersec=%d, chan=%d, blocksize=%d), fill: %d/%d (cursor=%d)\n", alloc_time-ms, alloc_time, bytes_in_one_second, output->fmt.channels, blocksize, streamer_ringbuf.remaining, STREAM_BUFFER_SIZE, streamer_ringbuf.cursor);
+//        static int iters = 0;
+//        static int ms_max = 0;
+//        if (ms > ms_max) {
+//            ms_max = ms;
+//        }
+//        iters ++;
+//        if (iters > 10) {
+//            android_trace ("peak decoder frame time: %d ms\n", ms_max);
+//            iters = 0;
+//            ms_max = 0;
+//        }
+
         alloc_time -= ms;
         if (!streamer_buffering && alloc_time > 0) {
             usleep (alloc_time * 1000);
@@ -1929,9 +1941,7 @@ streamer_set_dsp_chain (ddb_dsp_context_t *chain) {
 
     streamer_dsp_postinit ();
 
-    char fname[PATH_MAX];
-    snprintf (fname, sizeof (fname), "%s/dspconfig", plug_get_config_dir ());
-    streamer_dsp_chain_save (fname, dsp_chain);
+    streamer_save_dsp_config ();
     streamer_reset (1);
 
     mutex_unlock (decodemutex);
@@ -1939,4 +1949,11 @@ streamer_set_dsp_chain (ddb_dsp_context_t *chain) {
     if (playing_track && output->state () != OUTPUT_STATE_STOPPED) {
         deadbeef->streamer_seek (playpos);
     }
+}
+
+void
+streamer_save_dsp_config (void) {
+    char fname[PATH_MAX];
+    snprintf (fname, sizeof (fname), "%s/dspconfig", plug_get_config_dir ());
+    streamer_dsp_chain_save (fname, dsp_chain);
 }

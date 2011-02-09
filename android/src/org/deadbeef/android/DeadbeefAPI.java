@@ -81,12 +81,19 @@ public class DeadbeefAPI
 	public static native int fmt_get_samplerate (int fmt);
 	
 	// streamer events
-	
 	public static native boolean event_is_pending ();
 	public static native void event_dispatch ();
 	public static native String event_get_type ();
 	public static native String event_get_string (int idx);
 	public static native int event_get_int (int idx);
+	
+	// dsp
+	public static native int dsp_find (String name);
+	public static native void dsp_enable (int dsp, boolean enable);
+	public static native boolean dsp_is_enabled (int dsp);
+	public static native String dsp_get_param (int dsp, int p);
+	public static native void dsp_set_param (int dsp, int p, String val);
+	public static native void dsp_save_config ();
 
 	static {
 		System.loadLibrary("deadbeef");

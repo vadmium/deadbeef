@@ -133,14 +133,15 @@
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content"
 	              android:layout_weight="1"
-	              android:scrollbarSize="3px"
-	              android:progressDrawable="@drawable/ddb_seekbar"
-	              android:thumb="@drawable/ddb_seekbar_thumb"
 	              android:paddingLeft="20sp"
 	              android:paddingRight="20sp"
         android:layout_below="@id/toolbar"
 	              />
-              
+<!-- 	              android:scrollbarSize="3px"
+	              android:progressDrawable="@drawable/ddb_seekbar"
+	              android:thumb="@drawable/ddb_seekbar_thumb"
+-->
+
 	<TextView android:id="@+id/status"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"

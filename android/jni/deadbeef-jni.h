@@ -551,6 +551,54 @@ JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1stri
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1int
   (JNIEnv *, jclass, jint);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_find
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1find
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_enable
+ * Signature: (IZ)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1enable
+  (JNIEnv *, jclass, jint, jboolean);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_is_enabled
+ * Signature: (I)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1is_1enabled
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_get_param
+ * Signature: (II)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1get_1param
+  (JNIEnv *, jclass, jint, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_set_param
+ * Signature: (IILjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1set_1param
+  (JNIEnv *, jclass, jint, jint, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    dsp_save_config
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

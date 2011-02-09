@@ -954,3 +954,53 @@ Java_org_deadbeef_android_DeadbeefAPI_event_1get_1int (JNIEnv *env, jclass cls, 
     mutex_unlock (jnievent_mutex);
     return res;
 }
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1find (JNIEnv *env, jclass cls, jstring name) {
+    const char *str = (*env)->GetStringUTFChars(env, name, NULL);
+    ddb_dsp_context_t *ctx = streamer_get_dsp_chain ();
+    while (ctx) {
+        if (!strcmp (ctx->plugin->plugin.id, str)) {
+            break;
+        }
+    }
+    (*env)->ReleaseStringUTFChars(env, name, str);
+    return (jint)ctx;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1enable (JNIEnv *env, jclass cls, jint dsp, jboolean enable) {
+    ddb_dsp_context_t *ctx = ((ddb_dsp_context_t *)dsp);
+    ctx->enabled = enable;
+    streamer_dsp_postinit ();
+    if (enable) {
+        streamer_reset (1);
+    }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1is_1enabled (JNIEnv *env, jclass cls, jint dsp) {
+    ddb_dsp_context_t *ctx = ((ddb_dsp_context_t *)dsp);
+    return ctx->enabled;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1get_1param (JNIEnv *env, jclass cls, jint dsp, jint p) {
+    ddb_dsp_context_t *ctx = ((ddb_dsp_context_t *)dsp);
+    char param[1000];
+    ctx->plugin->get_param (ctx, p, param, sizeof (param));
+    return (*env)->NewStringUTF(env, param);
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1set_1param (JNIEnv *env, jclass cls, jint dsp, jint p, jstring v) {
+    ddb_dsp_context_t *ctx = ((ddb_dsp_context_t *)dsp);
+    const char *str = (*env)->GetStringUTFChars(env, v, NULL);
+    ctx->plugin->set_param (ctx, p, str);
+    (*env)->ReleaseStringUTFChars(env, v, str);
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config (JNIEnv *env, jclass cls) {
+    streamer_save_dsp_config ();
+}

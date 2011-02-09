@@ -114,4 +114,10 @@ streamer_get_dsp_chain (void);
 void
 streamer_set_dsp_chain (struct ddb_dsp_context_s *chain);
 
+void
+streamer_save_dsp_config (void);
+
+void
+streamer_dsp_postinit (void);
+
 #endif // __STREAMER_H

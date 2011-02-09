@@ -36,7 +36,6 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -622,6 +621,10 @@ public class Deadbeef extends Activity {
         }
         else if (id == R.id.menu_about) {
         	showDialog (0);
+        }
+        else if (id == R.id.menu_equalizer) {
+        	Intent i = new Intent (this, EQ.class);
+	    	startActivity(i);
         }
         return true;
     };
