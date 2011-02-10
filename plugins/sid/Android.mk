@@ -47,6 +47,10 @@ SID_PATH=$(LOCAL_PATH)/sidplay-libs
 
 LOCAL_CFLAGS += -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -DHAVE_UNIX -I$(SID_PATH) -I$(SID_PATH)/unix -I$(SID_PATH)/libsidplay -I$(SID_PATH)/libsidplay/include -I$(SID_PATH)/libsidplay/include/sidplay -I$(SID_PATH)/libsidutils/include/sidplay/utils -I$(SID_PATH)/builders/resid-builder/include/sidplay/builders -I$(SID_PATH)/builders/resid-builder/include -DHAVE_STRCASECMP -DHAVE_STRNCASECMP -DVERSION=\"deadbeef\" -DPACKAGE=\"libsidplay2\" -O2
 
+ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
+	LOCAL_CFLAGS += -mfpu=neon -fpic -fno-signed-zeros
+endif
+
 LOCAL_ARM_MODE := arm
 
 include $(BUILD_SHARED_LIBRARY)

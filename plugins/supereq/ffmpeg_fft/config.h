@@ -11,7 +11,7 @@
 #define EXTERN_PREFIX ""
 #define EXTERN_ASM 
 #define ARCH_ALPHA 0
-#define ARCH_ARM 0
+#define ARCH_ARM 1
 #define ARCH_AVR32 0
 #define ARCH_AVR32_AP 0
 #define ARCH_AVR32_UC 0
@@ -28,8 +28,8 @@
 #define ARCH_SPARC 0
 #define ARCH_SPARC64 0
 #define ARCH_TOMI 0
-#define ARCH_X86 1
-#define ARCH_X86_32 1
+#define ARCH_X86 0
+#define ARCH_X86_32 0
 #define ARCH_X86_64 0
 #define HAVE_ALTIVEC 0
 #define HAVE_AMD3DNOW 0
@@ -44,8 +44,8 @@
 #define HAVE_MMX2 0
 #define HAVE_NEON 1
 #define HAVE_PPC4XX 0
-#define HAVE_SSE 1
-#define HAVE_SSSE3 1
+#define HAVE_SSE 0
+#define HAVE_SSSE3 0
 #define HAVE_VIS 0
 #define HAVE_BIGENDIAN 0
 #define HAVE_PTHREADS 1

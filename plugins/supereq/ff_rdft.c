@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <complex.h>
 #include "libavcodec/avfft.h"
 #include "libavutil/avutil.h"
 
