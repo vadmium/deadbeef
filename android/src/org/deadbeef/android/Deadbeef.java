@@ -378,6 +378,15 @@ public class Deadbeef extends Activity {
 			    				mCover.setImageBitmap(bmp);
 		                    	mCover.getDrawable().setDither(true);
 			    			}
+			    			else if (path.toLowerCase().endsWith(".nsf")) {
+						        BitmapFactory.Options opts = new BitmapFactory.Options();
+						        opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
+						        Context context = Deadbeef.this;
+						        Bitmap bmp = BitmapFactory.decodeStream(
+						        		context.getResources().openRawResource(R.drawable.albumart_nes), null, opts);
+			    				mCover.setImageBitmap(bmp);
+		                    	mCover.getDrawable().setDither(true);
+			    			}
 			    			else {
 					            long songid = -1;
 				                long albumid = -1;
