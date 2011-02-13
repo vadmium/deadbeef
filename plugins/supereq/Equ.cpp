@@ -41,8 +41,6 @@ android_trace (const char *fmt, ...) {
 }
 #endif
 
-#define USE_FFMPEG
-
 int _Unwind_Resume_or_Rethrow;
 int _Unwind_RaiseException;
 int _Unwind_GetLanguageSpecificData;
@@ -56,8 +54,8 @@ int _Unwind_SetGR;
 int _Unwind_GetIPInfo;
 
 #ifdef USE_OOURA
-void rdft(int, int, REAL *, int *, REAL *);
-void rfft(int n,int isign,REAL x[])
+extern "C" void rdft(int, int, REAL *, int *, REAL *);
+void rfft(int n,int isign,REAL *x)
 {
     static int ipsize = 0,wsize=0;
     static int *ip = NULL;
@@ -88,7 +86,7 @@ void rfft(int n,int isign,REAL x[])
     rdft(n,isign,x,ip,w);
 }
 #elif defined(USE_FFMPEG) || defined(USE_SHIBATCH)
-extern "C" void rfft(int n,int isign,REAL x[]);
+extern "C" void rfft(int n,int isign,REAL *x);
 #endif
 
 #if defined(USE_SHIBATCH)
