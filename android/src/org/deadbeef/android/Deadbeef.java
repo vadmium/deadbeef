@@ -17,6 +17,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -367,52 +368,64 @@ public class Deadbeef extends Activity {
 	    	    		int trk = DeadbeefAPI.streamer_get_playing_track ();
 	    	    		if (0 != trk) {
 				            String path = DeadbeefAPI.pl_get_track_path (trk);
-				            long songid = -1;
-			                long albumid = -1;
-				            if (path != null) {
-
-							    Cursor mCursor = null;
-							    String[] mCursorCols = new String[] {
-							            "audio._id AS _id",             // index must match IDCOLIDX below
-							            MediaStore.Audio.Media.ALBUM_ID,
-							    };
-					            
-				                ContentResolver resolver = getContentResolver();
-				                Uri uri;
-				                String where;
-				                String selectionArgs[];
-				                if (path.startsWith("content://media/")) {
-				                    uri = Uri.parse(path);
-				                    where = null;
-				                    selectionArgs = null;
-				                } else {
-				                   uri = MediaStore.Audio.Media.getContentUriForPath(path);
-				                   where = MediaStore.Audio.Media.DATA + "=?";
-				                   selectionArgs = new String[] { path };
-				                }
-				                
-				                try {
-				                    mCursor = resolver.query(uri, mCursorCols, where, selectionArgs, null);
-				                    if  (mCursor != null) {
-				                        if (mCursor.getCount() == 0) {
-				                            mCursor.close();
-				                            mCursor = null;
-				                        } else {
-				                            mCursor.moveToNext();
-				                            songid = mCursor.getLong(IDCOLIDX);
-				                        }
-				                    }
-				                } catch (UnsupportedOperationException ex) {
-				                }   	    			
-
-					            if (songid >= 0) {
-					            	if (mCursor != null) {
-		            	                albumid = mCursor.getLong(mCursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID));
-					            	}
+				            
+			    			if (path.toLowerCase().endsWith(".sid")) {
+						        BitmapFactory.Options opts = new BitmapFactory.Options();
+						        opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
+						        Context context = Deadbeef.this;
+						        Bitmap bmp = BitmapFactory.decodeStream(
+						        		context.getResources().openRawResource(R.drawable.albumart_sid), null, opts);
+			    				mCover.setImageBitmap(bmp);
+		                    	mCover.getDrawable().setDither(true);
+			    			}
+			    			else {
+					            long songid = -1;
+				                long albumid = -1;
+					            if (path != null) {
+	
+								    Cursor mCursor = null;
+								    String[] mCursorCols = new String[] {
+								            "audio._id AS _id",             // index must match IDCOLIDX below
+								            MediaStore.Audio.Media.ALBUM_ID,
+								    };
+						            
+					                ContentResolver resolver = getContentResolver();
+					                Uri uri;
+					                String where;
+					                String selectionArgs[];
+					                if (path.startsWith("content://media/")) {
+					                    uri = Uri.parse(path);
+					                    where = null;
+					                    selectionArgs = null;
+					                } else {
+					                   uri = MediaStore.Audio.Media.getContentUriForPath(path);
+					                   where = MediaStore.Audio.Media.DATA + "=?";
+					                   selectionArgs = new String[] { path };
+					                }
+					                
+					                try {
+					                    mCursor = resolver.query(uri, mCursorCols, where, selectionArgs, null);
+					                    if  (mCursor != null) {
+					                        if (mCursor.getCount() == 0) {
+					                            mCursor.close();
+					                            mCursor = null;
+					                        } else {
+					                            mCursor.moveToNext();
+					                            songid = mCursor.getLong(IDCOLIDX);
+					                        }
+					                    }
+					                } catch (UnsupportedOperationException ex) {
+					                }   	    			
+	
+						            if (songid >= 0) {
+						            	if (mCursor != null) {
+			            	                albumid = mCursor.getLong(mCursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID));
+						            	}
+						            }
 					            }
-				            }
-			                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
-			                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
+				                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
+				                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
+			    			}
 			                mCover.setVisibility(View.VISIBLE);
 	    	    			DeadbeefAPI.pl_item_unref (trk);
 	    	    			
