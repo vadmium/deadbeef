@@ -1,7 +1,11 @@
 package org.deadbeef.android;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.SeekBar;
@@ -53,30 +57,50 @@ public class EQ extends Activity {
 		R.id.db_band16,
 		R.id.db_band17
 	};
+	
+	private void initParam (int dsp, int i) {
+	    SeekBar sb = (SeekBar)findViewById(sliders[i]);
+		String val = DeadbeefAPI.dsp_get_param (dsp, i);
+		float fv = Float.valueOf(val);
+		sb.setProgress((int)(((fv / 40.0f) + 0.5) * 100));
+		TextView tv = (TextView)findViewById(values[i]);
+		int dB = (int)fv;
+		if (dB >= 0) {
+			val = "+" + dB + " dB";
+		}
+		else {
+			val = dB + " dB";
+		}
+		tv.setText (val);
+	}
+	
+	private void initGui (int dsp) {
+        for (int i = 0; i < 19; i++) {
+        	initParam (dsp, i);
+        }
+	}
+	
 
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.eq);
         
-        final int plugin = DeadbeefAPI.dsp_find("supereq");
-        if (0 != plugin) {
-        	boolean enabled = DeadbeefAPI.dsp_is_enabled(plugin);
+        final int dsp = DeadbeefAPI.dsp_find("supereq");
+        if (0 != dsp) {
+        	boolean enabled = DeadbeefAPI.dsp_is_enabled(dsp);
         	ToggleButton tb = (ToggleButton)findViewById (R.id.eq_onoff); 
         	tb.setChecked(enabled);
         	tb.setOnCheckedChangeListener(new OnCheckedChangeListener () {
         		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        			DeadbeefAPI.dsp_enable(plugin, isChecked);
+        			DeadbeefAPI.dsp_enable(dsp, isChecked);
         			DeadbeefAPI.dsp_save_config();
         		}
         	});
         
 	        for (int i = 0; i < 19; i++) {
+	        	initParam (dsp, i);
 	        	SeekBar sb = (SeekBar)findViewById(sliders[i]);
-	        	String val = DeadbeefAPI.dsp_get_param (plugin, i);
-	        	float fv = Float.valueOf(val);
-	        	sb.setProgress((int)(((fv / 40.0f) + 0.5) * 100));
-	        	
 	        	sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { 
 					public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 						int dB = (int)(((float)progress/100.0f - 0.5f) * 40);
@@ -91,7 +115,7 @@ public class EQ extends Activity {
 								}
 								TextView tv = (TextView)findViewById(values[i]);
 								tv.setText (val);
-								DeadbeefAPI.dsp_set_param (plugin, i, String.valueOf(val));
+								DeadbeefAPI.dsp_set_param (dsp, i, String.valueOf(val));
 								DeadbeefAPI.dsp_save_config();
 							}
 						}
@@ -102,7 +126,25 @@ public class EQ extends Activity {
 					}
 				});
 	        }
+            ((Button)findViewById(R.id.preset)).setOnClickListener(new OnClickListener() {
+		        public void onClick(View v) {
+			        Intent i = new Intent (EQ.this, SelectEqPreset.class);
+			    	startActivityForResult(i, 0);
+		        }
+            });
+
         }
 	}
-
+	
+	@Override
+    protected void onActivityResult (int requestCode, int resultCode, Intent data) {
+    	if (requestCode == 0) {
+    		final int dsp = DeadbeefAPI.dsp_find("supereq");
+    		if (0 != dsp) {
+    			DeadbeefAPI.dsp_load_preset (dsp, resultCode);
+    			initGui (dsp);
+    		}    		
+    	}
+    }
+	
 }

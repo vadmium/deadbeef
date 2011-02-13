@@ -5,7 +5,7 @@ LOCAL_MODULE := supereq
 
 LOCAL_SRC_FILES += supereq.c Equ.cpp Fftsg_fl.cpp
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../.. -O3 -std=c99 -I$(LOCAL_PATH)/../../plugins/supereq/ffmpeg_fft
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../.. -O3 -std=c99
 
 ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
 #	LOCAL_SRC_FILES += ff_rdft.c\
@@ -24,15 +24,11 @@ ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
 #		ffmpeg_fft/libavcodec/arm/simple_idct_neon.S\
 #		ffmpeg_fft/libavcodec/arm/rdft_neon.S
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../plugins/supereq/nsfft-1.00/simd -I$(LOCAL_PATH)/../../plugins/supereq/nsfft-1.00/dft -DENABLE_NEON_FLOAT
+#LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../plugins/supereq/ffmpeg_fft
 
-LOCAL_SRC_FILES += shibatch_rdft.c\
-	nsfft-1.00/simd/SIMDBaseUndiff.c\
-	nsfft-1.00/simd/SIMDBase.c\
-	nsfft-1.00/dft/DFT.c\
-	nsfft-1.00/dft/DFTUndiff.c
+#LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../plugins/supereq/nsfft-1.00/simd -I$(LOCAL_PATH)/../../plugins/supereq/nsfft-1.00/dft
 
-	LOCAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp -fpic -fno-signed-zeros -DUSE_SHIBATCH
+	LOCAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp -fpic -fno-signed-zeros -DUSE_OOURA
 else
 	LOCAL_CFLAGS += -DUSE_OOURA
 endif

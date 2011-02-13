@@ -94,6 +94,12 @@ public class DeadbeefAPI
 	public static native String dsp_get_param (int dsp, int p);
 	public static native void dsp_set_param (int dsp, int p, String val);
 	public static native void dsp_save_config ();
+	public static native int dsp_num_presets (int dsp);
+	public static native String dsp_preset_name (int dsp, int idx);
+	public static native int dsp_delete_preset (int dsp, int idx);
+	public static native int dsp_load_preset (int dsp, int idx);
+	public static native int dsp_save_preset (int dsp, String name);
+	public static native int dsp_rename_preset (int dsp, int idx, String newname);
 
 	static {
 		System.loadLibrary("deadbeef");

@@ -36,4 +36,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 <string name="widget_initial_text">Touch to select music.</string>
 <string name="title_playlist_viewer">Playlist</string>
 <string name="title_supereq">SuperEQ</string>
+<string name="new_eq_preset">New EQ preset</string>
+<string name="delete_eq_preset">Delete EQ preset</string>
+<string name="delete_eq_preset_confirm">Sure?</string>
+<string name="rename_eq_preset">Rename EQ preset</string>
+<string name="select_eq_preset">EQ Presets</string>
 </resources>

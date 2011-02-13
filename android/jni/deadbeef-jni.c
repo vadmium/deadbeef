@@ -297,6 +297,9 @@ lastfm_paused (DB_event_state_t *e, uintptr_t data) {
     return 0;
 }
 
+int
+scan_dsp_presets (void);
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
@@ -336,6 +339,9 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     // setup fake output plugin
     extern DB_output_t *output_plugin;
     output_plugin = &jni_out;
+
+    // prepare dsp presets
+    scan_dsp_presets ();
 
     streamer_init ();
 
@@ -1003,4 +1009,141 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1set_1param (JNIEnv *env, jclass cls, 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config (JNIEnv *env, jclass cls) {
     streamer_save_dsp_config ();
+}
+
+#define MAX_DSP_PRESETS 20
+#define MAX_DSP_FNAME 100
+char dsp_preset_names[MAX_DSP_PRESETS][100];
+int num_dsp_presets = 0;
+
+void
+make_dsp_presets_path () {
+    char dir[PATH_MAX];
+    snprintf (dir, sizeof (dir), "%s/presets", dbconfdir);
+    mkdir (dir, 0);
+    snprintf (dir, sizeof (dir), "%s/presets/dsp", dbconfdir);
+    mkdir (dir, 0);
+    snprintf (dir, sizeof (dir), "%s/presets/dsp/eq", dbconfdir);
+    mkdir (dir, 0);
+}
+
+static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
+    return strcmp ((*a)->d_name, (*b)->d_name);
+}
+
+int
+scan_dsp_presets (void) {
+    make_dsp_presets_path ();
+    num_dsp_presets = 0;
+
+    char dir[PATH_MAX];
+    snprintf (dir, sizeof (dir), "%s/presets/dsp/eq", dbconfdir);
+    struct dirent **namelist = NULL;
+    int n = scandir (dir, &namelist, NULL, dirent_alphasort);
+    for (int i = 0; i < n; i++) {
+        const char *ext = strrchr (namelist[i]->d_name, '.');
+        if (ext && !strcmp (ext, ".txt")) {
+            strncpy (dsp_preset_names[num_dsp_presets++], namelist[i]->d_name, MAX_DSP_FNAME);
+            char *dot = strrchr (dsp_preset_names[num_dsp_presets-1], '.');
+            if (dot) {
+                *dot = 0;
+            }
+        }
+        free (namelist[i]);
+    }
+    if (namelist) {
+        free (namelist);
+    }
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1num_1presets (JNIEnv *env, jclass cls, jint dsp) {
+    return num_dsp_presets;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1preset_1name (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+    return (*env)->NewStringUTF(env, dsp_preset_names[idx]);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1delete_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+    if (idx >= num_dsp_presets) {
+        return -1;
+    }
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s", dbconfdir, dsp_preset_names[idx]);
+    unlink (f);
+    if (idx < num_dsp_presets-1) {
+        memmove (&dsp_preset_names[idx], &dsp_preset_names[idx+1], MAX_DSP_FNAME * (num_dsp_presets-idx-1));
+    }
+    num_dsp_presets--;
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1load_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
+    FILE *fp = fopen (f, "rt");
+    if (!fp) {
+        return -1;
+    }
+
+    ddb_dsp_context_t *ctx = (ddb_dsp_context_t *)dsp;
+    int n = 0;
+    char s[1000];
+    while (1 == fscanf (fp, "%1000s\n", s)) {
+        ctx->plugin->set_param (ctx, n, s);
+        n++;
+    }
+
+    fclose (fp);
+
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset (JNIEnv *env, jclass cls, jint dsp, jstring name) {
+    char f[PATH_MAX];
+    const char *str = (*env)->GetStringUTFChars(env, name, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, str);
+    (*env)->ReleaseStringUTFChars(env, name, str);
+
+    FILE *fp = fopen (f, "w+t");
+    if (!fp) {
+        return -1;
+    }
+
+    ddb_dsp_context_t *ctx = (ddb_dsp_context_t *)dsp;
+
+    int n = ctx->plugin->num_params ();
+    for (int i = 0; i < n; i++) {
+        char s[1000];
+        ctx->plugin->get_param (ctx, i, s, sizeof (s));
+        fprintf (fp, "%s\n", s);
+    }
+
+    fclose (fp);
+    scan_dsp_presets ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx, jstring name) {
+    char newname[PATH_MAX];
+    char oldname[PATH_MAX];
+    const char *str = (*env)->GetStringUTFChars(env, name, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    snprintf (newname, sizeof (newname), "%s/presets/dsp/eq/%s.txt", dbconfdir, str);
+    (*env)->ReleaseStringUTFChars(env, name, str);
+
+    snprintf (oldname, sizeof (oldname), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
+
+    rename (oldname, newname);
+    scan_dsp_presets ();
 }

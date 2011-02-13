@@ -45,6 +45,10 @@
     	 android:label="@string/title_supereq"
     	 android:launchMode="standard">
 	</activity>
+    <activity android:name="SelectEqPreset"
+    	 android:label="@string/select_eq_preset"
+    	 android:launchMode="standard">
+	</activity>
 	    <receiver android:name="MediaButtonIntentReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
