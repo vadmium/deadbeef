@@ -31,7 +31,7 @@
 #include "callbacks.h"
 #include "interface.h"
 #include "support.h"
-#include "deadbeef.h"
+#include "../../deadbeef.h"
 #include "gtkui.h"
 #include "pluginconf.h"
 
@@ -77,6 +77,41 @@ scandir_preset_filter (const struct dirent *ent) {
     return 0;
 }
 
+static void
+dsp_fill_preset_list (GtkWidget *combobox) {
+    // fill list of presets
+    GtkListStore *mdl;
+    mdl = GTK_LIST_STORE (gtk_combo_box_get_model (GTK_COMBO_BOX (combobox)));
+    gtk_list_store_clear (mdl);
+    struct dirent **namelist = NULL;
+    char path[1024];
+    if (snprintf (path, sizeof (path), "%s/presets/dsp", deadbeef->get_config_dir ()) > 0) {
+        int n = scandir (path, &namelist, scandir_preset_filter, dirent_alphasort);
+        int i;
+        for (i = 0; i < n; i++) {
+            char title[100];
+            strcpy (title, namelist[i]->d_name);
+            char *e = strrchr (title, '.');
+            if (e) {
+                *e = 0;
+            }
+            GtkTreeIter iter;
+            gtk_list_store_append (mdl, &iter);
+            gtk_list_store_set (mdl, &iter, 0, title, -1);
+            free (namelist[i]);
+        }
+        free (namelist);
+    }
+
+    // set last preset name
+    GtkWidget *entry = gtk_bin_get_child (GTK_BIN (combobox));
+    if (entry) {
+        deadbeef->conf_lock ();
+        gtk_entry_set_text (GTK_ENTRY (entry), deadbeef->conf_get_str_fast ("gtkui.conf_dsp_preset", ""));
+        deadbeef->conf_unlock ();
+    }
+}
+
 void
 dsp_setup_init (GtkWidget *_prefwin) {
     prefwin = _prefwin;
@@ -108,34 +143,8 @@ dsp_setup_init (GtkWidget *_prefwin) {
 
     fill_dsp_chain (mdl);
 
-    // set last preset name
     GtkWidget *combobox = lookup_widget (prefwin, "dsp_preset");
-    GtkWidget *entry = gtk_bin_get_child (GTK_BIN (combobox));
-    if (entry) {
-        gtk_entry_set_text (GTK_ENTRY (entry), deadbeef->conf_get_str ("gtkui.conf_dsp_preset", ""));
-    }
-
-    // fill list of presets
-    mdl = GTK_LIST_STORE (gtk_combo_box_get_model (GTK_COMBO_BOX (combobox)));
-    struct dirent **namelist = NULL;
-    char path[1024];
-    if (snprintf (path, sizeof (path), "%s/presets/dsp", deadbeef->get_config_dir ()) > 0) {
-        int n = scandir (path, &namelist, scandir_preset_filter, dirent_alphasort);
-        int i;
-        for (i = 0; i < n; i++) {
-            char title[100];
-            strcpy (title, namelist[i]->d_name);
-            char *e = strrchr (title, '.');
-            if (e) {
-                *e = 0;
-            }
-            GtkTreeIter iter;
-            gtk_list_store_append (mdl, &iter);
-            gtk_list_store_set (mdl, &iter, 0, title, -1);
-            free (namelist[i]);
-        }
-        free (namelist);
-    }
+    dsp_fill_preset_list (combobox);
 }
 
 void
@@ -264,8 +273,7 @@ on_dsp_remove_clicked                  (GtkButton       *button,
         gtk_list_store_clear (mdl);
         fill_dsp_chain (mdl);
         GtkTreePath *path = gtk_tree_path_new_from_indices (idx, -1);
-        GtkTreeViewColumn *col;
-        gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, col, FALSE);
+        gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, NULL, FALSE);
         gtk_tree_path_free (path);
         update_streamer ();
     }
@@ -387,8 +395,7 @@ on_dsp_up_clicked                      (GtkButton       *button,
         return;
     }
     GtkTreePath *path = gtk_tree_path_new_from_indices (idx-1, -1);
-    GtkTreeViewColumn *col;
-    gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, col, FALSE);
+    gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, NULL, FALSE);
     gtk_tree_path_free (path);
     update_streamer ();
 }
@@ -408,8 +415,7 @@ on_dsp_down_clicked                    (GtkButton       *button,
         return;
     }
     GtkTreePath *path = gtk_tree_path_new_from_indices (idx+1, -1);
-    GtkTreeViewColumn *col;
-    gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, col, FALSE);
+    gtk_tree_view_set_cursor (GTK_TREE_VIEW (list), path, NULL, FALSE);
     gtk_tree_path_free (path);
     update_streamer ();
 }
@@ -450,6 +456,8 @@ on_dsp_preset_save_clicked             (GtkButton       *button,
         return;
     }
     deadbeef->dsp_preset_save (path, chain);
+
+    dsp_fill_preset_list (combobox);
 }
 
 

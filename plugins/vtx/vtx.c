@@ -31,7 +31,6 @@ static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
 
 static const char * exts[] = { "vtx", NULL };
-static const char *filetypes[] = { "VTX", NULL };
 
 #define AY_FRAME_SIZE 14
 
@@ -62,9 +61,9 @@ vtx_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     size_t sz = 0;
     char *buf = NULL;
 
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
-        trace ("vtx: failed to open file %s\n", it->fname);
+        trace ("vtx: failed to open file %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -229,7 +228,7 @@ vtx_seek (DB_fileinfo_t *_info, float time) {
 }
 
 static DB_playItem_t *
-vtx_insert (DB_playItem_t *after, const char *fname) {
+vtx_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     // read information from the track
     // load/process cuesheet if exists
     // insert track into playlist
@@ -258,16 +257,13 @@ vtx_insert (DB_playItem_t *after, const char *fname) {
     }
     trace ("vtx: datasize: %d\n", hdr->regdata_size);
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = filetypes[0];
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "VTX");
 
     int numframes = hdr->regdata_size / AY_FRAME_SIZE;
 //    int totalsamples = numframes * hdr->playerFreq;
     trace ("vtx: numframes=%d, playerFreq=%d\n", numframes, hdr->playerFreq);
-    deadbeef->pl_set_item_duration (it, (float)numframes / hdr->playerFreq);
+    deadbeef->plt_set_item_duration (plt, it, (float)numframes / hdr->playerFreq);
 
     // add metadata
     deadbeef->pl_add_meta (it, "title", hdr->title);
@@ -275,7 +271,7 @@ vtx_insert (DB_playItem_t *after, const char *fname) {
     deadbeef->pl_add_meta (it, "album", hdr->from);
 
     ayemu_vtx_free (hdr);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     return after;
 }
@@ -297,20 +293,39 @@ vtx_stop (void) {
 }
 
 static const char settings_dlg[] =
-    "property \"Bits Per Sample (8 or 16)\" entry vtx.bps 16;\n"
+    "property \"Bits per sample (8 or 16)\" entry vtx.bps 16;\n"
 ;
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "vtx",
-    .plugin.name = "VTX decoder",
+    .plugin.name = "VTX player",
     .plugin.descr = "AY8910/12 chip emulator and vtx file player",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses libayemu - AY/YM sound chip emulator and music file loader\n"
+        "Copyright (C) 2003-2004 Sashnov Alexander\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = vtx_start,
     .plugin.stop = vtx_stop,
@@ -323,7 +338,6 @@ static DB_decoder_t plugin = {
     .seek_sample = vtx_seek_sample,
     .insert = vtx_insert,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *

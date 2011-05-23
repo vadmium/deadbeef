@@ -20,7 +20,7 @@
 #define __CONVERTER_H
 
 #include <stdint.h>
-#include <deadbeef.h>
+#include "../../deadbeef.h"
 
 enum {
     DDB_ENCODER_METHOD_PIPE = 0,
@@ -43,10 +43,16 @@ typedef struct ddb_preset_s {
 typedef struct ddb_encoder_preset_s {
     char *title;
     struct ddb_encoder_preset_s *next;
-    char *fname;
+    char *ext;
     char *encoder;
     int method; // pipe or file
-    uint32_t formats; // combination of supported flags (FMT_*)
+    int tag_id3v2;
+    int tag_id3v1;
+    int tag_apev2;
+    int tag_flac;
+    int tag_oggvorbis;
+    int tag_mp3xing;
+    int id3v2_version;
 } ddb_encoder_preset_t;
 
 typedef struct ddb_dsp_preset_s {
@@ -132,9 +138,25 @@ typedef struct {
     // converter
     /////////////////////////////
 
-    int
-    (*convert) (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_encoder_preset_t *encoder_preset, ddb_dsp_preset_t *dsp_preset, int *abort);
 
+    void
+    (*get_output_path) (DB_playItem_t *it, const char *outfolder, const char *outfile, ddb_encoder_preset_t *encoder_preset, char *out, int sz);
+
+    int
+    (*convert) (DB_playItem_t *it, const char *outfolder, const char *outfile, int output_bps, int output_is_float, int preserve_folder_structure, const char *root_folder, ddb_encoder_preset_t *encoder_preset, ddb_dsp_preset_t *dsp_preset, int *abort);
+
+    /////////////////////////////
+    // new APIs for converter-1.1
+    /////////////////////////////
+
+    int
+    (*load_encoder_presets) (void);
+    int
+    (*load_dsp_presets) (void);
+    void
+    (*free_encoder_presets) (void);
+    void
+    (*free_dsp_presets) (void);
 } ddb_converter_t;
 
 #endif

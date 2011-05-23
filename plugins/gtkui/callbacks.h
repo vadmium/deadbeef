@@ -291,16 +291,6 @@ void
 volumebar_expose (GtkWidget *widget, int x, int y, int w, int h);
 
 
-
-void
-on_progress_abort                      (GtkButton       *button,
-                                        gpointer         user_data);
-
-gboolean
-on_addprogress_delete_event            (GtkWidget       *widget,
-                                        GdkEvent        *event,
-                                        gpointer         user_data);
-
 gboolean
 on_volumebar_scroll_event              (GtkWidget       *widget,
                                         GdkEventScroll        *event,
@@ -1057,4 +1047,111 @@ on_dsp_preset_save_clicked             (GtkButton       *button,
 
 void
 on_dsp_preset_load_clicked             (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_plug_copyright_clicked              (GtkButton       *button,
+                                        gpointer         user_data);
+
+GtkWidget*
+create_plugin_weblink (gchar *widget_name, gchar *string1, gchar *string2,
+                gint int1, gint int2);
+
+gboolean
+on_metalist_button_press_event         (GtkWidget       *widget,
+                                        GdkEventButton  *event,
+                                        gpointer         user_data);
+
+void
+on_tagwriter_settings_clicked          (GtkButton       *button,
+                                        gpointer         user_data);
+
+gboolean
+on_trackproperties_configure_event     (GtkWidget       *widget,
+                                        GdkEventConfigure *event,
+                                        gpointer         user_data);
+
+void
+on_trackproperties_state_changed       (GtkWidget       *widget,
+                                        GtkStateType     state,
+                                        gpointer         user_data);
+
+gboolean
+on_trackproperties_window_state_event  (GtkWidget       *widget,
+                                        GdkEventWindowState *event,
+                                        gpointer         user_data);
+
+gboolean
+on_prefwin_configure_event             (GtkWidget       *widget,
+                                        GdkEventConfigure *event,
+                                        gpointer         user_data);
+
+gboolean
+on_prefwin_window_state_event          (GtkWidget       *widget,
+                                        GdkEventWindowState *event,
+                                        gpointer         user_data);
+
+void
+on_prefwin_realize                     (GtkWidget       *widget,
+                                        gpointer         user_data);
+
+gboolean
+on_prefwin_map_event                   (GtkWidget       *widget,
+                                        GdkEvent        *event,
+                                        gpointer         user_data);
+
+void
+on_replaygain_preamp_value_changed     (GtkRange        *range,
+                                        gpointer         user_data);
+
+void
+on_tabstrip_text_color_set             (GtkColorButton  *colorbutton,
+                                        gpointer         user_data);
+
+void
+on_gui_plugin_changed                  (GtkComboBox     *combobox,
+                                        gpointer         user_data);
+
+void
+on_seekbar_fps_value_changed           (GtkRange        *range,
+                                        gpointer         user_data);
+
+void
+on_gui_fps_value_changed               (GtkRange        *range,
+                                        gpointer         user_data);
+
+void
+on_add_from_archives_toggled           (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_ignore_archives_toggled             (GtkToggleButton *togglebutton,
+                                        gpointer         user_data);
+
+void
+on_sort_by_title_activate              (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sort_by_track_nr_activate           (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sort_by_album_activate              (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sort_by_artist_activate             (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sort_by_date_activate               (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_sort_by_custom_activate             (GtkMenuItem     *menuitem,
+                                        gpointer         user_data);
+
+void
+on_convert8to16_toggled                (GtkToggleButton *togglebutton,
                                         gpointer         user_data);

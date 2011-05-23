@@ -837,13 +837,10 @@ junk_id3v1_read (playItem_t *it, DB_FILE *fp) {
 //    "RX" = "Remix" (id3v2)
 
     if (genreid == 0xff) {
-        genre = "None";
+        //genre = "None";
     }
     else if (genreid <= 147) {
         genre = junk_genretbl[genreid];
-    }
-    else {
-        genre = "";
     }
 
     // add meta
@@ -863,8 +860,7 @@ junk_id3v1_read (playItem_t *it, DB_FILE *fp) {
     if (*comment) {
         pl_add_meta (it, "comment", convstr_id3v1 (comment, strlen (comment)));
     }
-    if (*genre) {
-        printf ("id3v1 genre: %s (%s)\n", genre, convstr_id3v1 (genre, strlen (genre)));
+    if (genre && *genre) {
         pl_add_meta (it, "genre", convstr_id3v1 (genre, strlen (genre)));
     }
     if (tracknum != 0) {
@@ -1111,19 +1107,19 @@ junk_apev2_add_frame (playItem_t *it, DB_apev2_tag_t *tag_store, DB_apev2_frame_
 
             if (!frame_mapping[m]) {
                 if (!strncasecmp (key, "replaygain_album_gain", 21)) {
-                    it->replaygain_album_gain = atof (value);
+                    pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, atof (value));
                     trace ("album_gain=%s\n", value);
                 }
                 else if (!strncasecmp (key, "replaygain_album_peak", 21)) {
-                    it->replaygain_album_peak = atof (value);
+                    pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, atof (value));
                     trace ("album_peak=%s\n", value);
                 }
                 else if (!strncasecmp (key, "replaygain_track_gain", 21)) {
-                    it->replaygain_track_gain = atof (value);
+                    pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, atof (value));
                     trace ("track_gain=%s\n", value);
                 }
                 else if (!strncasecmp (key, "replaygain_track_peak", 21)) {
-                    it->replaygain_track_peak = atof (value);
+                    pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, atof (value));
                     trace ("track_peak=%s\n", value);
                 }
                 else {
@@ -1619,6 +1615,28 @@ junk_id3v2_remove_txxx_frame (DB_id3v2_tag_t *tag, const char *key) {
             if (txx) {
                 free (txx);
             }
+        }
+        else {
+            prev = f;
+        }
+        f = next;
+    }
+    return 0;
+}
+
+int
+junk_id3v2_remove_all_txxx_frames (DB_id3v2_tag_t *tag) {
+    DB_id3v2_frame_t *prev = NULL;
+    for (DB_id3v2_frame_t *f = tag->frames; f; ) {
+        DB_id3v2_frame_t *next = f->next;
+        if (!strcmp (f->id, "TXXX")) {
+            if (prev) {
+                prev->next = f->next;
+            }
+            else {
+                tag->frames = f->next;
+            }
+            free (f);
         }
         else {
             prev = f;
@@ -2328,6 +2346,28 @@ junk_apev2_remove_frames (DB_apev2_tag_t *tag, const char *frame_id) {
     return 0;
 }
 
+int
+junk_apev2_remove_all_text_frames (DB_apev2_tag_t *tag) {
+    DB_apev2_frame_t *prev = NULL;
+    for (DB_apev2_frame_t *f = tag->frames; f; ) {
+        DB_apev2_frame_t *next = f->next;
+        int valuetype = ((f->flags >> 1) & 3);
+        if (valuetype == 0) {
+            if (prev) {
+                prev->next = f->next;
+            }
+            else {
+                tag->frames = f->next;
+            }
+            free (f);
+        }
+        else {
+            prev = f;
+        }
+        f = next;
+    }
+    return 0;
+}
 DB_apev2_frame_t *
 junk_apev2_add_text_frame (DB_apev2_tag_t *tag, const char *frame_id, const char *value) {
     trace ("adding apev2 frame %s %s\n", frame_id, value);
@@ -2339,6 +2379,7 @@ junk_apev2_add_text_frame (DB_apev2_tag_t *tag, const char *frame_id, const char
         tail = tail->next;
     }
 
+#if 0 // this will split every line into separate field
     const char *next = value;
     while (*value) {
         while (*next && *next != '\n') {
@@ -2377,6 +2418,26 @@ junk_apev2_add_text_frame (DB_apev2_tag_t *tag, const char *frame_id, const char
 
         value = next;
     }
+#endif
+    size_t size = strlen (value);
+    DB_apev2_frame_t *f = malloc (sizeof (DB_apev2_frame_t) + size);
+    if (!f) {
+        trace ("junk_apev2_add_text_frame: failed to allocate %d bytes\n", size);
+        return NULL;
+    }
+    memset (f, 0, sizeof (DB_apev2_frame_t));
+    f->flags = 0;
+    strcpy (f->key, frame_id);
+    f->size = size;
+    memcpy (f->data, value, size);
+
+    if (tail) {
+        tail->next = f;
+    }
+    else {
+        tag->frames = f;
+    }
+    tail = f;
     return tail;
 }
 
@@ -2803,16 +2864,16 @@ junk_id3v2_load_txx (int version_major, playItem_t *it, uint8_t *readptr, int sy
         }
 
         if (!strcasecmp (txx, "replaygain_album_gain")) {
-            it->replaygain_album_gain = atof (val);
+            pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, atof (val));
         }
         else if (!strcasecmp (txx, "replaygain_album_peak")) {
-            it->replaygain_album_peak = atof (val);
+            pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, atof (val));
         }
         else if (!strcasecmp (txx, "replaygain_track_gain")) {
-            it->replaygain_track_gain = atof (val);
+            pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, atof (val));
         }
         else if (!strcasecmp (txx, "replaygain_track_peak")) {
-            it->replaygain_track_peak = atof (val);
+            pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, atof (val));
         }
         else {
             pl_append_meta (it, txx, val);
@@ -2864,7 +2925,7 @@ junk_id3v2_add_genre (playItem_t *it, char *genre) {
                 genre_str = junk_genretbl[genre_id];
             }
             else if (genre_id == 0xff) {
-                genre_str = "None";
+                // genre_str = "None";
             }
             if (genre_str) {
                 pl_add_meta (it, "genre", genre_str);
@@ -2938,6 +2999,7 @@ junk_id3v2_read_full (playItem_t *it, DB_id3v2_tag_t *tag_store, DB_FILE *fp) {
     uint8_t *tag = malloc (size);
     if (!tag) {
         fprintf (stderr, "junklib: out of memory while reading id3v2, tried to alloc %d bytes\n", size);
+        goto error;
     }
     if (deadbeef->fread (tag, 1, size, fp) != size) {
         goto error; // bad size
@@ -3325,7 +3387,7 @@ junk_detect_charset (const char *s) {
     if (can_be_russian (s)) {
         return "cp1251";
     }
-    return "iso8859-1";
+    return "cp1252";
 }
 
 int
@@ -3335,10 +3397,13 @@ junk_recode (const char *in, int inlen, char *out, int outlen, const char *cs) {
 
 int
 junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const char *id3v1_encoding) {
+    trace ("junk_rewrite_tags %X\n", junk_flags);
     int err = -1;
     char *buffer = NULL;
     DB_FILE *fp = NULL;
     FILE *out = NULL;
+
+    uint32_t item_flags = pl_get_item_flags (it);
 
     // get options
     int strip_id3v2 = junk_flags & JUNK_STRIP_ID3V2;
@@ -3349,8 +3414,10 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
     int write_apev2 = junk_flags & JUNK_WRITE_APEV2;
 
     // find the beginning and the end of audio data
-    fp = deadbeef->fopen (it->fname);
+    const char *fname = pl_find_meta (it, ":URI");
+    fp = deadbeef->fopen (fname);
     if (!fp) {
+        trace ("file not found %s\n", fname);
         return -1;
     }
 
@@ -3399,7 +3466,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
     // open output file
     out = NULL;
     char tmppath[PATH_MAX];
-    snprintf (tmppath, sizeof (tmppath), "%s.temp", it->fname);
+    snprintf (tmppath, sizeof (tmppath), "%s.temp", pl_find_meta (it, ":URI"));
 
     out = fopen (tmppath, "w+b");
     trace ("will write tags into %s\n", tmppath);
@@ -3416,7 +3483,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
 
     if (!strip_id3v2 && !write_id3v2 && id3v2_size > 0) {
         if (deadbeef->fseek (fp, id3v2_start, SEEK_SET) == -1) {
-            trace ("cmp3_write_metadata: failed to seek to original id3v2 tag position in %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to seek to original id3v2 tag position in %s\n", pl_find_meta (it, ":URI"));
             goto error;
         }
         uint8_t *buf = malloc (id3v2_size);
@@ -3425,18 +3492,19 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             goto error;
         }
         if (deadbeef->fread (buf, 1, id3v2_size, fp) != id3v2_size) {
-            trace ("cmp3_write_metadata: failed to read original id3v2 tag from %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to read original id3v2 tag from %s\n", pl_find_meta (it, ":URI"));
             free (buf);
             goto error;
         }
         if (fwrite (buf, 1, id3v2_size, out) != id3v2_size) {
-            trace ("cmp3_write_metadata: failed to copy original id3v2 tag from %s to temp file\n", it->fname);
+            trace ("cmp3_write_metadata: failed to copy original id3v2 tag from %s to temp file\n", pl_find_meta (it, ":URI"));
             free (buf);
             goto error;
         }
         free (buf);
     }
     else if (write_id3v2) {
+        trace ("writing id3v2\n");
         if (id3v2_size <= 0 || strip_id3v2 || deadbeef->junk_id3v2_read_full (NULL, &id3v2, fp) != 0) {
             deadbeef->junk_id3v2_free (&id3v2);
             memset (&id3v2, 0, sizeof (id3v2));
@@ -3472,11 +3540,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             }
         }
 
-        // remove all known txxx frames
-        for (int txx = 0; txx_mapping[txx]; txx += 2) {
-            trace ("removing txxx %s\n", txx_mapping[txx])
-            junk_id3v2_remove_txxx_frame (&id3v2, txx_mapping[txx]);
-        }
+        junk_id3v2_remove_all_txxx_frames (&id3v2);
 
         // COMM
         junk_id3v2_remove_frames (&id3v2, "COMM");
@@ -3486,7 +3550,16 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             junk_id3v2_add_comment_frame (&id3v2, "eng", "", val);
         }
 
-        DB_metaInfo_t *meta = pl_get_metadata (it);
+        // remove all known normal frames (they will be refilled from track metadata)
+        int idx = id3v2.version[0] == 3 ? MAP_ID3V23 : MAP_ID3V24;
+        for (int i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
+            if (frame_mapping[i+idx]) {
+                junk_id3v2_remove_frames (&id3v2, frame_mapping[i+idx]);
+                trace ("removed frame %s\n", frame_mapping[i+idx]);
+            }
+        }
+
+        DB_metaInfo_t *meta = pl_get_metadata_head (it);
         while (meta) {
             if (meta->value && *meta->value) {
                 int i;
@@ -3495,10 +3568,8 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
                         const char *frm_name = id3v2_version == 3 ? frame_mapping[i+MAP_ID3V23] : frame_mapping[i+MAP_ID3V24];
                         if (frm_name) {
                             // field is known and supported for this tag version
-                            junk_id3v2_remove_frames (&id3v2, frm_name);
                             trace ("add_frame %s %s\n", frm_name, meta->value);
                             junk_id3v2_add_text_frame (&id3v2, frm_name, meta->value);
-                            //junk_id3v2_add_text_frame (&id3v2, frm_name, "test line 1\nтестовая строка №2");
                         }
                         break;
                     }
@@ -3509,7 +3580,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
                         && strcasecmp (meta->key, "track")
                         && strcasecmp (meta->key, "numtracks")) {
                     // add as txxx
-                    trace ("adding TXX %s=%s\n", meta->key, meta->value);
+                    trace ("adding unknown frame as TXX %s=%s\n", meta->key, meta->value);
                     junk_id3v2_remove_txxx_frame (&id3v2, meta->key);
                     junk_id3v2_add_txxx_frame (&id3v2, meta->key, meta->value);
                 }
@@ -3533,7 +3604,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
 
         // write tag
         if (junk_id3v2_write (out, &id3v2) != 0) {
-            trace ("cmp3_write_metadata: failed to write id3v2 tag to %s\n", it->fname)
+            trace ("cmp3_write_metadata: failed to write id3v2 tag to %s\n", pl_find_meta (it, ":URI"))
             goto error;
         }
     }
@@ -3568,7 +3639,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
     if (!write_apev2 && !strip_apev2 && apev2_start != 0) {
         trace ("copying original apev2 tag\n");
         if (deadbeef->fseek (fp, apev2_start, SEEK_SET) == -1) {
-            trace ("cmp3_write_metadata: failed to seek to original apev2 tag position in %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to seek to original apev2 tag position in %s\n", pl_find_meta (it, ":URI"));
             goto error;
         }
         uint8_t *buf = malloc (apev2_size);
@@ -3577,12 +3648,12 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             goto error;
         }
         if (deadbeef->fread (buf, 1, apev2_size, fp) != apev2_size) {
-            trace ("cmp3_write_metadata: failed to read original apev2 tag from %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to read original apev2 tag from %s\n", pl_find_meta (it, ":URI"));
             free (buf);
             goto error;
         }
         if (fwrite (buf, 1, apev2_size, out) != apev2_size) {
-            trace ("cmp3_write_metadata: failed to copy original apev2 tag from %s to temp file\n", it->fname);
+            trace ("cmp3_write_metadata: failed to copy original apev2 tag from %s to temp file\n", pl_find_meta (it, ":URI"));
             free (buf);
             goto error;
         }
@@ -3594,15 +3665,18 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
             deadbeef->junk_apev2_free (&apev2);
             memset (&apev2, 0, sizeof (apev2));
         }
+
+        // remove all text frames
+        junk_apev2_remove_all_text_frames (&apev2);
+
         // add all basic frames
-        DB_metaInfo_t *meta = pl_get_metadata (it);
+        DB_metaInfo_t *meta = pl_get_metadata_head (it);
         while (meta) {
             if (meta->value && *meta->value) {
                 int i;
                 for (i = 0; frame_mapping[i]; i += FRAME_MAPPINGS) {
                     if (!strcasecmp (meta->key, frame_mapping[i+MAP_DDB]) && frame_mapping[i+MAP_APEV2]) {
                         trace ("apev2 writing known field: %s=%s\n", meta->key, meta->value);
-                        junk_apev2_remove_frames (&apev2, frame_mapping[i+MAP_APEV2]);
                         junk_apev2_add_text_frame (&apev2, frame_mapping[i+MAP_APEV2], meta->value);
                         break;
                     }
@@ -3612,7 +3686,6 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
                         && strcasecmp (meta->key, "track")
                         && strcasecmp (meta->key, "numtracks")) {
                     trace ("apev2 writing unknown field: %s=%s\n", meta->key, meta->value);
-                    junk_apev2_remove_frames (&apev2, meta->key);
                     junk_apev2_add_text_frame (&apev2, meta->key, meta->value);
                 }
             }
@@ -3635,7 +3708,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
 
         // write tag
         if (deadbeef->junk_apev2_write (out, &apev2, 0, 1) != 0) {
-            trace ("cmp3_write_metadata: failed to write apev2 tag to %s\n", it->fname)
+            trace ("cmp3_write_metadata: failed to write apev2 tag to %s\n", pl_find_meta (it, ":URI"))
             goto error;
         }
     }
@@ -3643,27 +3716,49 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
     if (!write_id3v1 && !strip_id3v1 && id3v1_start != 0) {
         trace ("copying original id3v1 tag %d %d %d\n", write_id3v1, strip_id3v1, id3v1_start);
         if (deadbeef->fseek (fp, id3v1_start, SEEK_SET) == -1) {
-            trace ("cmp3_write_metadata: failed to seek to original id3v1 tag position in %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to seek to original id3v1 tag position in %s\n", pl_find_meta (it, ":URI"));
             goto error;
         }
         char buf[128];
         if (deadbeef->fread (buf, 1, 128, fp) != 128) {
-            trace ("cmp3_write_metadata: failed to read original id3v1 tag from %s\n", it->fname);
+            trace ("cmp3_write_metadata: failed to read original id3v1 tag from %s\n", pl_find_meta (it, ":URI"));
             goto error;
         }
         if (fwrite (buf, 1, 128, out) != 128) {
-            trace ("cmp3_write_metadata: failed to copy id3v1 tag from %s to temp file\n", it->fname);
+            trace ("cmp3_write_metadata: failed to copy id3v1 tag from %s to temp file\n", pl_find_meta (it, ":URI"));
             goto error;
         }
     }
     else if (write_id3v1) {
         trace ("writing new id3v1 tag\n");
         if (junk_id3v1_write (out, it) != 0) {
-            trace ("cmp3_write_metadata: failed to write id3v1 tag to %s\n", it->fname)
+            trace ("cmp3_write_metadata: failed to write id3v1 tag to %s\n", pl_find_meta (it, ":URI"))
             goto error;
         }
     }
 
+    if (strip_id3v1 && !write_id3v1) {
+        item_flags &= ~DDB_TAG_ID3V1;
+    }
+    if (strip_id3v2 && !write_id3v2) {
+        item_flags &= ~(DDB_TAG_ID3V22|DDB_TAG_ID3V23|DDB_TAG_ID3V24);
+    }
+    if (strip_apev2 && !write_apev2) {
+        item_flags &= ~DDB_TAG_APEV2;
+    }
+
+    if (write_id3v1) {
+        item_flags |= DDB_TAG_ID3V1;
+    }
+    if (write_id3v2) {
+        item_flags &= ~(DDB_TAG_ID3V22|DDB_TAG_ID3V23|DDB_TAG_ID3V24);
+        item_flags |= id3v2_version == 3 ? DDB_TAG_ID3V23 : DDB_TAG_ID3V24;
+    }
+    if (write_apev2) {
+        item_flags |= DDB_TAG_APEV2;
+    }
+
+    pl_set_item_flags (it, item_flags);
     err = 0;
 error:
     if (fp) {
@@ -3676,7 +3771,7 @@ error:
         free (buffer);
     }
     if (!err) {
-        rename (tmppath, it->fname);
+        rename (tmppath, pl_find_meta (it, ":URI"));
     }
     else {
         unlink (tmppath);

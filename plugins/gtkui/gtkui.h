@@ -154,13 +154,22 @@ gtkui_set_progress_text_idle (gpointer data);
 int
 gtkui_add_file_info_cb (DB_playItem_t *it, void *data);
 
-extern int (*gtkui_original_pl_add_dir) (const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data);
-extern int (*gtkui_original_pl_add_file) (const char *fname, int (*cb)(DB_playItem_t *it, void *data), void *user_data);
+extern int (*gtkui_original_plt_add_dir) (ddb_playlist_t *plt, const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data);
+extern int (*gtkui_original_plt_add_file) (ddb_playlist_t *plt, const char *fname, int (*cb)(DB_playItem_t *it, void *data), void *user_data);
 
 void
 gtkui_focus_on_playing_track (void);
 
 void
 gtkui_playlist_set_curr (int playlist);
+
+void
+gtkui_setup_gui_refresh ();
+
+int
+gtkui_get_curr_playlist_mod (void);
+
+void
+gtkui_trackinfochanged (DB_playItem_t *it);
 
 #endif

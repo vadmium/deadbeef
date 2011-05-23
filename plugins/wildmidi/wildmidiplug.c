@@ -52,9 +52,9 @@ int
 wmidi_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     wmidi_info_t *info = (wmidi_info_t *)_info;
 
-    info->m = WildMidi_Open (it->fname);
+    info->m = WildMidi_Open (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->m) {
-        trace ("wmidi: failed to open %s\n", it->fname);
+        trace ("wmidi: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -107,7 +107,7 @@ wmidi_seek (DB_fileinfo_t *_info, float time) {
 }
 
 DB_playItem_t *
-wmidi_insert (DB_playItem_t *after, const char *fname) {
+wmidi_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     DB_playItem_t *it = NULL;
 
     midi *m = WildMidi_Open (fname);
@@ -117,13 +117,11 @@ wmidi_insert (DB_playItem_t *after, const char *fname) {
     }
 
     struct _WM_Info *inf = WildMidi_GetInfo (m);
-    it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (wmidi_plugin.plugin.id);
-    it->fname = strdup (fname);
+    it = deadbeef->pl_item_alloc_init (fname, wmidi_plugin.plugin.id);
     deadbeef->pl_add_meta (it, "title", NULL);
-    deadbeef->pl_set_item_duration (it, inf->approx_total_samples / 44100.f);
-    it->filetype = "MID";
-    after = deadbeef->pl_insert_item (after, it);
+    deadbeef->plt_set_item_duration (plt, it, inf->approx_total_samples / 44100.f);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "MID");
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     WildMidi_Close (m);
     return after;
@@ -133,7 +131,8 @@ wmidi_insert (DB_playItem_t *after, const char *fname) {
 
 int
 wmidi_start (void) {
-    const char *config_files = deadbeef->conf_get_str ("wildmidi.config", DEFAULT_TIMIDITY_CONFIG);
+    char config_files[1000];
+    deadbeef->conf_get_str ("wildmidi.config", DEFAULT_TIMIDITY_CONFIG, config_files, sizeof (config_files));
     char config[1024] = "";
     const char *p = config_files;
     while (p) {
@@ -178,21 +177,39 @@ wildmidi_load (DB_functions_t *api) {
 }
 
 static const char *exts[] = { "mid",NULL };
-const char *filetypes[] = { "MID", NULL };
 
 static const char settings_dlg[] =
     "property \"Timidity++ bank configuration file\" file wildmidi.config \"" DEFAULT_TIMIDITY_CONFIG "\";\n"
 ;
 // define plugin interface
 DB_decoder_t wmidi_plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.name = "WildMidi player",
-    .plugin.descr = "MIDI player based on WildMidi library",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.descr = "MIDI player based on WildMidi library\n\nRequires freepats package to be installed\nSee http://freepats.zenvoid.org/\nMake sure to set correct freepats.cfg path in plugin settings.",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses modified WildMidi v0.2.2\n"
+        "(C) 2001-2004 Chris Ison\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = wmidi_start,
     .plugin.stop = wmidi_stop,
@@ -206,5 +223,4 @@ DB_decoder_t wmidi_plugin = {
     .seek_sample = wmidi_seek_sample,
     .insert = wmidi_insert,
     .exts = exts,
-    .filetypes = filetypes,
 };

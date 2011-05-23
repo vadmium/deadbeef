@@ -110,8 +110,9 @@ sldb_load()
         sldb_disable = 1;
         return;
     }
-    const char *conf_hvsc_path = deadbeef->conf_get_str ("hvsc_path", NULL);
-    if (!conf_hvsc_path) {
+    char conf_hvsc_path[1000];
+    deadbeef->conf_get_str ("hvsc_path", "", conf_hvsc_path, sizeof (conf_hvsc_path));
+    if (!conf_hvsc_path[0]) {
         sldb_disable = 1;
         return;
     }
@@ -304,7 +305,7 @@ csid_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     
     // libsidplay crashes if file doesn't exist
     // so i have to check it here
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp ){
         return -1;
     }
@@ -323,9 +324,9 @@ csid_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     info->resid->sampling (samplerate);
     info->duration = deadbeef->pl_get_item_duration (it);
-    info->tune = new SidTune (it->fname);
+    info->tune = new SidTune (deadbeef->pl_find_meta (it, ":URI"));
 
-    info->tune->selectSong (it->tracknum+1);
+    info->tune->selectSong (deadbeef->pl_find_meta_int (it, ":TRACKNUM", 0)+1);
     sid2_config_t conf;
     conf = info->sidplay->config ();
     conf.frequency = samplerate;
@@ -444,7 +445,7 @@ convstr (const char* str) {
 }
 
 extern "C" DB_playItem_t *
-csid_insert (DB_playItem_t *after, const char *fname) {
+csid_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     trace ("inserting %s\n", fname);
     sldb_load ();
     SidTune *tune;
@@ -515,10 +516,8 @@ csid_insert (DB_playItem_t *after, const char *fname) {
     for (int s = 0; s < tunes; s++) {
         trace ("select %d...\n", s);
         if (tune->selectSong (s+1)) {
-            DB_playItem_t *it = deadbeef->pl_item_alloc ();
-            it->decoder_id = deadbeef->plug_get_decoder_id (sid_plugin.plugin.id);
-            it->fname = strdup (fname);
-            it->tracknum = s;
+            DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, sid_plugin.plugin.id);
+            deadbeef->pl_set_meta_int (it, ":TRACKNUM", s);
             SidTuneInfo sidinfo;
             tune->getInfo (sidinfo);
             int i = sidinfo.numberOfInfoStrings;
@@ -568,10 +567,10 @@ csid_insert (DB_playItem_t *after, const char *fname) {
                 //            trace ("\n");
                 //        }
             }
-            deadbeef->pl_set_item_duration (it, length);
-            it->filetype = "SID";
+            deadbeef->plt_set_item_duration (plt, it, length);
+            deadbeef->pl_add_meta (it, ":FILETYPE", "SID");
 
-            after = deadbeef->pl_insert_item (after, it);
+            after = deadbeef->plt_insert_item (plt, after, it);
             deadbeef->pl_item_unref (it);
         }
     }
@@ -607,7 +606,7 @@ csid_mutevoice (DB_fileinfo_t *_info, int voice, int mute) {
 #endif
 
 static int
-csid_on_configchanged (DB_event_t *ev, uintptr_t data) {
+sid_configchanged (void) {
     int conf_hvsc_enable = deadbeef->conf_get_int ("hvsc_enable", 0);
     int disable = !conf_hvsc_enable;
     if (disable != sldb_disable) {
@@ -625,14 +624,22 @@ csid_on_configchanged (DB_event_t *ev, uintptr_t data) {
 }
 
 int
+sid_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        sid_configchanged ();
+        break;
+    }
+    return 0;
+}
+
+int
 csid_start (void) {
-    deadbeef->ev_subscribe (DB_PLUGIN (&sid_plugin), DB_EV_CONFIGCHANGED, DB_CALLBACK (csid_on_configchanged), 0);
     return 0;
 }
 
 int
 csid_stop (void) {
-    deadbeef->ev_unsubscribe (DB_PLUGIN (&sid_plugin), DB_EV_CONFIGCHANGED, DB_CALLBACK (csid_on_configchanged), 0);
     if (sldb) {
         free (sldb);
         sldb = NULL;

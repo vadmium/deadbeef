@@ -98,7 +98,17 @@ int u8_valid (const char  *str,
         int max_len,
         const char **end);
 
+int
+u8_tolower (const signed char *c, int l, char *out);
+
+int
+u8_strcasecmp (const char *a, const char *b);
+
 const char *
 utfcasestr (const char *s1, const char *s2);
+
+// s2 must be lowercase
+const char *
+utfcasestr_fast (const char *s1, const char *s2);
 
 #endif

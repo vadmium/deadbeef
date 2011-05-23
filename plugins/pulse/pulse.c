@@ -42,7 +42,6 @@
 static DB_output_t plugin;
 DB_functions_t * deadbeef;
 
-#define CONFSTR_PULSE_SAMPLERATE "pulse.samplerate"
 #define CONFSTR_PULSE_SERVERADDR "pulse.serveraddr"
 #define CONFSTR_PULSE_BUFFERSIZE "pulse.buffersize"
 
@@ -51,6 +50,7 @@ static int pulse_terminate;
 
 static pa_simple *s;
 static pa_sample_spec ss;
+static ddb_waveformat_t requested_fmt;
 static int state;
 static uintptr_t mutex;
 
@@ -60,29 +60,70 @@ static void pulse_thread(void *context);
 
 static void pulse_callback(char *stream, int len);
 
-static int pulse_init(void)
+static int pulse_init();
+
+static int pulse_free();
+
+static int pulse_setformat(ddb_waveformat_t *fmt);
+
+static int pulse_play();
+
+static int pulse_stop();
+
+static int pulse_pause();
+
+static int pulse_unpause();
+
+static int pulse_set_spec(ddb_waveformat_t *fmt)
 {
-    trace ("pulse_init\n");
-    state = OUTPUT_STATE_STOPPED;
-    pulse_terminate = 0;
+    memcpy (&plugin.fmt, fmt, sizeof (ddb_waveformat_t));
+    if (!plugin.fmt.channels) {
+        // generic format
+        plugin.fmt.bps = 16;
+        plugin.fmt.is_float = 0;
+        plugin.fmt.channels = 2;
+        plugin.fmt.samplerate = 44100;
+        plugin.fmt.channelmask = 3;
+    }
 
-    // Read serveraddr from config
-    const char * server = deadbeef->conf_get_str(CONFSTR_PULSE_SERVERADDR, NULL);
+    trace ("format %dbit %s %dch %dHz channelmask=%X\n", plugin.fmt.bps, plugin.fmt.is_float ? "float" : "int", plugin.fmt.channels, plugin.fmt.samplerate, plugin.fmt.channelmask);
 
-    if (server)
-        server = strcmp(server, "default") ? server : NULL;
+    ss.channels = plugin.fmt.channels;
+    // Try to auto-configure the channel map, see <pulse/channelmap.h> for details
+    pa_channel_map channel_map;
+    pa_channel_map_init_extend(&channel_map, ss.channels, PA_CHANNEL_MAP_WAVEEX);
+    trace ("pulse: channels: %d\n", ss.channels);
 
     // Read samplerate from config
-    ss.rate = deadbeef->conf_get_int(CONFSTR_PULSE_SAMPLERATE, 44100);
+    //ss.rate = deadbeef->conf_get_int(CONFSTR_PULSE_SAMPLERATE, 44100);
+    ss.rate = plugin.fmt.samplerate;
     trace ("pulse: samplerate: %d\n", ss.rate);
 
-    // TODO: add config for this
-    pa_channel_map * map = NULL;//pa_channel_map_init_stereo(NULL);
-    ss.channels = 2;
-    ss.format = PA_SAMPLE_S16NE;
+    switch (plugin.fmt.bps) {
+    case 8:
+        ss.format = PA_SAMPLE_U8;
+        break;
+    case 16:
+        ss.format = PA_SAMPLE_S16LE;
+        break;
+    case 24:
+        ss.format = PA_SAMPLE_S24LE;
+        break;
+    case 32:
+        if (plugin.fmt.is_float) {
+            ss.format = PA_SAMPLE_FLOAT32LE;
+        }
+        else {
+            ss.format = PA_SAMPLE_S32LE;
+        }
+        break;
+    default:
+        return -1;
+    };
 
-    // TODO: where list of all available devices? add this option to config too..
-    char * dev = NULL;
+    if (s) {
+        pa_simple_free(s);
+    }
 
     pa_buffer_attr * attr = NULL;
     //attr->maxlength = Maximum length of the buffer.
@@ -93,16 +134,83 @@ static int pulse_init(void)
 
     buffer_size = deadbeef->conf_get_int(CONFSTR_PULSE_BUFFERSIZE, 4096);
 
+    // TODO: where list of all available devices? add this option to config too..
+    char * dev = NULL;
+
     int error;
-    s = pa_simple_new(server, "Deadbeef", PA_STREAM_PLAYBACK, dev, "Music", &ss, map, attr, &error);
+
+    // Read serveraddr from config
+    deadbeef->conf_lock ();
+    const char * server = deadbeef->conf_get_str_fast (CONFSTR_PULSE_SERVERADDR, NULL);
+
+    if (server) {
+        server = strcmp(server, "default") ? server : NULL;
+    }
+
+    s = pa_simple_new(server, "Deadbeef", PA_STREAM_PLAYBACK, dev, "Music", &ss, &channel_map, attr, &error);
+    deadbeef->conf_unlock ();
 
     if (!s)
     {
+        trace ("pulse_init failed (%d)\n", error);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int pulse_init(void)
+{
+    trace ("pulse_init\n");
+    state = OUTPUT_STATE_STOPPED;
+    pulse_terminate = 0;
+
+    if (requested_fmt.samplerate != 0) {
+        memcpy (&plugin.fmt, &requested_fmt, sizeof (ddb_waveformat_t));
+    }
+
+    if (0 != pulse_set_spec(&plugin.fmt)) {
         return -1;
     }
 
     pulse_tid = deadbeef->thread_start(pulse_thread, NULL);
 
+    return 0;
+}
+
+static int pulse_setformat (ddb_waveformat_t *fmt)
+{
+    memcpy (&requested_fmt, fmt, sizeof (ddb_waveformat_t));
+    if (!s) {
+        return -1;
+    }
+    if (!memcmp (fmt, &plugin.fmt, sizeof (ddb_waveformat_t))) {
+        trace ("pulse_setformat ignored\n");
+        return 0;
+    }
+    trace ("pulse_setformat %dbit %s %dch %dHz channelmask=%X\n", fmt->bps, fmt->is_float ? "float" : "int", fmt->channels, fmt->samplerate, fmt->channelmask);
+
+    int prev_state = state;
+    pulse_stop ();
+    deadbeef->mutex_lock(mutex);
+    pulse_set_spec(fmt);
+    deadbeef->mutex_unlock(mutex);
+    trace ("new format %dbit %s %dch %dHz channelmask=%X\n", plugin.fmt.bps, plugin.fmt.is_float ? "float" : "int", plugin.fmt.channels, plugin.fmt.samplerate, plugin.fmt.channelmask);
+
+    switch (prev_state) {
+    case OUTPUT_STATE_STOPPED:
+        return pulse_stop ();
+    case OUTPUT_STATE_PLAYING:
+        return pulse_play ();
+    case OUTPUT_STATE_PAUSED:
+        if (0 != pulse_play ()) {
+            return -1;
+        }
+        if (0 != pulse_pause ()) {
+            return -1;
+        }
+        break;
+    }
     return 0;
 }
 
@@ -118,7 +226,7 @@ static int pulse_free(void)
 
     pulse_tid = 0;
     state = OUTPUT_STATE_STOPPED;
-    if (s != NULL)
+    if (s)
     {
         pa_simple_free(s);
         s = NULL;
@@ -170,41 +278,6 @@ static int pulse_unpause(void)
     return 0;
 }
 
-static int pulse_change_rate(int rate)
-{
-    pulse_free();
-    ss.rate = rate;
-
-    if (!pulse_init())
-        return -1;
-
-    return ss.rate;
-}
-
-static int pulse_get_rate(void)
-{
-    return ss.rate;
-}
-
-static int pulse_get_bps(void)
-{
-    return 16;
-}
-
-static int pulse_get_channels(void)
-{
-    return ss.channels;
-}
-
-static int pulse_get_endianness(void)
-{
-#if WORDS_BIGENDIAN
-    return 1;
-#else
-    return 0;
-#endif
-}
-
 static void pulse_thread(void *context)
 {
 #ifdef __linux__
@@ -219,7 +292,14 @@ static void pulse_thread(void *context)
             continue;
         }
 
-        char buf[buffer_size];
+        int sample_size = plugin.fmt.channels * (plugin.fmt.bps / 8);
+        int bs = buffer_size;
+        int mod = bs % sample_size;
+        if (mod > 0) {
+            bs -= mod;
+        }
+
+        char buf[bs];
         pulse_callback (buf, sizeof (buf));
         int error;
 
@@ -240,13 +320,6 @@ static void pulse_thread(void *context)
 static void pulse_callback(char *stream, int len)
 {
     int bytesread = deadbeef->streamer_read(stream, len);
-    int16_t ivolume = deadbeef->volume_get_amp() * 1000;
-
-    for (int i = 0; i < bytesread/2; i++)
-    {
-        ((int16_t*)stream)[i] = (int16_t)(((int32_t)(((int16_t*)stream)[i])) * ivolume / 1000);
-    }
-
     if (bytesread < len)
     {
         memset (stream + bytesread, 0, len-bytesread);
@@ -280,34 +353,46 @@ DB_plugin_t * pulse_load(DB_functions_t *api)
 
 static const char settings_dlg[] =
     "property \"PulseAudio server\" entry " CONFSTR_PULSE_SERVERADDR " default;\n"
-    "property \"Preferred buffer size\" entry " CONFSTR_PULSE_BUFFERSIZE " 4096;\n"
-    "property \"Samplerate\" entry " CONFSTR_PULSE_SAMPLERATE " 44100;\n";
+    "property \"Preferred buffer size\" entry " CONFSTR_PULSE_BUFFERSIZE " 4096;\n";
 
 static DB_output_t plugin =
 {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 0,
     .plugin.version_minor = 1,
-    .plugin.nostop = 0,
     .plugin.type = DB_PLUGIN_OUTPUT,
+    .plugin.id = "pulseaudio",
     .plugin.name = "PulseAudio output plugin",
-    .plugin.descr = "plays sound via pulse API",
-    .plugin.author = "Anton Novikov",
-    .plugin.email = "tonn.post@gmail.com",
+    .plugin.descr = "At the moment of this writing, PulseAudio seems to be very unstable in many (or most) GNU/Linux distributions.\nIf you experience problems - please try switching to ALSA or OSS output.\nIf that doesn't help - please uninstall PulseAudio from your system, and try ALSA or OSS again.\nThanks for understanding",
+    .plugin.copyright =
+        "Copyright (C) 2011 Jan D. Behrens <zykure@web.de>\n"
+        "Copyright (C) 2010-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "Copyright (C) 2010 Anton Novikov <tonn.post@gmail.com>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n",
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = pulse_plugin_start,
     .plugin.stop = pulse_plugin_stop,
     .plugin.configdialog = settings_dlg,
     .init = pulse_init,
     .free = pulse_free,
-    .change_rate = pulse_change_rate,
+    .setformat = pulse_setformat,
     .play = pulse_play,
     .stop = pulse_stop,
     .pause = pulse_pause,
     .unpause = pulse_unpause,
     .state = pulse_get_state,
-    .samplerate = pulse_get_rate,
-    .bitspersample = pulse_get_bps,
-    .channels = pulse_get_channels,
-    .endianness = pulse_get_endianness,
 };

@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <unistd.h>
+#include <math.h>
 #include "ttadec.h"
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -60,14 +61,14 @@ static int
 tta_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     tta_info_t *info = (tta_info_t *)_info;
 
-    trace ("open_tta_file %s\n", it->fname);
-    if (open_tta_file (it->fname, &info->tta, 0) != 0) {
-        fprintf (stderr, "tta: failed to open %s\n", it->fname);
+    trace ("open_tta_file %s\n", deadbeef->pl_find_meta (it, ":URI"));
+    if (open_tta_file (deadbeef->pl_find_meta (it, ":URI"), &info->tta, 0) != 0) {
+        fprintf (stderr, "tta: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
     if (player_init (&info->tta) != 0) {
-        fprintf (stderr, "tta: failed to init player for %s\n", it->fname);
+        fprintf (stderr, "tta: failed to init player for %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -89,7 +90,7 @@ tta_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         info->startsample = 0;
         info->endsample = (info->tta.DATALENGTH)-1;
     }
-    trace ("open_tta_file %s success!\n", it->fname);
+    trace ("open_tta_file %s success!\n", deadbeef->pl_find_meta (it, ":URI"));
     return 0;
 }
 
@@ -150,6 +151,7 @@ tta_read (DB_fileinfo_t *_info, char *bytes, int size) {
         }
     }
     info->currentsample += (initsize-size) / samplesize;
+    deadbeef->streamer_set_bitrate (info->tta.BITRATE);
     return initsize-size;
 }
 
@@ -176,7 +178,7 @@ tta_seek (DB_fileinfo_t *_info, float time) {
 }
 
 static DB_playItem_t *
-tta_insert (DB_playItem_t *after, const char *fname) {
+tta_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     tta_info tta;
     if (open_tta_file (fname, &tta, 0) != 0) {
         fprintf (stderr, "tta: failed to open %s\n", fname);
@@ -191,15 +193,17 @@ tta_insert (DB_playItem_t *after, const char *fname) {
     int totalsamples = tta.DATALENGTH;
     double dur = tta.LENGTH;
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "TTA";
-    deadbeef->pl_set_item_duration (it, dur);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "TTA");
+    deadbeef->plt_set_item_duration (plt, it, dur);
 
     close_tta_file (&tta);
     DB_FILE *fp = deadbeef->fopen (fname);
+
+    int64_t fsize = -1;
     if (fp) {
+        fsize = deadbeef->fgetlength (fp);
+        /*int apeerr = */deadbeef->junk_apev2_read (it, fp);
         /*int v2err = */deadbeef->junk_id3v2_read (it, fp);
         /*int v1err = */deadbeef->junk_id3v1_read (it, fp);
         deadbeef->fclose (fp);
@@ -210,7 +214,7 @@ tta_insert (DB_playItem_t *after, const char *fname) {
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     DB_playItem_t *cue = NULL;
     if (cuesheet) {
-        cue = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), totalsamples, tta.SAMPLERATE);
+        cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), totalsamples, tta.SAMPLERATE);
         if (cue) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (cue);
@@ -220,7 +224,19 @@ tta_insert (DB_playItem_t *after, const char *fname) {
     }
     deadbeef->pl_unlock ();
 
-    cue  = deadbeef->pl_insert_cue (after, it, totalsamples, tta.SAMPLERATE);
+    char s[100];
+    snprintf (s, sizeof (s), "%lld", fsize);
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+    snprintf (s, sizeof (s), "%d", tta.BPS);
+    deadbeef->pl_add_meta (it, ":BPS", s);
+    snprintf (s, sizeof (s), "%d", tta.NCH);
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", tta.SAMPLERATE);
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    snprintf (s, sizeof (s), "%d", tta.BITRATE);
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
+
+    cue  = deadbeef->plt_insert_cue (plt, after, it, totalsamples, tta.SAMPLERATE);
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
@@ -228,18 +244,19 @@ tta_insert (DB_playItem_t *after, const char *fname) {
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     return after;
 }
 
 static int tta_read_metadata (DB_playItem_t *it) {
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         return -1;
     }
     deadbeef->pl_delete_all_meta (it);
+    /*int apeerr = */deadbeef->junk_apev2_read (it, fp);
     /*int v2err = */deadbeef->junk_id3v2_read (it, fp);
     /*int v1err = */deadbeef->junk_id3v1_read (it, fp);
     deadbeef->pl_add_meta (it, "title", NULL);
@@ -251,9 +268,11 @@ static int tta_write_metadata (DB_playItem_t *it) {
     // get options
 
     int strip_id3v2 = 0;
-    int strip_id3v1 = 0;
+    int strip_id3v1 = 1;
+    int strip_apev2 = 0;
     int write_id3v2 = 1;
-    int write_id3v1 = 1;
+    int write_id3v1 = 0;
+    int write_apev2 = 1;
 
     uint32_t junk_flags = 0;
     if (strip_id3v2) {
@@ -262,15 +281,22 @@ static int tta_write_metadata (DB_playItem_t *it) {
     if (strip_id3v1) {
         junk_flags |= JUNK_STRIP_ID3V1;
     }
+    if (strip_apev2) {
+        junk_flags |= JUNK_STRIP_APEV2;
+    }
     if (write_id3v2) {
         junk_flags |= JUNK_WRITE_ID3V2;
     }
     if (write_id3v1) {
         junk_flags |= JUNK_WRITE_ID3V1;
     }
+    if (write_apev2) {
+        junk_flags |= JUNK_WRITE_APEV2;
+    }
 
     int id3v2_version = 4;
-    const char *id3v1_encoding = deadbeef->conf_get_str ("mp3.id3v1_encoding", "iso8859-1");
+    char id3v1_encoding[50];
+    deadbeef->conf_get_str ("mp3.id3v1_encoding", "iso8859-1", id3v1_encoding, sizeof (id3v1_encoding));
     return deadbeef->junk_rewrite_tags (it, junk_flags, id3v2_version, id3v1_encoding);
 }
 
@@ -286,19 +312,37 @@ tta_stop (void) {
 }
 
 static const char * exts[] = { "tta", NULL };
-static const char *filetypes[] = { "TTA", NULL };
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "tta",
     .plugin.name = "tta decoder",
     .plugin.descr = "tta decoder based on TTA Hardware Players Library Version 1.2",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses modified TTA Hardware Players Library Version 1.2,\n"
+        "(c) 2004 Alexander Djourik. All rights reserved.\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = tta_start,
     .plugin.stop = tta_stop,
@@ -312,7 +356,6 @@ static DB_decoder_t plugin = {
     .read_metadata = tta_read_metadata,
     .write_metadata = tta_write_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *

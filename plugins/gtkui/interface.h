@@ -5,13 +5,14 @@
 GtkWidget* create_mainwin (void);
 GtkWidget* create_searchwin (void);
 GtkWidget* create_traymenu (void);
-GtkWidget* create_addprogress (void);
+GtkWidget* create_progressdlg (void);
 GtkWidget* create_helpwindow (void);
 GtkWidget* create_trackproperties (void);
 GtkWidget* create_editcolumndlg (void);
 GtkWidget* create_prefwin (void);
-GtkWidget* create_editplaylistdlg (void);
+GtkWidget* create_entrydialog (void);
 GtkWidget* create_addlocationdlg (void);
 GtkWidget* create_groupbydlg (void);
 GtkWidget* create_sortbydlg (void);
 GtkWidget* create_select_dsp_plugin (void);
+GtkWidget* create_tagwritersettings (void);

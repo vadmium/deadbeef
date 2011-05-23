@@ -43,14 +43,16 @@ on_prop_browse_file (GtkButton *button, gpointer user_data) {
 
     gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (dlg), FALSE);
     // restore folder
-    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str ("filechooser.lastdir", ""));
+    deadbeef->conf_lock ();
+    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str_fast ("filechooser.lastdir", ""));
+    deadbeef->conf_unlock ();
     int response = gtk_dialog_run (GTK_DIALOG (dlg));
     // store folder
     gchar *folder = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dlg));
     if (folder) {
         deadbeef->conf_set_str ("filechooser.lastdir", folder);
         g_free (folder);
-        deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
     }
     if (response == GTK_RESPONSE_OK) {
         gchar *file = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dlg));
@@ -181,7 +183,7 @@ static void apply_conf (GtkWidget *w, ddb_dialog_t *conf) {
             break;
         }
     }
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
 }
 
 static void

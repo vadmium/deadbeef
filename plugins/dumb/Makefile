@@ -1,10 +1,12 @@
-CC=gcc
+OUT=ddb_dumb.so
+
+CC?=gcc
 
 dumbpath=dumb-kode54
 
-CFLAGS+=-Wall -D_GNU_SOURCE -I$(dumbpath)/include -std=c99
+CFLAGS+=-Wall -fPIC -D_GNU_SOURCE -I$(dumbpath)/include -std=c99
 
-LDFLAGS+=-module -shared -fPIC -lm
+LDFLAGS+=-module -shared -lm
 
 SOURCES=\
 dumb-kode54/src/it/readam.c\
@@ -80,8 +82,6 @@ dumb-kode54/src/helpers/barray.c\
 cdumb.c
 
 OBJECTS=$(SOURCES:.c=.o)
-
-OUT=dumb.so
 
 all: $(SOURCES) $(OUT)
 

@@ -1,7 +1,7 @@
 /*
 WavPack plugin for DeaDBeeF Player
 Copyright (C) 2009-2011, Alexey Yakovenko <waker@users.sourceforge.net>
-With contributions from David Bryant <david@wavpack.com>
+Copyright (C) 2010-2011, David Bryant <david@wavpack.com>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -125,15 +125,15 @@ wv_open (uint32_t hints) {
 static int
 wv_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     wvctx_t *info = (wvctx_t *)_info;
-    info->file = deadbeef->fopen (it->fname);
+    info->file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->file) {
         return -1;
     }
 
 #ifndef TINYWV
-    char *c_fname = alloca (strlen (it->fname) + 2);
+    char *c_fname = alloca (strlen (deadbeef->pl_find_meta (it, ":URI")) + 2);
     if (c_fname) {
-        strcpy (c_fname, it->fname);
+        strcpy (c_fname, deadbeef->pl_find_meta (it, ":URI"));
         strcat (c_fname, "c");
         info->c_file = deadbeef->fopen (c_fname);
     }
@@ -198,16 +198,16 @@ wv_free (DB_fileinfo_t *_info) {
 static int
 wv_read (DB_fileinfo_t *_info, char *bytes, int size) {
     wvctx_t *info = (wvctx_t *)_info;
-    int initsize = size;
     int currentsample = WavpackGetSampleIndex (info->ctx);
     int samplesize = _info->fmt.channels * _info->fmt.bps / 8;
     if (size / samplesize + currentsample > info->endsample) {
         size = (info->endsample - currentsample + 1) * samplesize;
-        trace ("wv: size truncated to %d bytes, cursample=%d, endsample=%d\n", size, currentsample, info->endsample);
+        trace ("wv: size truncated to %d bytes (%d samples), cursample=%d, endsample=%d\n", size, info->endsample - currentsample + 1, currentsample, info->endsample);
         if (size <= 0) {
             return 0;
         }
     }
+    int initsize = size;
     int n;
     if (WavpackGetMode (info->ctx) & MODE_FLOAT) {
         _info->fmt.is_float = 1;
@@ -275,7 +275,7 @@ wv_seek (DB_fileinfo_t *_info, float sec) {
 }
 
 static DB_playItem_t *
-wv_insert (DB_playItem_t *after, const char *fname) {
+wv_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         return NULL;
@@ -295,11 +295,9 @@ wv_insert (DB_playItem_t *after, const char *fname) {
     int samplerate = WavpackGetSampleRate (ctx);
     float duration = (float)totalsamples / samplerate;
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "wv";
-    deadbeef->pl_set_item_duration (it, duration);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "wv");
+    deadbeef->plt_set_item_duration (plt, it, duration);
     trace ("wv: totalsamples=%d, samplerate=%d, duration=%f\n", totalsamples, samplerate, duration);
 
 #if 0
@@ -324,7 +322,7 @@ wv_insert (DB_playItem_t *after, const char *fname) {
     deadbeef->pl_add_meta (it, "title", NULL);
 
     char s[100];
-    snprintf (s, sizeof (s), "%d", deadbeef->fgetlength (fp));
+    snprintf (s, sizeof (s), "%lld", deadbeef->fgetlength (fp));
     deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
     snprintf (s, sizeof (s), "%d", WavpackGetBytesPerSample (ctx) * 8);
     deadbeef->pl_add_meta (it, ":BPS", s);
@@ -341,7 +339,7 @@ wv_insert (DB_playItem_t *after, const char *fname) {
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     if (cuesheet) {
         trace ("found cuesheet: %s\n", cuesheet);
-        DB_playItem_t *last = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), totalsamples, samplerate);
+        DB_playItem_t *last = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), totalsamples, samplerate);
         if (last) {
             deadbeef->fclose (fp);
             WavpackCloseFile (ctx);
@@ -351,7 +349,7 @@ wv_insert (DB_playItem_t *after, const char *fname) {
         }
     }
     // cue file on disc
-    DB_playItem_t *cue_after = deadbeef->pl_insert_cue (after, it, totalsamples, samplerate);
+    DB_playItem_t *cue_after = deadbeef->plt_insert_cue (plt, after, it, totalsamples, samplerate);
     if (cue_after) {
         deadbeef->fclose (fp);
         WavpackCloseFile (ctx);
@@ -360,7 +358,7 @@ wv_insert (DB_playItem_t *after, const char *fname) {
         return cue_after;
     }
 
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     deadbeef->fclose (fp);
@@ -370,7 +368,7 @@ wv_insert (DB_playItem_t *after, const char *fname) {
 
 int
 wv_read_metadata (DB_playItem_t *it) {
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         return -1;
     }
@@ -411,19 +409,44 @@ wv_write_metadata (DB_playItem_t *it) {
 }
 
 static const char *exts[] = { "wv", NULL };
-static const char *filetypes[] = { "wv", NULL };
-
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "wv",
     .plugin.name = "WavPack decoder",
-    .plugin.descr = "WavPack (.wv, .iso.wv) player using libwavpack",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.descr = "WavPack (.wv, .iso.wv) player",
+    .plugin.copyright = 
+        "WavPack plugin for DeaDBeeF Player\n"
+        "Copyright (C) 2009-2011, Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "Copyright (C) 2010-2011, David Bryant <david@wavpack.com>\n"
+        "All rights reserved.\n"
+        "\n"
+        "Redistribution and use in source and binary forms, with or without\n"
+        "modification, are permitted provided that the following conditions are met:\n"
+        "    * Redistributions of source code must retain the above copyright\n"
+        "      notice, this list of conditions and the following disclaimer.\n"
+        "    * Redistributions in binary form must reproduce the above copyright\n"
+        "      notice, this list of conditions and the following disclaimer in the\n"
+        "      documentation and/or other materials provided with the distribution.\n"
+        "    * Neither the name of the <organization> nor the\n"
+        "      names of its contributors may be used to endorse or promote products\n"
+        "      derived from this software without specific prior written permission.\n"
+        "\n"
+        "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\n"
+        "ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\n"
+        "WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\n"
+        "DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY\n"
+        "DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n"
+        "(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\n"
+        "LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND\n"
+        "ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n"
+        "(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\n"
+        "SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .open = wv_open,
     .init = wv_init,
@@ -435,7 +458,6 @@ static DB_decoder_t plugin = {
     .read_metadata = wv_read_metadata,
     .write_metadata = wv_write_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *

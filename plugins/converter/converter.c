@@ -22,10 +22,15 @@
 #include <dirent.h>
 #include <unistd.h>
 #include "converter.h"
-#include <deadbeef.h>
+#include "../../deadbeef.h"
 
-#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-//#define trace(fmt,...)
+#ifndef PATH_MAX
+#define PATH_MAX    1024    /* max # of characters in a path name */
+#endif
+#define min(x,y) ((x)<(y)?(x):(y))
+
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+#define trace(fmt,...)
 
 static ddb_converter_t plugin;
 static DB_functions_t *deadbeef;
@@ -50,8 +55,8 @@ encoder_preset_free (ddb_encoder_preset_t *p) {
         if (p->title) {
             free (p->title);
         }
-        if (p->fname) {
-            free (p->fname);
+        if (p->ext) {
+            free (p->ext);
         }
         if (p->encoder) {
             free (p->encoder);
@@ -90,8 +95,8 @@ encoder_preset_load (const char *fname) {
         if (!strcmp (str, "title")) {
             p->title = strdup (item);
         }
-        else if (!strcmp (str, "fname")) {
-            p->fname = strdup (item);
+        else if (!strcmp (str, "ext")) {
+            p->ext = strdup (item);
         }
         else if (!strcmp (str, "encoder")) {
             p->encoder = strdup (item);
@@ -99,9 +104,34 @@ encoder_preset_load (const char *fname) {
         else if (!strcmp (str, "method")) {
             p->method = atoi (item);
         }
-        else if (!strcmp (str, "formats")) {
-            sscanf (item, "%X", &p->formats);
+        else if (!strcmp (str, "id3v2_version")) {
+            p->id3v2_version = atoi (item);
         }
+        else if (!strcmp (str, "tag_id3v2")) {
+            p->tag_id3v2 = atoi (item);
+        }
+        else if (!strcmp (str, "tag_id3v1")) {
+            p->tag_id3v1 = atoi (item);
+        }
+        else if (!strcmp (str, "tag_apev2")) {
+            p->tag_apev2 = atoi (item);
+        }
+        else if (!strcmp (str, "tag_flac")) {
+            p->tag_flac = atoi (item);
+        }
+        else if (!strcmp (str, "tag_oggvorbis")) {
+            p->tag_oggvorbis = atoi (item);
+        }
+    }
+
+    if (!p->title) {
+        p->title = strdup ("Untitled");
+    }
+    if (!p->ext) {
+        p->ext = strdup ("");
+    }
+    if (!p->encoder) {
+        p->encoder = strdup ("");
     }
 
     err = 0;
@@ -147,10 +177,15 @@ encoder_preset_save (ddb_encoder_preset_t *p, int overwrite) {
     }
 
     fprintf (fp, "title %s\n", p->title);
-    fprintf (fp, "fname %s\n", p->fname);
+    fprintf (fp, "ext %s\n", p->ext);
     fprintf (fp, "encoder %s\n", p->encoder);
     fprintf (fp, "method %d\n", p->method);
-    fprintf (fp, "formats %08X\n", p->formats);
+    fprintf (fp, "id3v2_version %d\n", p->id3v2_version);
+    fprintf (fp, "tag_id3v2 %d\n", p->tag_id3v2);
+    fprintf (fp, "tag_id3v1 %d\n", p->tag_id3v1);
+    fprintf (fp, "tag_apev2 %d\n", p->tag_apev2);
+    fprintf (fp, "tag_flac %d\n", p->tag_flac);
+    fprintf (fp, "tag_oggvorbis %d\n", p->tag_oggvorbis);
 
     fclose (fp);
     return 0;
@@ -159,10 +194,16 @@ encoder_preset_save (ddb_encoder_preset_t *p, int overwrite) {
 void
 encoder_preset_copy (ddb_encoder_preset_t *to, ddb_encoder_preset_t *from) {
     to->title = strdup (from->title);
-    to->fname = strdup (from->fname);
+    to->ext = strdup (from->ext);
     to->encoder = strdup (from->encoder);
     to->method = from->method;
-    to->formats = from->formats;
+    to->tag_id3v2 = from->tag_id3v2;
+    to->tag_id3v1 = from->tag_id3v1;
+    to->tag_apev2 = from->tag_apev2;
+    to->tag_flac = from->tag_flac;
+    to->tag_oggvorbis = from->tag_oggvorbis;
+    to->tag_mp3xing = from->tag_mp3xing;
+    to->id3v2_version = from->id3v2_version;
 }
 
 ddb_encoder_preset_t *
@@ -240,11 +281,7 @@ dsp_preset_free (ddb_dsp_preset_t *p) {
         if (p->title) {
             free (p->title);
         }
-        while (p->chain) {
-            ddb_dsp_context_t *next = p->chain->next;
-            p->chain->plugin->close (p->chain);
-            p->chain = next;
-        }
+        deadbeef->dsp_preset_free (p->chain);
         free (p);
     }
 }
@@ -282,86 +319,30 @@ dsp_preset_get_list (void) {
 
 ddb_dsp_preset_t *
 dsp_preset_load (const char *fname) {
-    int err = 1;
-    FILE *fp = fopen (fname, "rt");
-    if (!fp) {
-        return NULL;
-    }
     ddb_dsp_preset_t *p = dsp_preset_alloc ();
     if (!p) {
-        goto error;
+        return NULL;
+    }
+    memset (p, 0, sizeof (ddb_dsp_preset_t));
+    const char *end = strrchr (fname, '.');
+    if (!end) {
+        end = fname + strlen (fname);
+    }
+    const char *start = strrchr (fname, '/');
+    if (!start) {
+        start = fname;
+    }
+    else {
+        start++;
     }
 
-    // title
-    char temp[100];
-    if (1 != fscanf (fp, "title %100[^\n]\n", temp)) {
-        goto error;
-    }
-    p->title = strdup (temp);
-    ddb_dsp_context_t *tail = NULL;
-
-    for (;;) {
-        // plugin {
-        int err = fscanf (fp, "%100s {\n", temp);
-        if (err == EOF) {
-            break;
-        }
-        else if (1 != err) {
-            fprintf (stderr, "error plugin name\n");
-            goto error;
-        }
-
-        DB_dsp_t *plug = (DB_dsp_t *)deadbeef->plug_get_for_id (temp);
-        if (!plug) {
-            fprintf (stderr, "ddb_dsp_preset_load: plugin %s not found. preset will not be loaded\n", temp);
-            goto error;
-        }
-        ddb_dsp_context_t *ctx = plug->open ();
-        if (!ctx) {
-            fprintf (stderr, "ddb_dsp_preset_load: failed to open ctxance of plugin %s\n", temp);
-            goto error;
-        }
-
-        if (tail) {
-            tail->next = ctx;
-            tail = ctx;
-        }
-        else {
-            tail = p->chain = ctx;
-        }
-
-        int n = 0;
-        for (;;) {
-            char value[1000];
-            if (!fgets (temp, sizeof (temp), fp)) {
-                fprintf (stderr, "unexpected eof while reading plugin params\n");
-                goto error;
-            }
-            if (!strcmp (temp, "}\n")) {
-                break;
-            }
-            else if (1 != sscanf (temp, "\t%1000[^\n]\n", value)) {
-                fprintf (stderr, "error loading param %d\n", n);
-                goto error;
-            }
-            if (plug->num_params) {
-                plug->set_param (ctx, n, value);
-            }
-            n++;
-        }
-    }
-
-    err = 0;
-error:
-    if (err) {
-        fprintf (stderr, "error loading %s\n", fname);
-    }
-    if (fp) {
-        fclose (fp);
-    }
-    if (err && p) {
+    p->title = malloc (end-start+1);
+    memcpy (p->title, start, end-start);
+    p->title[end-start] = 0;
+    int err = deadbeef->dsp_preset_load (fname, &p->chain);
+    if (err != 0) {
         dsp_preset_free (p);
-        p = NULL;
+        return NULL;
     }
     return p;
 }
@@ -390,31 +371,7 @@ dsp_preset_save (ddb_dsp_preset_t *p, int overwrite) {
         }
     }
 
-    FILE *fp = fopen (path, "w+t");
-    if (!fp) {
-        return -1;
-    }
-
-    fprintf (fp, "title %s\n", p->title);
-
-    ddb_dsp_context_t *ctx = p->chain;
-    while (ctx) {
-        fprintf (fp, "%s {\n", ctx->plugin->plugin.id);
-        if (ctx->plugin->num_params) {
-            int n = ctx->plugin->num_params ();
-            int i;
-            for (i = 0; i < n; i++) {
-                char v[1000];
-                ctx->plugin->get_param (ctx, i, v, sizeof (v));
-                fprintf (fp, "\t%s\n", v);
-            }
-        }
-        fprintf (fp, "}\n");
-        ctx = ctx->next;
-    }
-
-    fclose (fp);
-    return 0;
+    return deadbeef->dsp_preset_save (path, p->chain);
 }
 
 static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
@@ -430,8 +387,102 @@ scandir_preset_filter (const struct dirent *ent) {
     return 0;
 }
 
+static int
+copy_file (const char *in, const char *out) {
+    int BUFFER_SIZE = 1000;
+    FILE *fin = fopen (in, "rb");
+    if (!fin) {
+        fprintf (stderr, "converter: failed to open file %s for reading\n", in);
+        return -1;
+    }
+    FILE *fout = fopen (out, "w+b");
+    if (!fout) {
+        fclose (fin);
+        fprintf (stderr, "converter: failed to open file %s for writing\n", out);
+        return -1;
+    }
+    char *buf = malloc (BUFFER_SIZE);
+    if (!buf) {
+        fprintf (stderr, "converter: failed to alloc %d bytes\n", BUFFER_SIZE);
+        fclose (fin);
+        fclose (fout);
+        return -1;
+    }
+
+    fseek (fin, 0, SEEK_END);
+    size_t sz = ftell (fin);
+    rewind (fin);
+
+    while (sz > 0) {
+        int rs = min (sz, BUFFER_SIZE);
+        if (fread (buf, rs, 1, fin) != 1) {
+            fprintf (stderr, "converter: failed to read file %s\n", in);
+            break;
+        }
+        if (fwrite (buf, rs, 1, fout) != 1) {
+            fprintf (stderr, "converter: failed to write file %s\n", out);
+            break;
+        }
+        sz -= rs;
+    }
+    free (buf);
+    fclose (fin);
+    fclose (fout);
+    if (sz > 0) {
+        unlink (out);
+    }
+    return 0;
+}
+
 int
 load_encoder_presets (void) {
+    // check if we need to install presets
+    char ppath[1024];
+    char epath[1024];
+    char fpath[1024];
+    snprintf (ppath, sizeof (ppath), "%s/presets", deadbeef->get_config_dir ());
+    snprintf (epath, sizeof (epath), "%s/encoders", ppath);
+    snprintf (fpath, sizeof (fpath), "%s/.installed", epath);
+    struct stat stat_buf;
+    if (0 != stat (fpath, &stat_buf)) {
+        // file not found, install all presets from plugin_dir/convpresets/
+        mkdir (ppath, 0755);
+        mkdir (epath, 0755);
+        char preset_src_dir[1024];
+        snprintf (preset_src_dir, sizeof (preset_src_dir), "%s/convpresets", deadbeef->get_plugin_dir ());
+        struct dirent **namelist = NULL;
+        int n = scandir (preset_src_dir, &namelist, NULL, dirent_alphasort);
+        for (int i = 0; i < n; i++) {
+            // replace _ with spaces
+            char new_name[1024];
+            char *o = new_name;
+            char *in = namelist[i]->d_name;
+            while (*in) {
+                if (*in == '_') {
+                    *o++ = ' ';
+                    in++;
+                }
+                else {
+                    *o++ = *in++;
+                }
+            }
+            *o = 0;
+            char in_name[1024];
+            char out_name[1024];
+            snprintf (in_name, sizeof (in_name), "%s/%s", preset_src_dir, namelist[i]->d_name);
+            snprintf (out_name, sizeof (out_name), "%s/%s", epath, new_name);
+            copy_file (in_name, out_name);
+            free (namelist[i]);
+        }
+        if (namelist) {
+            free (namelist);
+        }
+        FILE *fp = fopen (fpath, "w+b");
+        if (fp) {
+            fclose (fp);
+        }
+    }
+
     ddb_encoder_preset_t *tail = NULL;
     char path[1024];
     if (snprintf (path, sizeof (path), "%s/presets/encoders", deadbeef->get_config_dir ()) < 0) {
@@ -458,6 +509,26 @@ load_encoder_presets (void) {
     }
     free (namelist);
     return 0;
+}
+
+void
+free_encoder_presets (void) {
+    ddb_encoder_preset_t *p = encoder_presets;
+    while (p) {
+        ddb_encoder_preset_t *next = p->next;
+        if (p->title) {
+            free (p->title);
+        }
+        if (p->ext) {
+            free (p->ext);
+        }
+        if (p->encoder) {
+            free (p->encoder);
+        }
+        free (p);
+        p = next;
+    }
+    encoder_presets = NULL;
 }
 
 int
@@ -488,6 +559,23 @@ load_dsp_presets (void) {
     }
     free (namelist);
     return 0;
+}
+
+void
+free_dsp_presets (void) {
+    ddb_dsp_preset_t *p = dsp_presets;
+    while (p) {
+        ddb_dsp_preset_t *next = p->next;
+        if (p->title) {
+            free (p->title);
+        }
+        if (p->chain) {
+            deadbeef->dsp_preset_free (p->chain);
+        }
+        free (p);
+        p = next;
+    }
+    dsp_presets = NULL;
 }
 
 ddb_dsp_preset_t *
@@ -543,8 +631,78 @@ dsp_preset_replace (ddb_dsp_preset_t *from, ddb_dsp_preset_t *to) {
     to->next = from->next;
 }
 
+
+static void
+get_output_field (DB_playItem_t *it, const char *field, char *out, int sz)
+{
+    int idx = deadbeef->pl_get_idx_of (it);
+    deadbeef->pl_format_title (it, idx, out, sz, -1, field);
+
+    // replace invalid chars
+    char invalid[] = "/\\?%*:|\"<>";
+    char *p = out;
+    while (*p) {
+        if (strchr (invalid, *p)) {
+            *p = '_';
+        }
+        p++;
+    }
+    trace ("field '%s' expanded to '%s'\n", field, out);
+}
+
+static void
+get_output_path (DB_playItem_t *it, const char *outfolder, const char *outfile, ddb_encoder_preset_t *encoder_preset, char *out, int sz) {
+    int l;
+    char fname[PATH_MAX];
+    char *path = outfolder[0] ? strdupa (outfolder) : strdupa (getenv("HOME"));
+    char *pattern = strdupa (outfile);
+
+    // replace invalid chars
+    char invalid[] = "?%*:|\"<>";
+    char *p = path;
+    while (*p) {
+        if (strchr (invalid, *p)) {
+            *p = '_';
+        }
+        p++;
+    }
+    snprintf (out, sz, "%s/", path);
+
+    // split path and create directories
+    char *field = pattern;
+    char *s = pattern;
+    while (*s) {
+        if ((*s == '/') || (*s == '\\')) {
+            *s = '\0';
+            get_output_field (it, field, fname, sizeof(fname));
+
+            l = strlen (out);
+            snprintf (out+l, sz-l, "%s/", fname);
+            mkdir (out, 0755);
+
+            field = s+1;
+        }
+        s++;
+    }
+
+    // last part of outfile is the filename
+    get_output_field (it, field, fname, sizeof(fname));
+
+    l = strlen (out);
+    snprintf (out+l, sz-l, "%s.%s", fname, encoder_preset->ext);
+    trace ("converter output file is '%s'\n", out);
+}
+
 int
-convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_encoder_preset_t *encoder_preset, ddb_dsp_preset_t *dsp_preset, int *abort) {
+convert (DB_playItem_t *it, const char *outfolder, const char *outfile, int output_bps, int output_is_float, int preserve_folder_structure, const char *root_folder, ddb_encoder_preset_t *encoder_preset, ddb_dsp_preset_t *dsp_preset, int *abort) {
+    if (deadbeef->pl_get_item_duration (it) <= 0) {
+        deadbeef->pl_lock ();
+        const char *fname = deadbeef->pl_find_meta (it, ":URI");
+        fprintf (stderr, "converter: stream %s doesn't have finite length, skipped\n", fname);
+        deadbeef->pl_unlock ();
+        return -1;
+    }
+
     int err = -1;
     FILE *enc_pipe = NULL;
     FILE *temp_file = NULL;
@@ -552,18 +710,23 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
     DB_fileinfo_t *fileinfo = NULL;
     char out[PATH_MAX] = ""; // full path to output file
     char input_file_name[PATH_MAX] = "";
-    dec = (DB_decoder_t *)deadbeef->plug_get_for_id (it->decoder_id);
+    dec = (DB_decoder_t *)deadbeef->plug_get_for_id (deadbeef->pl_find_meta (it, ":DECODER"));
+
     if (dec) {
         fileinfo = dec->open (0);
         if (fileinfo && dec->init (fileinfo, DB_PLAYITEM (it)) != 0) {
-            fprintf (stderr, "converter: decoder->init failed\n");
+            deadbeef->pl_lock ();
+            fprintf (stderr, "converter: failed to decode file %s\n", deadbeef->pl_find_meta (it, ":URI"));
+            deadbeef->pl_unlock ();
             goto error;
         }
         if (fileinfo) {
-            char fname[PATH_MAX];
-            int idx = deadbeef->pl_get_idx_of (it);
-            deadbeef->pl_format_title (it, idx, fname, sizeof (fname), -1, encoder_preset->fname);
-            snprintf (out, sizeof (out), "%s/%s", outfolder, fname);
+            if (output_bps == -1) {
+                output_bps = fileinfo->fmt.bps;
+                output_is_float = fileinfo->fmt.is_float;
+            }
+
+            get_output_path (it, outfolder, outfile, encoder_preset, out, sizeof (out));
             if (encoder_preset->method == DDB_ENCODER_METHOD_FILE) {
                 const char *tmp = getenv ("TMPDIR");
                 if (!tmp) {
@@ -578,6 +741,7 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
             }
 
             char enc[2000];
+            memset (enc, 0, sizeof (enc));
 
             // formatting: %o = outfile, %i = infile
             char *e = encoder_preset->encoder;
@@ -586,7 +750,7 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
             int len = sizeof (enc);
             while (e && *e) {
                 if (len <= 0) {
-                    fprintf (stderr, "converter: failed to assemble encoder command line - buffer is not big enough, try to shorten your parameters. max allowed length is %d characters\n", sizeof (enc));
+                    fprintf (stderr, "converter: failed to assemble encoder command line - buffer is not big enough, try to shorten your parameters. max allowed length is %u characters\n", (unsigned)sizeof (enc));
                     goto error;
                 }
                 if (e[0] == '%' && e[1]) {
@@ -614,7 +778,7 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
                 }
             }
 
-            fprintf (stderr, "converter: will encode using: %s\n", enc);
+            fprintf (stderr, "converter: will encode using: %s\n", enc[0] ? enc : "internal RIFF WAVE writer");
 
             if (!encoder_preset->encoder[0]) {
                 // write to wave file
@@ -644,24 +808,18 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
             }
 
             // write wave header
-            char wavehdr[] = {
+            char wavehdr_int[] = {
                 0x52, 0x49, 0x46, 0x46, 0x24, 0x70, 0x0d, 0x00, 0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61
             };
+            char wavehdr_float[] = {
+                0x52, 0x49, 0x46, 0x46, 0x2a, 0xdf, 0x02, 0x00, 0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x28, 0x00, 0x00, 0x00, 0xfe, 0xff, 0x02, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x00, 0xfa, 0x00, 0x00, 0x08, 0x00, 0x20, 0x00, 0x16, 0x00, 0x20, 0x00, 0x03, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71, 0x66, 0x61, 0x63, 0x74, 0x04, 0x00, 0x00, 0x00, 0xc5, 0x5b, 0x00, 0x00, 0x64, 0x61, 0x74, 0x61
+            };
+            char *wavehdr = output_is_float ? wavehdr_float : wavehdr_int;
+            int wavehdr_size = output_is_float ? sizeof (wavehdr_float) : sizeof (wavehdr_int);
             int header_written = 0;
             uint32_t outsize = 0;
             uint32_t outsr = fileinfo->fmt.samplerate;
             uint16_t outch = fileinfo->fmt.channels;
-            uint16_t outbps = fileinfo->fmt.bps;
-            if (selected_format != 0) {
-                switch (selected_format) {
-                case 1 ... 4:
-                    outbps = selected_format * 8;
-                    break;
-                case 5:
-                    outbps = 32;
-                    break;
-                }
-            }
 
             int samplesize = fileinfo->fmt.channels * fileinfo->fmt.bps / 8;
             int bs = 10250 * samplesize;
@@ -700,17 +858,19 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
                     outsr = fmt.samplerate;
                     outch = fmt.channels;
 
-                    outfmt.bps = outbps;
+                    outfmt.bps = output_bps;
+                    outfmt.is_float = output_is_float;
                     outfmt.channels = outch;
                     outfmt.samplerate = outsr;
 
                     int n = deadbeef->pcm_convert (&fmt, dspbuffer, &outfmt, buffer, frames * sizeof (float) * fmt.channels);
                     sz = n;
                 }
-                else if (fileinfo->fmt.bps != outbps) {
+                else if (fileinfo->fmt.bps != output_bps || fileinfo->fmt.is_float != output_is_float) {
                     ddb_waveformat_t outfmt;
                     memcpy (&outfmt, &fileinfo->fmt, sizeof (outfmt));
-                    outfmt.bps = outbps;
+                    outfmt.bps = output_bps;
+                    outfmt.is_float = output_is_float;
                     outfmt.channels = outch;
                     outfmt.samplerate = outsr;
 
@@ -722,9 +882,9 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
                 outsize += sz;
 
                 if (!header_written) {
-                    uint32_t size = (it->endsample-it->startsample) * outch * outbps / 8;
+                    uint32_t size = (it->endsample-it->startsample) * outch * output_bps / 8;
                     if (!size) {
-                        size = deadbeef->pl_get_item_duration (it) * fileinfo->fmt.samplerate * outch * outbps / 8;
+                        size = deadbeef->pl_get_item_duration (it) * fileinfo->fmt.samplerate * outch * output_bps / 8;
 
                     }
 
@@ -737,17 +897,21 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
 
                     memcpy (&wavehdr[22], &outch, 2);
                     memcpy (&wavehdr[24], &outsr, 4);
-                    uint16_t blockalign = outch * outbps / 8;
+                    uint16_t blockalign = outch * output_bps / 8;
                     memcpy (&wavehdr[32], &blockalign, 2);
-                    memcpy (&wavehdr[34], &outbps, 2);
+                    memcpy (&wavehdr[34], &output_bps, 2);
 
-                    fwrite (wavehdr, 1, sizeof (wavehdr), temp_file);
+                    fwrite (wavehdr, 1, wavehdr_size, temp_file);
+                    if (encoder_preset->method == DDB_ENCODER_METHOD_PIPE) {
+                        size = 0;
+                    }
                     fwrite (&size, 1, sizeof (size), temp_file);
                     header_written = 1;
                 }
 
-                if (sz != fwrite (buffer, 1, sz, temp_file)) {
-                    fprintf (stderr, "converter: write error\n");
+                int64_t res = fwrite (buffer, 1, sz, temp_file);
+                if (sz != res) {
+                    fprintf (stderr, "converter: write error (%lld bytes written out of %d)\n", res, sz);
                     goto error;
                 }
             }
@@ -755,6 +919,9 @@ convert (DB_playItem_t *it, const char *outfolder, int selected_format, ddb_enco
                 goto error;
             }
             if (temp_file && temp_file != enc_pipe) {
+                fseek (temp_file, wavehdr_size, SEEK_SET);
+                fwrite (&outsize, 1, 4, temp_file);
+
                 fclose (temp_file);
                 temp_file = NULL;
             }
@@ -785,6 +952,69 @@ error:
         unlink (input_file_name);
     }
 
+    // write junklib tags
+    uint32_t tagflags = JUNK_STRIP_ID3V2 | JUNK_STRIP_APEV2 | JUNK_STRIP_ID3V1;
+    if (encoder_preset->tag_id3v2) {
+        tagflags |= JUNK_WRITE_ID3V2;
+    }
+    if (encoder_preset->tag_id3v1) {
+        tagflags |= JUNK_WRITE_ID3V1;
+    }
+    if (encoder_preset->tag_apev2) {
+        tagflags |= JUNK_WRITE_APEV2;
+    }
+    DB_playItem_t *out_it = deadbeef->pl_item_alloc ();
+    deadbeef->pl_item_copy (out_it, it);
+    deadbeef->pl_replace_meta (out_it, ":URI", out);
+    deadbeef->pl_delete_meta (out_it, "cuesheet");
+
+    deadbeef->junk_rewrite_tags (out_it, tagflags, encoder_preset->id3v2_version + 3, "iso8859-1");
+
+    // write flac tags
+    if (encoder_preset->tag_flac) {
+        // find flac decoder plugin
+        DB_decoder_t **plugs = deadbeef->plug_get_decoder_list ();
+        DB_decoder_t *flac = NULL;
+        for (int i = 0; plugs[i]; i++) {
+            if (!strcmp (plugs[i]->plugin.id, "stdflac")) {
+                flac = plugs[i];
+                break;
+            }
+        }
+        if (!flac) {
+            fprintf (stderr, "converter: flac plugin not found, cannot write flac metadata\n");
+        }
+        else {
+            if (0 != flac->write_metadata (out_it)) {
+                fprintf (stderr, "converter: failed to write flac metadata, not a flac file?\n");
+            }
+        }
+    }
+
+    // write vorbis tags
+    if (encoder_preset->tag_oggvorbis) {
+        // find flac decoder plugin
+        DB_decoder_t **plugs = deadbeef->plug_get_decoder_list ();
+        DB_decoder_t *ogg = NULL;
+        for (int i = 0; plugs[i]; i++) {
+            if (!strcmp (plugs[i]->plugin.id, "stdogg")) {
+                ogg = plugs[i];
+                break;
+            }
+        }
+        if (!ogg) {
+            fprintf (stderr, "converter: ogg plugin not found, cannot write ogg metadata\n");
+        }
+        else {
+            if (0 != ogg->write_metadata (out_it)) {
+                fprintf (stderr, "converter: failed to write ogg metadata, not an ogg file?\n");
+            }
+        }
+    }
+
+    deadbeef->pl_item_unref (out_it);
+
+
     return err;
 }
 
@@ -803,21 +1033,39 @@ converter_start (void) {
 
 int
 converter_stop (void) {
+    free_encoder_presets ();
+    free_dsp_presets ();
     return 0;
 }
 
 // define plugin interface
 static ddb_converter_t plugin = {
-    .misc.plugin.api_vmajor = DB_API_VERSION_MAJOR,
-    .misc.plugin.api_vminor = DB_API_VERSION_MINOR,
+    .misc.plugin.api_vmajor = 1,
+    .misc.plugin.api_vminor = 0,
     .misc.plugin.version_major = 1,
-    .misc.plugin.version_minor = 0,
+    .misc.plugin.version_minor = 1,
     .misc.plugin.type = DB_PLUGIN_MISC,
     .misc.plugin.name = "Converter",
     .misc.plugin.id = "converter",
-    .misc.plugin.descr = "Converts any supported formats to other formats",
-    .misc.plugin.author = "Alexey Yakovenko",
-    .misc.plugin.email = "waker@users.sourceforge.net",
+    .misc.plugin.descr = "Converts any supported formats to other formats.\n"
+        "Requires separate GUI plugin, e.g. Converter GTK UI\n",
+    .misc.plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .misc.plugin.website = "http://deadbeef.sf.net",
     .misc.plugin.start = converter_start,
     .misc.plugin.stop = converter_stop,
@@ -842,7 +1090,13 @@ static ddb_converter_t plugin = {
     .dsp_preset_append = dsp_preset_append,
     .dsp_preset_remove = dsp_preset_remove,
     .dsp_preset_replace = dsp_preset_replace,
+    .get_output_path = get_output_path,
     .convert = convert,
+    // 1.1 entry points
+    .load_encoder_presets = load_encoder_presets,
+    .load_dsp_presets = load_dsp_presets,
+    .free_encoder_presets = free_encoder_presets,
+    .free_dsp_presets = free_dsp_presets,
 };
 
 DB_plugin_t *

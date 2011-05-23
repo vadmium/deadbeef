@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "../../deadbeef.h"
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
@@ -38,7 +39,7 @@ skipspaces (const uint8_t *p, const uint8_t *end) {
 }
 
 static DB_playItem_t *
-load_m3u (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
+load_m3u (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
     const char *slash = strrchr (fname, '/');
     trace ("enter pl_insert_m3u\n");
     // skip all empty lines and comments
@@ -48,23 +49,17 @@ load_m3u (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
         return NULL;
     }
     int sz = deadbeef->fgetlength (fp);
-    if (sz > 1024*1024) {
-        deadbeef->fclose (fp);
-        trace ("file %s is too large to be a playlist\n", fname);
-        return NULL;
-    }
-    if (sz < 30) {
-        deadbeef->fclose (fp);
-        trace ("file %s is too small to be a playlist (%d)\n", fname, sz);
-        return NULL;
-    }
     trace ("loading m3u...\n");
-    uint8_t buffer[sz];
+    uint8_t *buffer = malloc (sz);
+    if (!buffer) {
+        deadbeef->fclose (fp);
+        trace ("failed to allocate %d bytes to read the file %s\n", sz, fname);
+        return NULL;
+    }
     deadbeef->fread (buffer, 1, sz, fp);
     deadbeef->fclose (fp);
     const uint8_t *p = buffer;
     const uint8_t *end = buffer+sz;
-    deadbeef->pl_lock ();
     while (p < end) {
         p = skipspaces (p, end);
         if (p >= end) {
@@ -91,7 +86,7 @@ load_m3u (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
         DB_playItem_t *it = NULL;
         if (strrchr (nm, '/')) {
             trace ("pl_insert_m3u: adding file %s\n", nm);
-            it = deadbeef->pl_insert_file (after, nm, pabort, cb, user_data);
+            it = deadbeef->plt_insert_file (plt, after, nm, pabort, cb, user_data);
         }
         else {
             int l = strlen (nm);
@@ -99,13 +94,16 @@ load_m3u (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
             memcpy (fullpath, fname, slash - fname + 1);
             strcpy (fullpath + (slash - fname + 1), nm);
             trace ("pl_insert_m3u: adding file %s\n", fullpath);
-            it = deadbeef->pl_insert_file (after, fullpath, pabort, cb, user_data);
+            it = deadbeef->plt_insert_file (plt, after, fullpath, pabort, cb, user_data);
         }
         if (it) {
             after = it;
         }
         if (pabort && *pabort) {
-            deadbeef->pl_unlock ();
+            if (after) {
+                deadbeef->pl_item_ref (after);
+            }
+            free (buffer);
             return after;
         }
         p = e;
@@ -113,33 +111,42 @@ load_m3u (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
             break;
         }
     }
-    deadbeef->pl_unlock ();
+    if (after) {
+        deadbeef->pl_item_ref (after);
+    }
     trace ("leave pl_insert_m3u\n");
+    free (buffer);
     return after;
 }
 
 static DB_playItem_t *
-pls_insert_file (DB_playItem_t *after, const char *fname, const char *uri, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
+pls_insert_file (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, const char *uri, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data, const char *title, const char *length) {
+    trace ("pls_insert_file uri: %s\n", uri);
     DB_playItem_t *it = NULL;
     const char *slash = NULL;
 
     if (strrchr (uri, '/')) {
-        trace ("pls: adding file %s\n", uri);
-        it = deadbeef->pl_insert_file (after, uri, pabort, cb, user_data);
+        it = deadbeef->plt_insert_file (plt, after, uri, pabort, cb, user_data);
     }
     else if (slash = strrchr (fname, '/')) {
         int l = strlen (uri);
         char fullpath[slash - fname + l + 2];
         memcpy (fullpath, fname, slash - fname + 1);
         strcpy (fullpath + (slash - fname + 1), uri);
-        trace ("pl_insert_m3u: adding file %s\n", fullpath);
-        it = deadbeef->pl_insert_file (after, fullpath, pabort, cb, user_data);
+        trace ("pls_insert_file: adding file %s\n", fullpath);
+        it = deadbeef->plt_insert_file (plt, after, fullpath, pabort, cb, user_data);
+    }
+    if (length[0]) {
+        deadbeef->plt_set_item_duration (plt, it, atoi (length));
+    }
+    if (title[0]) {
+        deadbeef->pl_replace_meta (it, "title", title);
     }
     return it;
 }
 
 static DB_playItem_t *
-load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
+load_pls (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
     const char *slash = strrchr (fname, '/');
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
@@ -147,18 +154,13 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
         return NULL;
     }
     int sz = deadbeef->fgetlength (fp);
-    if (sz > 1024*1024) {
-        deadbeef->fclose (fp);
-        trace ("file %s is too large to be a playlist\n", fname);
-        return NULL;
-    }
-    if (sz < 30) {
-        deadbeef->fclose (fp);
-        trace ("file %s is too small to be a playlist (%d)\n", fname, sz);
-        return NULL;
-    }
     deadbeef->rewind (fp);
-    uint8_t buffer[sz];
+    uint8_t *buffer = malloc (sz);
+    if (!buffer) {
+        deadbeef->fclose (fp);
+        trace ("failed to allocate %d bytes to read the file %s\n", sz, fname);
+        return NULL;
+    }
     deadbeef->fread (buffer, 1, sz, fp);
     deadbeef->fclose (fp);
     // 1st line must be "[playlist]"
@@ -166,29 +168,21 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
     const uint8_t *end = buffer+sz;
     if (strncasecmp (p, "[playlist]", 10)) {
         trace ("file %s doesn't begin with [playlist]\n", fname);
+        free (buffer);
         return NULL;
     }
     p += 10;
     p = skipspaces (p, end);
     if (p >= end) {
         trace ("file %s finished before numberofentries had been read\n", fname);
+        free (buffer);
         return NULL;
     }
-    if (strncasecmp (p, "numberofentries=", 16)) {
-        trace ("can't get number of entries from %s\n", fname);
-        return NULL;
-    }
-    p += 15;
-    // ignore numentries - no real need for it here
-    while (p < end && *p > 0x20) {
-        p++;
-    }
-    p = skipspaces (p, end);
     // fetch all tracks
     char uri[1024] = "";
     char title[1024] = "";
     char length[20] = "";
-    deadbeef->pl_lock ();
+    int lastidx = -1;
     while (p < end) {
         p = skipspaces (p, end);
         if (p >= end) {
@@ -199,24 +193,32 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
         }
         const uint8_t *e;
         int n;
-        if (!strncasecmp (p, "file", 4)) {
-            if (uri[0]) {
-                DB_playItem_t *it = pls_insert_file (after, fname, uri, pabort, cb, user_data);
+        if (!strncasecmp (p, "numberofentries=", 16) || !strncasecmp (p, "version=", 8)) {
+            while (p < end && *p >= 0x20) {
+                p++;
+            }
+            continue;
+        }
+        else if (!strncasecmp (p, "file", 4)) {
+            int idx = atoi (p + 4);
+            if (uri[0] && idx != lastidx && lastidx != -1) {
+                trace ("uri%d\n", idx);
+                DB_playItem_t *it = pls_insert_file (plt, after, fname, uri, pabort, cb, user_data, title, length);
                 if (it) {
                     after = it;
-                    deadbeef->pl_set_item_duration (it, atoi (length));
-                    if (title[0]) {
-                        deadbeef->pl_add_meta (it, "title", title);
-                    }
                 }
                 if (pabort && *pabort) {
-                    deadbeef->pl_unlock ();
+                    if (after) {
+                        deadbeef->pl_item_ref (after);
+                    }
+                    free (buffer);
                     return after;
                 }
                 uri[0] = 0;
                 title[0] = 0;
                 length[0] = 0;
             }
+            lastidx = idx;
             p += 4;
             while (p < end && *p != '=') {
                 p++;
@@ -234,9 +236,29 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
             memcpy (uri, p, n);
             uri[n] = 0;
             trace ("uri: %s\n", uri);
+            trace ("uri%d=%s\n", idx, uri);
             p = ++e;
         }
         else if (!strncasecmp (p, "title", 5)) {
+            int idx = atoi (p + 5);
+            if (uri[0] && idx != lastidx && lastidx != -1) {
+                trace ("title%d\n", idx);
+                DB_playItem_t *it = pls_insert_file (plt, after, fname, uri, pabort, cb, user_data, title, length);
+                if (it) {
+                    after = it;
+                }
+                if (pabort && *pabort) {
+                    if (after) {
+                        deadbeef->pl_item_ref (after);
+                    }
+                    free (buffer);
+                    return after;
+                }
+                uri[0] = 0;
+                title[0] = 0;
+                length[0] = 0;
+            }
+            lastidx = idx;
             p += 5;
             while (p < end && *p != '=') {
                 p++;
@@ -253,10 +275,29 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
             n = min (n, sizeof (title)-1);
             memcpy (title, p, n);
             title[n] = 0;
-            trace ("title: %s\n", title);
+            trace ("title%d=%s\n", idx, title);
             p = ++e;
         }
         else if (!strncasecmp (p, "length", 6)) {
+            int idx = atoi (p + 6);
+            if (uri[0] && idx != lastidx && lastidx != -1) {
+                trace ("length%d\n", idx);
+                DB_playItem_t *it = pls_insert_file (plt, after, fname, uri, pabort, cb, user_data, title, length);
+                if (it) {
+                    after = it;
+                }
+                if (pabort && *pabort) {
+                    if (after) {
+                        deadbeef->pl_item_ref (after);
+                    }
+                    free (buffer);
+                    return after;
+                }
+                uri[0] = 0;
+                title[0] = 0;
+                length[0] = 0;
+            }
+            lastidx = idx;
             p += 6;
             // skip =
             while (p < end && *p != '=') {
@@ -273,6 +314,7 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
             n = e-p;
             n = min (n, sizeof (length)-1);
             memcpy (length, p, n);
+            trace ("length%d=%s\n", idx, length);
         }
         else {
             trace ("invalid entry in pls file: %s\n", p);
@@ -284,50 +326,151 @@ load_pls (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_pla
         p = e;
     }
     if (uri[0]) {
-        DB_playItem_t *it = pls_insert_file (after, fname, uri, pabort, cb, user_data);
+        DB_playItem_t *it = pls_insert_file (plt, after, fname, uri, pabort, cb, user_data, title, length);
         if (it) {
             after = it;
-            deadbeef->pl_set_item_duration (it, atoi (length));
-            if (title[0]) {
-                deadbeef->pl_add_meta (it, "title", title);
-            }
         }
     }
-    deadbeef->pl_unlock ();
+    if (after) {
+        deadbeef->pl_item_ref (after);
+    }
+    free (buffer);
     return after;
 }
 
 static DB_playItem_t *
-m3uplug_load (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
+m3uplug_load (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) {
     const char *ext = strrchr (fname, '.');
     if (!ext) {
         return NULL;
     }
     ext++;
 
-    if (!strcasecmp (ext, "m3u")) {
-        return load_m3u (after, fname, pabort, cb, user_data);
+    if (!strcasecmp (ext, "m3u") || !strcasecmp (ext, "m3u8")) {
+        return load_m3u (plt, after, fname, pabort, cb, user_data);
     }
     else if (!strcasecmp (ext, "pls")) {
-        return load_pls (after, fname, pabort, cb, user_data);
+        return load_pls (plt, after, fname, pabort, cb, user_data);
     }
 
     return NULL;
 }
 
-static const char * exts[] = { "m3u", "pls", NULL };
+int
+m3uplug_save_m3u (const char *fname, DB_playItem_t *first, DB_playItem_t *last) {
+    FILE *fp = fopen (fname, "w+t");
+    if (!fp) {
+        return -1;
+    }
+    DB_playItem_t *it = first;
+    deadbeef->pl_item_ref (it);
+    fprintf (fp, "#M3UEXT\n");
+    while (it) {
+        int dur = (int)ceil(deadbeef->pl_get_item_duration (it));
+        char s[1000];
+        deadbeef->pl_format_title (it, -1, s, sizeof (s), -1, "%a - %t");
+        const char *fname = deadbeef->pl_find_meta (it, ":URI");
+        fprintf (fp, "#EXTINF:%d,%s\n", dur, s);
+        fprintf (fp, "%s\n", fname);
+
+        if (it == last) {
+            break;
+        }
+        DB_playItem_t *next = deadbeef->pl_get_next (it, PL_MAIN);
+        deadbeef->pl_item_unref (it);
+        it = next;
+    }
+    fclose (fp);
+    return 0;
+}
+
+int
+m3uplug_save_pls (const char *fname, DB_playItem_t *first, DB_playItem_t *last) {
+    FILE *fp = fopen (fname, "w+t");
+    if (!fp) {
+        return -1;
+    }
+
+    int n = 0;
+    DB_playItem_t *it = first;
+    deadbeef->pl_item_ref (it);
+    while (it) {
+        n++;
+        if (it == last) {
+            break;
+        }
+        DB_playItem_t *next = deadbeef->pl_get_next (it, PL_MAIN);
+        deadbeef->pl_item_unref (it);
+        it = next;
+    }
+
+    fprintf (fp, "[playlist]\n");
+    fprintf (fp, "NumberOfEntries=%d\n", n);
+
+    it = first;
+    deadbeef->pl_item_ref (it);
+    int i = 1;
+    while (it) {
+        const char *fname = deadbeef->pl_find_meta (it, ":URI");
+        fprintf (fp, "File%d=%s\n", i, fname);
+
+        if (it == last) {
+            break;
+        }
+        DB_playItem_t *next = deadbeef->pl_get_next (it, PL_MAIN);
+        deadbeef->pl_item_unref (it);
+        it = next;
+        i++;
+    }
+    fclose (fp);
+    return 0;
+}
+
+int
+m3uplug_save (ddb_playlist_t *plt, const char *fname, DB_playItem_t *first, DB_playItem_t *last) {
+    const char *e = strrchr (fname, '.');
+    if (!e) {
+        return -1;
+    }
+    if (!strcasecmp (e, ".m3u") || !strcasecmp (e, ".m3u8")) {
+        return m3uplug_save_m3u (fname, first, last);
+    }
+    else if (!strcasecmp (e, ".pls")) {
+        return m3uplug_save_pls (fname, first, last);
+    }
+    return -1;
+}
+
+static const char * exts[] = { "m3u", "m3u8", "pls", NULL };
 DB_playlist_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_PLAYLIST,
     .plugin.id = "m3u",
-    .plugin.name = "M3U and PLS playlist loader",
-    .plugin.descr = "Imports playlists from M3U and PLS formats",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.name = "M3U and PLS support",
+    .plugin.descr = "Importing and exporting M3U and PLS formats\nRecognizes .pls, .m3u and .m3u8 file types\n\nNOTE: only utf8 file names are currently supported",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .load = m3uplug_load,
+    .save = m3uplug_save,
     .extensions = exts,
 };
 

@@ -18,7 +18,7 @@
 */
 #include <stdlib.h>
 #include <string.h>
-#include "../../deadbeef.h"
+#include <deadbeef/deadbeef.h>
 #include "ao.h"
 #include "eng_protos.h"
 
@@ -32,7 +32,6 @@ DB_functions_t *deadbeef;
 static DB_decoder_t plugin;
 
 static const char * exts[] = { "psf", "psf2", "spu", "ssf", "qsf", "dsf", "minipsf", "minipsf2", "minissf", "miniqsf", "minidsf", NULL };
-static const char *filetypes[] = { "PSF", "PSF2", "SPU", "SSF", "QSF", "DSF", NULL };
 
 typedef struct {
     DB_fileinfo_t info;
@@ -67,9 +66,9 @@ aoplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     _info->plugin = &plugin;
     info->duration = deadbeef->pl_get_item_duration (it);
 
-    DB_FILE *file = deadbeef->fopen (it->fname);
+    DB_FILE *file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!file) {
-        trace ("psf: failed to fopen %s\n", it->fname);
+        trace ("psf: failed to fopen %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -82,7 +81,7 @@ aoplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     }
 
 	if (deadbeef->fread(info->filebuffer, 1, info->filesize, file) != info->filesize) {
-		fprintf(stderr, "psf: file read error: %s\n", it->fname);
+		fprintf(stderr, "psf: file read error: %s\n", deadbeef->pl_find_meta (it, ":URI"));
 		deadbeef->fclose (file);
         return -1;
     }
@@ -94,7 +93,7 @@ aoplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
 
-    info->decoder = ao_start (info->type, it->fname, (uint8 *)info->filebuffer, info->filesize);
+    info->decoder = ao_start (info->type, deadbeef->pl_find_meta (it, ":URI"), (uint8 *)info->filebuffer, info->filesize);
     if (!info->decoder) {
         fprintf (stderr, "psf: ao_start failed\n");
         return -1;
@@ -154,6 +153,7 @@ aoplug_read (DB_fileinfo_t *_info, char *bytes, int size) {
         }
     }
     info->currentsample += (initsize-size) / (_info->fmt.channels * _info->fmt.bps/8);
+    _info->readpos = (float)info->currentsample / _info->fmt.samplerate;
     return initsize-size;
 }
 
@@ -197,15 +197,15 @@ aoplug_add_meta (DB_playItem_t *it, const char *key, const char *value, const ch
         res = tmp;
     }
 
-    if (res) {
-        char s[1024];
-        snprintf (s, sizeof (s), "%s%s", comment_title, res);
-        deadbeef->pl_append_meta (it, "comment", s);
-    }
+//    if (res) {
+//        char s[1024];
+//        snprintf (s, sizeof (s), "%s%s", comment_title, res);
+//        deadbeef->pl_append_meta (it, "comment", s);
+//    }
 }
 
 static DB_playItem_t *
-aoplug_insert (DB_playItem_t *after, const char *fname) {
+aoplug_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         trace ("psf: failed to fopen %s\n", fname);
@@ -251,9 +251,7 @@ aoplug_insert (DB_playItem_t *after, const char *fname) {
 
 	free (buffer);
 	
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
     const char *ext = fname + strlen (fname);
     while (*ext != '.' && ext > fname) {
         ext--;
@@ -261,37 +259,42 @@ aoplug_insert (DB_playItem_t *after, const char *fname) {
     if (*ext == '.') {
         ext++;
         if (!strcasecmp (ext, "psf") || !strcasecmp (ext, "minipsf")) {
-            it->filetype = filetypes[0];
+            deadbeef->pl_add_meta (it, ":FILETYPE", "PSF");
         }
         else if (!strcasecmp (ext, "psf2") || !strcasecmp (ext, "minipsf2")) {
-            it->filetype = filetypes[1];
+            deadbeef->pl_add_meta (it, ":FILETYPE", "PSF2");
         }
         else if (!strcasecmp (ext, "spu")) {
-            it->filetype = filetypes[2];
+            deadbeef->pl_add_meta (it, ":FILETYPE", "SPU");
         }
         else if (!strcasecmp (ext, "ssf") || !strcasecmp (ext, "minissf")) {
-            it->filetype = filetypes[3];
-        }
-        else if (!strcasecmp (ext, "dsf") || !strcasecmp (ext, "minidsf")) {
-            it->filetype = filetypes[5];
+            deadbeef->pl_add_meta (it, ":FILETYPE", "SSF");
         }
         else if (!strcasecmp (ext, "qsf") || !strcasecmp (ext, "miniqsf")) {
-            it->filetype = filetypes[4];
+            deadbeef->pl_add_meta (it, ":FILETYPE", "QSF");
+        }
+        else if (!strcasecmp (ext, "dsf") || !strcasecmp (ext, "minidsf")) {
+            deadbeef->pl_add_meta (it, ":FILETYPE", "DSF");
         }
     }
     else {
-        it->filetype = filetypes[0];
+        deadbeef->pl_add_meta (it, ":FILETYPE", "PSF");
     }
 
     float duration = 120;
+    float fade = 0;
 
     if (have_info) {
         int i;
         for (i = 1; i < 9; i++) {
             if (!strncasecmp (info.title[i], "Length: ", 8)) {
-                int min, sec;
-                if (sscanf (info.info[i], "%d:%d", &min, &sec) == 2) {
+                int min;
+                float sec;
+                if (sscanf (info.info[i], "%d:%f", &min, &sec) == 2) {
                     duration = min * 60 + sec;
+                }
+                else if (sscanf (info.info[i], "%f", &sec) == 1) {
+                    duration = sec;
                 }
                 aoplug_add_meta (it, NULL, info.info[i], info.title[i]);
             }
@@ -310,17 +313,22 @@ aoplug_insert (DB_playItem_t *after, const char *fname) {
             else if (!strncasecmp (info.title[i], "Year: ", 6)) {
                 aoplug_add_meta (it, "year", info.info[i], info.title[i]);
             }
-            else if (!strncasecmp (info.title[i], "Ripper: ", 8)) {
-                aoplug_add_meta (it, "vendor", info.info[i], info.title[i]);
+            else if (!strncasecmp (info.title[i], "Fade: ", 6)) {
+                fade = atof (info.info[i]);
+                aoplug_add_meta (it, "fade", info.info[i], info.title[i]);
             }
             else {
-                aoplug_add_meta (it, NULL, info.info[i], info.title[i]);
+                char *colon = strchr (info.title[i], ':');
+                char name[colon-info.title[i]+1];
+                memcpy (name, info.title[i], colon-info.title[i]);
+                name[colon-info.title[i]] = 0;
+                aoplug_add_meta (it, name, info.info[i], info.title[i]);
             }
         }
     }
-    deadbeef->pl_set_item_duration (it, duration);
+    deadbeef->plt_set_item_duration (plt, it, duration+fade);
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     return after;
 }
@@ -336,15 +344,35 @@ aoplug_stop (void) {
 }
 
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "psf",
-    .plugin.name = "Audio Overload plugin",
-    .plugin.descr = "psf, psf2, spu, ssf, minidsf player based on Audio Overload library",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.name = "PSF player using Audio Overload SDK",
+    .plugin.descr = "plays psf, psf2, spu, ssf, dsf, qsf file formats",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses modified aosdk-1.4.8 - library for playing .PSF (Sony PlayStation), .SPU (Sony PlayStation), .PSF2 (Sony PlayStation 2), .SSF (Sega Saturn), .DSF (Sega Dreamcast), and .QSF (Capcom QSound) audio file formats,\n"
+        "http://rbelmont.mameworld.info/?page_id=221\n"
+        "Copyright © 2007-2009 R. Belmont and Richard Bannister.\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = aoplug_start,
     .plugin.stop = aoplug_stop,
@@ -356,11 +384,10 @@ static DB_decoder_t plugin = {
     .seek_sample = aoplug_seek_sample,
     .insert = aoplug_insert,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *
-ao_load (DB_functions_t *api) {
+ddb_aopsf_load (DB_functions_t *api) {
     deadbeef = api;
     return DB_PLUGIN (&plugin);
 }

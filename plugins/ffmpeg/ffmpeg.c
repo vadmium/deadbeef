@@ -55,7 +55,11 @@
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
 
-static const char * exts[] = { "m4a", "wma", "aa3", "oma", "ac3", "vqf", "amr", NULL };
+#define DEFAULT_EXTS "m4a;wma;aa3;oma;ac3;vqf;amr"
+
+#define EXT_MAX 100
+
+static char * exts[EXT_MAX] = {NULL};
 
 enum {
     FT_ALAC = 0,
@@ -66,8 +70,6 @@ enum {
     FT_AMR = 5,
     FT_UNKNOWN = 5
 };
-
-static const char *filetypes[] = { "ALAC", "WMA", "ATRAC3", "VQF", "AC3", "AMR", "FFMPEG (unknown)", NULL };
 
 #define FF_PROTOCOL_NAME "deadbeef"
 
@@ -103,19 +105,19 @@ ffmpeg_open (uint32_t hints) {
 static int
 ffmpeg_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     ffmpeg_info_t *info = (ffmpeg_info_t *)_info;
-    trace ("ffmpeg init %s\n", it->fname);
+    trace ("ffmpeg init %s\n", deadbeef->pl_find_meta (it, ":URI"));
     // prepare to decode the track
     // return -1 on failure
 
     int ret;
-    int l = strlen (it->fname);
+    int l = strlen (deadbeef->pl_find_meta (it, ":URI"));
     char *uri = alloca (l + sizeof (FF_PROTOCOL_NAME) + 1);
     int i;
 
     // construct uri
     memcpy (uri, FF_PROTOCOL_NAME, sizeof (FF_PROTOCOL_NAME)-1);
     memcpy (uri + sizeof (FF_PROTOCOL_NAME)-1, ":", 1);
-    memcpy (uri + sizeof (FF_PROTOCOL_NAME), it->fname, l);
+    memcpy (uri + sizeof (FF_PROTOCOL_NAME), deadbeef->pl_find_meta (it, ":URI"), l);
     uri[sizeof (FF_PROTOCOL_NAME) + l] = 0;
     trace ("ffmpeg: uri: %s\n", uri);
 
@@ -150,10 +152,10 @@ ffmpeg_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     if (info->codec == NULL)
     {
-        trace ("ffmpeg can't decode %s\n", it->fname);
+        trace ("ffmpeg can't decode %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
-    trace ("ffmpeg can decode %s\n", it->fname);
+    trace ("ffmpeg can decode %s\n", deadbeef->pl_find_meta (it, ":URI"));
     trace ("ffmpeg: codec=%s, stream=%d\n", info->codec->name, i);
 
     if (avcodec_open (info->ctx, info->codec) < 0) {
@@ -161,21 +163,7 @@ ffmpeg_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
 
-    if (!strcasecmp (info->codec->name, "alac")) {
-        it->filetype = filetypes[FT_ALAC];
-    }
-    else if (strcasestr (info->codec->name, "wma")) {
-        it->filetype = filetypes[FT_WMA];
-    }
-    else if (strcasestr (info->codec->name, "ac3")) {
-        it->filetype = filetypes[FT_AC3];
-    }
-    else if (strcasestr (info->codec->name, "amr")) {
-        it->filetype = filetypes[FT_AMR];
-    }
-    else {
-        it->filetype = filetypes[FT_UNKNOWN];
-    }
+    deadbeef->pl_replace_meta (it, ":FILETYPE", info->codec->name);
 
     int bps = av_get_bits_per_sample_format (info->ctx->sample_fmt);
     int samplerate = info->ctx->sample_rate;
@@ -206,7 +194,7 @@ ffmpeg_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
 
     int64_t layout = info->ctx->channel_layout;
-    if (layout != 0) {
+    if (layout != 0, 0) {
         _info->fmt.channelmask = layout;
     }
     else {
@@ -469,7 +457,7 @@ ffmpeg_read_metadata_internal (DB_playItem_t *it, AVFormatContext *fctx) {
 }
 
 static DB_playItem_t *
-ffmpeg_insert (DB_playItem_t *after, const char *fname) {
+ffmpeg_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     trace ("ffmpeg_insert %s\n", fname);
     // read information from the track
     // load/process cuesheet if exists
@@ -537,34 +525,57 @@ ffmpeg_insert (DB_playItem_t *after, const char *fname) {
 
     int totalsamples = fctx->duration * samplerate / AV_TIME_BASE;
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    // FIXME: get proper codec
-    it->filetype = filetypes[FT_UNKNOWN];
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_replace_meta (it, ":FILETYPE", codec->name);
 
-    if (!deadbeef->is_local_file (it->fname)) {
-        deadbeef->pl_set_item_duration (it, -1);
+    if (!deadbeef->is_local_file (deadbeef->pl_find_meta (it, ":URI"))) {
+        deadbeef->plt_set_item_duration (plt, it, -1);
     }
     else {
-        deadbeef->pl_set_item_duration (it, duration);
+        deadbeef->plt_set_item_duration (plt, it, duration);
     }
 
     // add metainfo
     ffmpeg_read_metadata_internal (it, fctx);
+    
+    int64_t fsize = -1;
+
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
+    if (fp) {
+        if (!fp->vfs->is_streaming ()) {
+            fsize = deadbeef->fgetlength (fp);
+        }
+        deadbeef->fclose (fp);
+    }
+
+    if (fsize >= 0 && duration > 0) {
+        char s[100];
+        snprintf (s, sizeof (s), "%lld", fsize);
+        deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+        snprintf (s, sizeof (s), "%d", av_get_bits_per_sample_format (ctx->sample_fmt));
+        deadbeef->pl_add_meta (it, ":BPS", s);
+        snprintf (s, sizeof (s), "%d", ctx->channels);
+        deadbeef->pl_add_meta (it, ":CHANNELS", s);
+        snprintf (s, sizeof (s), "%d", samplerate);
+        deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+        int br = (int)roundf(fsize / duration * 8 / 1000);
+        snprintf (s, sizeof (s), "%d", br);
+        deadbeef->pl_add_meta (it, ":BITRATE", s);
+    }
+
     // free decoder
     avcodec_close (ctx);
     av_close_input_file(fctx);
 
     // external cuesheet
-    DB_playItem_t *cue = deadbeef->pl_insert_cue (after, it, totalsamples, samplerate);
+    DB_playItem_t *cue = deadbeef->plt_insert_cue (plt, after, it, totalsamples, samplerate);
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
         return cue;
     }
     // now the track is ready, insert into playlist
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     return after;
 }
@@ -644,12 +655,53 @@ static URLProtocol vfswrapper = {
     .url_close = ffmpeg_vfs_close,
 };
 
+static void
+ffmpeg_init_exts (void) {
+    deadbeef->conf_lock ();
+    const char *new_exts = deadbeef->conf_get_str_fast ("ffmpeg.extensions", DEFAULT_EXTS);
+    for (int i = 0; exts[i]; i++) {
+        free (exts[i]);
+    }
+    exts[0] = NULL;
+
+    int n = 0;
+    while (*new_exts) {
+        if (n >= EXT_MAX) {
+            fprintf (stderr, "ffmpeg: too many extensions, max is %d\n", EXT_MAX);
+            break;
+        }
+        const char *e = new_exts;
+        while (*e && *e != ';') {
+            e++;
+        }
+        if (e != new_exts) {
+            char *ext = malloc (e-new_exts+1);
+            memcpy (ext, new_exts, e-new_exts);
+            ext[e-new_exts] = 0;
+            exts[n++] = ext;
+        }
+        if (*e == 0) {
+            break;
+        }
+        new_exts = e+1;
+    }
+    exts[n] = NULL;
+    deadbeef->conf_unlock ();
+}
+
+static int
+ffmpeg_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        ffmpeg_init_exts ();
+        break;
+    }
+    return 0;
+}
+
 static int
 ffmpeg_start (void) {
-    // do one-time plugin initialization here
-    // e.g. starting threads for background processing, subscribing to events, etc
-    // return 0 on success
-    // return -1 on failure
+    ffmpeg_init_exts ();
     avcodec_init ();
     av_register_all ();
     av_register_protocol (&vfswrapper);
@@ -658,28 +710,28 @@ ffmpeg_start (void) {
 
 static int
 ffmpeg_stop (void) {
-    // undo everything done in _start here
-    // return 0 on success
-    // return -1 on failure
-    trace ("ffmpeg stop\n");
+    for (int i = 0; exts[i]; i++) {
+        free (exts[i]);
+    }
+    exts[0] = NULL;
     return 0;
 }
 
 int
 ffmpeg_read_metadata (DB_playItem_t *it) {
-    trace ("ffmpeg_read_metadata: fname %s\n", it->fname);
+    trace ("ffmpeg_read_metadata: fname %s\n", deadbeef->pl_find_meta (it, ":URI"));
     AVCodec *codec = NULL;
     AVCodecContext *ctx = NULL;
     AVFormatContext *fctx = NULL;
     int ret;
-    int l = strlen (it->fname);
+    int l = strlen (deadbeef->pl_find_meta (it, ":URI"));
     char *uri = alloca (l + sizeof (FF_PROTOCOL_NAME) + 1);
     int i;
 
     // construct uri
     memcpy (uri, FF_PROTOCOL_NAME, sizeof (FF_PROTOCOL_NAME)-1);
     memcpy (uri + sizeof (FF_PROTOCOL_NAME)-1, ":", 1);
-    memcpy (uri + sizeof (FF_PROTOCOL_NAME), it->fname, l);
+    memcpy (uri + sizeof (FF_PROTOCOL_NAME), deadbeef->pl_find_meta (it, ":URI"), l);
     uri[sizeof (FF_PROTOCOL_NAME) + l] = 0;
     trace ("ffmpeg: uri: %s\n", uri);
 
@@ -702,7 +754,7 @@ ffmpeg_read_metadata (DB_playItem_t *it) {
     }
     if (codec == NULL)
     {
-        trace ("ffmpeg can't decode %s\n", it->fname);
+        trace ("ffmpeg can't decode %s\n", deadbeef->pl_find_meta (it, ":URI"));
         av_close_input_file(fctx);
         return -1;
     }
@@ -719,20 +771,42 @@ ffmpeg_read_metadata (DB_playItem_t *it) {
     return 0;
 }
 
+static const char settings_dlg[] =
+    "property \"File Extensions (separate with ';')\" entry ffmpeg.extensions \"" DEFAULT_EXTS "\";\n"
+;
+
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 2,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "ffmpeg",
     .plugin.name = "FFMPEG audio player",
     .plugin.descr = "decodes audio formats using FFMPEG libavcodec",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = ffmpeg_start,
     .plugin.stop = ffmpeg_stop,
+    .plugin.configdialog = settings_dlg,
+    .plugin.message = ffmpeg_message,
     .open = ffmpeg_open,
     .init = ffmpeg_init,
     .free = ffmpeg_free,
@@ -741,8 +815,7 @@ static DB_decoder_t plugin = {
     .seek_sample = ffmpeg_seek_sample,
     .insert = ffmpeg_insert,
     .read_metadata = ffmpeg_read_metadata,
-    .exts = exts,
-    .filetypes = filetypes
+    .exts = (const char **)exts,
 };
 
 DB_plugin_t *

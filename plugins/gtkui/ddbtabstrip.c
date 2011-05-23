@@ -43,7 +43,13 @@ extern GtkWidget *theme_button;
 
 void
 plt_get_title_wrapper (int plt, char *buffer, int len) {
-    deadbeef->plt_get_title (plt, buffer, len);
+    if (plt == -1) {
+        strcpy (buffer, "");
+        return;
+    }
+    ddb_playlist_t *p = deadbeef->plt_get_for_idx (plt);
+    deadbeef->plt_get_title (p, buffer, len);
+    deadbeef->plt_unref (p);
     char *end;
     if (!g_utf8_validate (buffer, -1, (const gchar **)&end)) {
         *end = 0;
@@ -135,6 +141,11 @@ ddb_tabstrip_size_allocate (GtkWidget     *widget,
     }
 }
 
+
+gboolean
+on_tabstrip_scroll_event                 (GtkWidget      *widget,
+                                        GdkEventScroll *event);
+
 gboolean
 on_tabstrip_button_press_event           (GtkWidget       *widget,
                                         GdkEventButton  *event);
@@ -213,6 +224,7 @@ ddb_tabstrip_class_init(DdbTabStripClass *class)
   widget_class->button_release_event = on_tabstrip_button_release_event;
   widget_class->configure_event = on_tabstrip_configure_event;
   widget_class->motion_notify_event = on_tabstrip_motion_notify_event;
+  widget_class->scroll_event= on_tabstrip_scroll_event;
   widget_class->drag_motion = on_tabstrip_drag_motion_event;
   widget_class->drag_drop = on_tabstrip_drag_drop;
   widget_class->drag_end = on_tabstrip_drag_end;
@@ -257,7 +269,11 @@ on_tabstrip_drag_data_received         (GtkWidget       *widget,
         int plt = *d;
         d++;
         int length = (data->length/4)-1;
-        ps->binding->drag_n_drop (NULL, plt, d, length, drag_context->action == GDK_ACTION_COPY ? 1 : 0);
+        ddb_playlist_t *p = deadbeef->plt_get_for_idx (plt);
+        if (p) {
+            ps->binding->drag_n_drop (NULL, p, d, length, drag_context->action == GDK_ACTION_COPY ? 1 : 0);
+            deadbeef->plt_unref (p);
+        }
     }
     gtk_drag_finish (drag_context, TRUE, FALSE, time);
 }
@@ -306,7 +322,7 @@ static int min_tab_size = 80;
 static int tab_moved = 0;
 
 void
-ddb_tabstrip_draw_tab (GtkWidget *widget, GdkDrawable *drawable, int selected, int x, int y, int w, int h) {
+ddb_tabstrip_draw_tab (GtkWidget *widget, GdkDrawable *drawable, int idx, int selected, int x, int y, int w, int h) {
     GdkPoint points_filled[] = {
         { x+2, y + h },
         { x+2, y + 2 },
@@ -338,13 +354,35 @@ ddb_tabstrip_draw_tab (GtkWidget *widget, GdkDrawable *drawable, int selected, i
     GdkGC *outer_frame = gdk_gc_new (drawable);
     GdkGC *inner_frame = gdk_gc_new (drawable);
     GdkColor clr;
+    int fallback = 1;
+    deadbeef->pl_lock ();
+    ddb_playlist_t *plt = deadbeef->plt_get_for_idx (idx);
+    const char *bgclr = deadbeef->plt_find_meta (plt, "gui.bgcolor");
+    deadbeef->plt_unref (plt);
+    if (bgclr) {
+        int r, g, b;
+        if (3 == sscanf (bgclr, "%02x%02x%02x", &r, &g, &b)) {
+            fallback = 0;
+            clr.red = r * 0x101;
+            clr.green = g * 0x101;
+            clr.blue = b * 0x101;
+        }
+    }
+    deadbeef->pl_unlock ();
     if (selected) {
-        gdk_gc_set_rgb_fg_color (bg, (gtkui_get_tabstrip_base_color (&clr), &clr));//&widget->style->bg[GTK_STATE_NORMAL]); // FIXME: need base color
+        if (fallback) {
+            gtkui_get_tabstrip_base_color (&clr);
+        }
+        gdk_gc_set_rgb_fg_color (bg, &clr);
         gdk_gc_set_rgb_fg_color (outer_frame, (gtkui_get_tabstrip_dark_color (&clr), &clr));
         gdk_gc_set_rgb_fg_color (inner_frame, (gtkui_get_tabstrip_light_color (&clr), &clr));
     }
     else {
-        gdk_gc_set_rgb_fg_color (bg, (gtkui_get_tabstrip_mid_color (&clr), &clr));
+        if (fallback) {
+            gtkui_get_tabstrip_mid_color (&clr);
+        }
+        gdk_gc_set_rgb_fg_color (bg, &clr);
+
         gdk_gc_set_rgb_fg_color (outer_frame, (gtkui_get_tabstrip_dark_color (&clr), &clr));
         gdk_gc_set_rgb_fg_color (inner_frame, (gtkui_get_tabstrip_mid_color (&clr), &clr));
     }
@@ -442,13 +480,40 @@ tabstrip_adjust_hscroll (DdbTabStrip *ts) {
                 ts->hscrollpos = w - (widget->allocation.width - arrow_widget_width*2);
                 deadbeef->conf_set_int ("gtkui.tabscroll", ts->hscrollpos);
             }
-            tabstrip_scroll_to_tab_int (ts, deadbeef->plt_get_curr (), 0);
+            tabstrip_scroll_to_tab_int (ts, deadbeef->plt_get_curr_idx (), 0);
         }
         else {
             ts->hscrollpos = 0;
             deadbeef->conf_set_int ("gtkui.tabscroll", ts->hscrollpos);
         }
     }
+}
+
+void
+set_tab_text_color (int idx, int selected) {
+    if (idx == -1) {
+        return;
+    }
+    deadbeef->pl_lock ();
+    ddb_playlist_t *plt = deadbeef->plt_get_for_idx (idx);
+    int fallback = 1;
+    const char *clr = deadbeef->plt_find_meta (plt, "gui.color");
+    if (clr) {
+        int r, g, b;
+        if (3 == sscanf (clr, "%02x%02x%02x", &r, &g, &b)) {
+            fallback = 0;
+            float fg[3] = {(float)r/0xff, (float)g/0xff, (float)b/0xff};
+            draw_set_fg_color (fg);
+        }
+    }
+    deadbeef->plt_unref (plt);
+    if (fallback) {
+        GdkColor color;
+        gtkui_get_tabstrip_text_color (&color);
+        float fg[3] = {(float)color.red/0xffff, (float)color.green/0xffff, (float)color.blue/0xffff};
+        draw_set_fg_color (fg);
+    }
+    deadbeef->pl_unlock ();
 }
 
 void
@@ -474,7 +539,10 @@ tabstrip_render (DdbTabStrip *ts) {
     text_right_padding = h - 3;
 
     const char *detail = "button";
-    int tab_selected = deadbeef->plt_get_curr ();
+    int tab_selected = deadbeef->plt_get_curr_idx ();
+    if (tab_selected == -1) {
+        return;
+    }
 
     GdkGC *gc = gdk_gc_new (backbuf);
 
@@ -511,13 +579,12 @@ tabstrip_render (DdbTabStrip *ts) {
         area.width = w;
         area.height = 24;
         if (idx != tab_selected) {
-            ddb_tabstrip_draw_tab (widget, backbuf, idx == tab_selected, x, y, w, h);
+            ddb_tabstrip_draw_tab (widget, backbuf, idx, idx == tab_selected, x, y, w, h);
             char tab_title[100];
             plt_get_title_wrapper (idx, tab_title, sizeof (tab_title));
-            GdkColor *color = &widget->style->text[GTK_STATE_NORMAL];
-            float fg[3] = {(float)color->red/0xffff, (float)color->green/0xffff, (float)color->blue/0xffff};
-            draw_set_fg_color (fg);
-            draw_text (x + text_left_padding, y + h/2 - draw_get_font_size()/2 + text_vert_offset, w, 0, tab_title);
+
+            set_tab_text_color (idx, tab_selected);
+            draw_text (x + text_left_padding, y - text_vert_offset, w, 0, tab_title);
         }
         x += w - tab_overlap_size;
     }
@@ -538,13 +605,11 @@ tabstrip_render (DdbTabStrip *ts) {
         area.y = 0;
         area.width = w;
         area.height = 24;
-        ddb_tabstrip_draw_tab (widget, backbuf, 1, x, y, w, h);
+        ddb_tabstrip_draw_tab (widget, backbuf, idx, 1, x, y, w, h);
         char tab_title[100];
         plt_get_title_wrapper (idx, tab_title, sizeof (tab_title));
-        GdkColor *color = &widget->style->text[GTK_STATE_NORMAL];
-        float fg[3] = {(float)color->red/0xffff, (float)color->green/0xffff, (float)color->blue/0xffff};
-        draw_set_fg_color (fg);
-        draw_text (x + text_left_padding, y + h/2 - draw_get_font_size()/2 + text_vert_offset, w, 0, tab_title);
+        set_tab_text_color (idx, tab_selected);
+        draw_text (x + text_left_padding, y - text_vert_offset, w, 0, tab_title);
     }
     else {
         need_draw_moving = 1;
@@ -559,13 +624,11 @@ tabstrip_render (DdbTabStrip *ts) {
                     break;
                 }
                 if (w > 0) {
-                    ddb_tabstrip_draw_tab (widget, backbuf, 1, x, y, w, h);
+                    ddb_tabstrip_draw_tab (widget, backbuf, idx, 1, x, y, w, h);
                     char tab_title[100];
                     plt_get_title_wrapper (idx, tab_title, sizeof (tab_title));
-                    GdkColor *color = &widget->style->text[GTK_STATE_NORMAL];
-                    float fg[3] = {(float)color->red/0xffff, (float)color->green/0xffff, (float)color->blue/0xffff};
-                    draw_set_fg_color (fg);
-                    draw_text (x + text_left_padding, y + h/2 - draw_get_font_size()/2 + text_vert_offset, w, 0, tab_title);
+                    set_tab_text_color (idx, tab_selected);
+                    draw_text (x + text_left_padding, y - text_vert_offset, w, 0, tab_title);
                 }
                 break;
             }
@@ -597,7 +660,7 @@ get_tab_under_cursor (DdbTabStrip *ts, int x) {
     int idx;
     int cnt = deadbeef->plt_get_count ();
     int fw = tabs_left_margin - hscroll;
-    int tab_selected = deadbeef->plt_get_curr ();
+    int tab_selected = deadbeef->plt_get_curr_idx ();
     for (idx = 0; idx < cnt; idx++) {
         char title[100];
         plt_get_title_wrapper (idx, title, sizeof (title));
@@ -621,17 +684,24 @@ void
 on_rename_playlist1_activate           (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-    GtkWidget *dlg = create_editplaylistdlg ();
+    GtkWidget *dlg = create_entrydialog ();
     gtk_dialog_set_default_response (GTK_DIALOG (dlg), GTK_RESPONSE_OK);
     gtk_window_set_title (GTK_WINDOW (dlg), _("Edit playlist"));
-    GtkWidget *e = lookup_widget (dlg, "title");
+    GtkWidget *e;
+    e = lookup_widget (dlg, "title_label");
+    gtk_label_set_text (GTK_LABEL(e), _("Title:"));
+    e = lookup_widget (dlg, "title");
     char t[100];
     plt_get_title_wrapper (tab_clicked, t, sizeof (t));
     gtk_entry_set_text (GTK_ENTRY (e), t);
     int res = gtk_dialog_run (GTK_DIALOG (dlg));
     if (res == GTK_RESPONSE_OK) {
         const char *text = gtk_entry_get_text (GTK_ENTRY (e));
-        deadbeef->plt_set_title (tab_clicked, text);
+        deadbeef->pl_lock ();
+        ddb_playlist_t *p = deadbeef->plt_get_for_idx (tab_clicked);
+        deadbeef->plt_set_title (p, text);
+        deadbeef->plt_unref (p);
+        deadbeef->pl_unlock ();
     }
     gtk_widget_destroy (dlg);
 }
@@ -643,7 +713,10 @@ on_remove_playlist1_activate           (GtkMenuItem     *menuitem,
 {
     if (tab_clicked != -1) {
         deadbeef->plt_remove (tab_clicked);
-        int playlist = deadbeef->plt_get_curr ();
+        DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+        ddb_listview_refresh (pl, DDB_LIST_CHANGED | DDB_REFRESH_LIST | DDB_REFRESH_VSCROLL);
+        search_refresh ();
+        int playlist = deadbeef->plt_get_curr_idx ();
         deadbeef->conf_set_int ("playlist.current", playlist);
     }
 }
@@ -705,7 +778,7 @@ create_plmenu (void)
 
 static void
 tabstrip_scroll_left (DdbTabStrip *ts) {
-    int tab = deadbeef->plt_get_curr ();
+    int tab = deadbeef->plt_get_curr_idx ();
     if (tab > 0) {
         tab--;
         gtkui_playlist_set_curr (tab);
@@ -715,7 +788,7 @@ tabstrip_scroll_left (DdbTabStrip *ts) {
 
 static void
 tabstrip_scroll_right (DdbTabStrip *ts) {
-    int tab = deadbeef->plt_get_curr ();
+    int tab = deadbeef->plt_get_curr_idx ();
     if (tab < deadbeef->plt_get_count ()-1) {
         tab++;
         gtkui_playlist_set_curr (tab);
@@ -739,8 +812,26 @@ tabstrip_scroll_cb (gpointer data) {
 }
 
 gboolean
-on_tabstrip_button_press_event           (GtkWidget       *widget,
-                                        GdkEventButton  *event)
+on_tabstrip_scroll_event(GtkWidget       *widget,
+                         GdkEventScroll  *event)
+{
+    DdbTabStrip *ts = DDB_TABSTRIP (widget);
+
+    if(event->direction == GDK_SCROLL_UP)
+    {
+        tabstrip_scroll_left(ts);
+    }
+    else if (event->direction == GDK_SCROLL_DOWN)
+    {
+        tabstrip_scroll_right(ts);
+    }
+
+    return TRUE;
+}
+
+gboolean
+on_tabstrip_button_press_event(GtkWidget      *widget,
+                               GdkEventButton *event)
 {
     DdbTabStrip *ts = DDB_TABSTRIP (widget);
     tab_clicked = get_tab_under_cursor (ts, event->x);
@@ -818,7 +909,11 @@ on_tabstrip_button_press_event           (GtkWidget       *widget,
         else if (deadbeef->conf_get_int ("gtkui.mmb_delete_playlist", 1)) {
             if (tab_clicked != -1) {
                 deadbeef->plt_remove (tab_clicked);
-                int playlist = deadbeef->plt_get_curr ();
+                // force invalidation of playlist cache
+                DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+                ddb_listview_refresh (pl, DDB_LIST_CHANGED | DDB_REFRESH_LIST | DDB_REFRESH_VSCROLL);
+                search_refresh ();
+                int playlist = deadbeef->plt_get_curr_idx ();
                 deadbeef->conf_set_int ("playlist.current", playlist);
             }
         }
@@ -853,7 +948,7 @@ on_tabstrip_configure_event              (GtkWidget       *widget,
     draw_init_font (widget->style);
     DdbTabStrip *ts = DDB_TABSTRIP (widget);
     tabstrip_adjust_hscroll (ts);
-    int height = draw_get_font_size () + 13;
+    int height = draw_get_listview_rowheight () + 4;
     if (height != widget->allocation.height) {
         gtk_widget_set_size_request (widget, -1, height);
     }
@@ -950,7 +1045,7 @@ on_tabstrip_drag_motion_event          (GtkWidget       *widget,
                                         guint            time)
 {
     int tab = get_tab_under_cursor (DDB_TABSTRIP (widget), x);
-    int prev = deadbeef->plt_get_curr ();
+    int prev = deadbeef->plt_get_curr_idx ();
     if (tab != -1 && tab != prev) {
         gtkui_playlist_set_curr (tab);
     }

@@ -19,10 +19,8 @@
 #include "csid.h"
 
 static const char *exts[] = { "sid",NULL };
-const char *filetypes[] = { "SID", NULL };
-
 static const char settings_dlg[] =
-    "property \"Enable HVSC Songlengh DB\" checkbox hvsc_enable 0;\n"
+    "property \"Enable HVSC Songlength DB\" checkbox hvsc_enable 0;\n"
     "property \"Songlengths.txt (from HVSC)\" file hvsc_path \"\";\n"
     "property \"Samplerate\" entry sid.samplerate 44100;\n"
     "property \"Bits per sample (8 or 16)\" entry sid.bps 16;\n"
@@ -31,19 +29,41 @@ static const char settings_dlg[] =
 
 // define plugin interface
 DB_decoder_t sid_plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
-    .plugin.name = "SID decoder",
+    .plugin.name = "SID player",
+    .plugin.id = "sidplay2",
     .plugin.descr = "SID player based on libsidplay2",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses modified libsidplay2-2.1.0\n"
+        "Commodore 64 SID emulation library\n"
+        "Copyright (C) Simon White and other authors\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = csid_start,
     .plugin.stop = csid_stop,
     .plugin.configdialog = settings_dlg,
     .plugin.id = "stdsid",
+    .plugin.message = sid_message,
     .open = csid_open,
     .init = csid_init,
     .free = csid_free,
@@ -54,6 +74,5 @@ DB_decoder_t sid_plugin = {
 //    .numvoices = csid_numvoices,
 //    .mutevoice = csid_mutevoice,
     .exts = exts,
-    .filetypes = filetypes,
 };
 

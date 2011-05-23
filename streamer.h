@@ -19,6 +19,7 @@
 #define __STREAMER_H
 
 #include "playlist.h"
+#include "deadbeef.h"
 
 int
 streamer_init (void);
@@ -115,9 +116,9 @@ void
 streamer_set_dsp_chain (struct ddb_dsp_context_s *chain);
 
 void
-streamer_save_dsp_config (void);
+streamer_dsp_refresh (void);
 
 void
-streamer_dsp_postinit (void);
+streamer_get_output_format (ddb_waveformat_t *fmt);
 
 #endif // __STREAMER_H

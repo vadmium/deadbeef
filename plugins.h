@@ -28,10 +28,13 @@ int
 plug_load_all (void);
 
 void
+plug_unload_all (void);
+
+void
 plug_connect_all (void);
 
 void
-plug_unload_all (void);
+plug_disconnect_all (void);
 
 void
 plug_cleanup (void);
@@ -41,24 +44,6 @@ plug_ev_subscribe (DB_plugin_t *plugin, int ev, DB_callback_t callback, uintptr_
 
 void
 plug_ev_unsubscribe (DB_plugin_t *plugin, int ev, DB_callback_t callback, uintptr_t data);
-
-void
-plug_trigger_event (int ev, uintptr_t param);
-
-void
-plug_trigger_event_trackchange (struct playItem_s *from, struct playItem_s *to);
-
-void
-plug_trigger_event_trackinfochanged (struct playItem_s *track);
-
-void
-plug_trigger_event_paused (int paused);
-
-void
-plug_trigger_event_playlistchanged (void);
-
-void
-plug_trigger_event_volumechanged (void);
 
 void
 plug_md5 (uint8_t sig[16], const char *in, int len);
@@ -136,5 +121,11 @@ plug_get_for_id (const char *id);
 
 int
 plug_is_local_file (const char *fname);
+
+const char **
+plug_get_gui_names (void);
+
+void
+plug_event_call (ddb_event_t *ev);
 
 #endif // __PLUGINS_H

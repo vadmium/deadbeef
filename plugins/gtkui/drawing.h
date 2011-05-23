@@ -97,6 +97,9 @@ void
 gtkui_get_tabstrip_base_color (GdkColor *clr);
 
 void
+gtkui_get_tabstrip_text_color (GdkColor *clr);
+
+void
 gtkui_get_listview_even_row_color (GdkColor *clr);
 
 void
@@ -125,5 +128,8 @@ gtkui_override_bar_colors (void);
 
 int
 gtkui_override_tabstrip_colors (void);
+
+int
+draw_get_listview_rowheight (void);
 
 #endif // __DRAWING_H

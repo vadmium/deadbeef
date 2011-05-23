@@ -17,7 +17,7 @@ cp ./plugins/ffmpeg/.libs/ffmpeg.so /usr/local/lib/deadbeef/
 cp ./plugins/lastfm/.libs/lastfm.so /usr/local/lib/deadbeef/
 cp ./plugins/sid/.libs/sid.so /usr/local/lib/deadbeef/
 cp ./plugins/adplug/.libs/adplug.so /usr/local/lib/deadbeef/
-cp ./plugins/gtkui/.libs/gtkui.so /usr/local/lib/deadbeef/
+cp ./plugins/gtkui/.libs/ddb_gui_GTK2.so /usr/local/lib/deadbeef/
 cp ./plugins/sndfile/.libs/sndfile.so /usr/local/lib/deadbeef/
 cp ./plugins/pulse/.libs/pulse.so /usr/local/lib/deadbeef/
 cp ./plugins/artwork/.libs/artwork.so /usr/local/lib/deadbeef/
@@ -37,7 +37,8 @@ cp ./plugins/shellexec/.libs/shellexec.so /usr/local/lib/deadbeef/
 cp ./plugins/dsp_libsrc/.libs/dsp_libsrc.so /usr/local/lib/deadbeef/
 cp ./plugins/m3u/.libs/m3u.so /usr/local/lib/deadbeef/
 cp ./plugins/ddb_input_uade2/ddb_input_uade2.so /usr/local/lib/deadbeef/
-cp ./plugins/converter/converter.so /usr/local/lib/deadbeef/
-cp ./plugins/converter/converter_gtkui.so /usr/local/lib/deadbeef/
-cp ./plugins/dsp_soundtouch/ddb_dsp_soundtouch.so /usr/local/lib/deadbeef/
+cp ./plugins/converter/.libs/converter.so /usr/local/lib/deadbeef/
+cp ./plugins/converter/.libs/converter_gtkui.so /usr/local/lib/deadbeef/
+cp ./plugins/soundtouch/ddb_soundtouch.so /usr/local/lib/deadbeef/
 cp ./plugins/vfs_zip/.libs/vfs_zip.so /usr/local/lib/deadbeef/
+cp ./plugins/mono2stereo/mono2stereo.so /usr/local/lib/deadbeef/

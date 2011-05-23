@@ -38,6 +38,8 @@
 
 #include "gtkui.h"
 
+#include "wingeom.h"
+
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
@@ -49,63 +51,43 @@ extern GtkWidget *searchwin;
 extern GtkWidget *mainwin;
 
 void
-search_restore_attrs (void) {
-    int x = deadbeef->conf_get_int ("searchwin.geometry.x", -1);
-    int y = deadbeef->conf_get_int ("searchwin.geometry.y", -1);
-    int w = deadbeef->conf_get_int ("searchwin.geometry.w", 450);
-    int h = deadbeef->conf_get_int ("searchwin.geometry.h", 150);
-    gtk_widget_show (searchwin);
-    if (x != -1 && y != -1) {
-        gtk_window_move (GTK_WINDOW (searchwin), x, y);
-        gtk_window_resize (GTK_WINDOW (searchwin), w, h);
-        if (deadbeef->conf_get_int ("searchwin.geometry.maximized", 0)) {
-            gtk_window_maximize (GTK_WINDOW (searchwin));
-        }
-        gtk_window_present (GTK_WINDOW (searchwin));
-    }
-    else {
-        gtk_window_resize (GTK_WINDOW (searchwin), w, h);
-    }
-}
-
-void
 search_start (void) {
+    wingeom_restore (searchwin, "searchwin", -1, -1, 450, 150, 0);
     gtk_entry_set_text (GTK_ENTRY (lookup_widget (searchwin, "searchentry")), "");
     gtk_widget_show (searchwin);
     gtk_window_present (GTK_WINDOW (searchwin));
     search_refresh ();
+    main_refresh ();
+}
+
+void
+search_process (const char *text) {
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_search_process (plt, text);
+    deadbeef->plt_unref (plt);
+
+    int row = deadbeef->pl_get_cursor (PL_SEARCH);
+    if (row >= deadbeef->pl_getcount (PL_SEARCH)) {
+        deadbeef->pl_set_cursor (PL_SEARCH, deadbeef->pl_getcount (PL_SEARCH) - 1);
+    }
 }
 
 void
 on_searchentry_changed                 (GtkEditable     *editable,
                                         gpointer         user_data)
 {
-    // final implementation must work in separate thread, and catch up when
-    // value was changed
-    // but for alpha, let's do it in GTK thread
-    
-    // walk playlist starting with playlist_head, and populate list starting
-    // with search_head
-
-    const gchar *text = gtk_entry_get_text (GTK_ENTRY (editable));
-    deadbeef->pl_search_process (text);
-
-    int row = deadbeef->pl_get_cursor (PL_SEARCH);
-    if (row >= deadbeef->pl_getcount (PL_SEARCH)) {
-        deadbeef->pl_set_cursor (PL_SEARCH, deadbeef->pl_getcount (PL_SEARCH) - 1);
-    }
-
     search_refresh ();
-
-    // redraw main playlist to be in sync selection-wise
-    ddb_listview_refresh (DDB_LISTVIEW (lookup_widget (mainwin, "playlist")), DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    main_refresh ();
 }
 
 void
 search_refresh (void) {
     if (searchwin && gtk_widget_get_visible (searchwin)) {
+        GtkEntry *entry = GTK_ENTRY (lookup_widget (searchwin, "searchentry"));
+        const gchar *text = gtk_entry_get_text (entry);
+        search_process (text);
         GtkWidget *pl = lookup_widget (searchwin, "searchlist");
-        ddb_listview_refresh (DDB_LISTVIEW (pl), DDB_REFRESH_VSCROLL | DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (DDB_LISTVIEW (pl), DDB_REFRESH_VSCROLL | DDB_REFRESH_LIST | DDB_LIST_CHANGED);
     }
 }
 
@@ -176,7 +158,7 @@ on_searchwin_key_press_event           (GtkWidget       *widget,
             int row = deadbeef->pl_get_cursor (PL_SEARCH);
             DB_playItem_t *it = deadbeef->pl_get_for_idx_and_iter (max (row, 0), PL_SEARCH);
             if (it) {
-                deadbeef->sendmessage (M_PLAY_NUM, 0, deadbeef->pl_get_idx_of (it), 0);
+                deadbeef->sendmessage (DB_EV_PLAY_NUM, 0, deadbeef->pl_get_idx_of (it), 0);
                 deadbeef->pl_item_unref (it);
             }
         }
@@ -198,21 +180,7 @@ on_searchwin_configure_event           (GtkWidget       *widget,
                                         GdkEventConfigure *event,
                                         gpointer         user_data)
 {
-#if GTK_CHECK_VERSION(2,2,0)
-	GdkWindowState window_state = gdk_window_get_state (GDK_WINDOW (widget->window));
-#else
-	GdkWindowState window_state = gdk_window_get_state (G_OBJECT (widget));
-#endif
-    if (!(window_state & GDK_WINDOW_STATE_MAXIMIZED) && gtk_widget_get_visible (widget)) {
-        int x, y;
-        int w, h;
-        gtk_window_get_position (GTK_WINDOW (widget), &x, &y);
-        gtk_window_get_size (GTK_WINDOW (widget), &w, &h);
-        deadbeef->conf_set_int ("searchwin.geometry.x", x);
-        deadbeef->conf_set_int ("searchwin.geometry.y", y);
-        deadbeef->conf_set_int ("searchwin.geometry.w", w);
-        deadbeef->conf_set_int ("searchwin.geometry.h", h);
-    }
+    wingeom_save (widget, "searchwin");
     return FALSE;
 }
 
@@ -221,30 +189,7 @@ on_searchwin_window_state_event        (GtkWidget       *widget,
                                         GdkEventWindowState *event,
                                         gpointer         user_data)
 {
-    if (!gtk_widget_get_visible (widget)) {
-        return FALSE;
-    }
-    // based on pidgin maximization handler
-#if GTK_CHECK_VERSION(2,2,0)
-    if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED) {
-        if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
-            deadbeef->conf_set_int ("searchwin.geometry.maximized", 1);
-        }
-        else {
-            deadbeef->conf_set_int ("searchwin.geometry.maximized", 0);
-        }
-    }
-#else
-	GdkWindowState new_window_state = gdk_window_get_state(G_OBJECT(widget));
-
-    if ()
-	if (new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
-        deadbeef->conf_set_int ("searchwin.geometry.maximized", 1);
-    }
-	else {
-        deadbeef->conf_set_int ("searchwin.geometry.maximized", 0);
-    }
-#endif
+    wingeom_save_max (event, widget, "searchwin");
     return FALSE;
 }
 
@@ -332,7 +277,9 @@ search_get_group (DdbListviewIter it, char *str, int size) {
 void
 search_col_sort (int col, int sort_order, void *user_data) {
     col_info_t *c = (col_info_t*)user_data;
-    deadbeef->pl_sort (PL_SEARCH, c->id, c->format, sort_order-1);
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_SEARCH, c->id, c->format, sort_order-1);
+    deadbeef->plt_unref (plt);
 }
 
 static int lock_column_config = 0;
@@ -359,18 +306,22 @@ search_column_size_changed (DdbListview *listview, int col) {
 
 void search_col_free_user_data (void *data) {
     if (data) {
+        col_info_t *inf = data;
+        if (inf->format) {
+            free (inf->format);
+        }
         free (data);
     }
 }
 
 void search_handle_doubleclick (DdbListview *listview, DdbListviewIter iter, int idx) {
-    deadbeef->sendmessage (M_PLAY_NUM, 0, deadbeef->pl_get_idx_of ((DB_playItem_t *)iter), 0);
+    deadbeef->sendmessage (DB_EV_PLAY_NUM, 0, deadbeef->pl_get_idx_of ((DB_playItem_t *)iter), 0);
 }
 
 void search_selection_changed (DdbListviewIter it, int idx) {
     DdbListview *main = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
     if (idx == -1) {
-        ddb_listview_refresh (main, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (main, DDB_REFRESH_LIST);
     }
     else {
         ddb_listview_draw_row (main, main_get_idx ((DB_playItem_t *)it), it);
@@ -423,6 +374,7 @@ DdbListviewBinding search_binding = {
     .header_context_menu = header_context_menu,
     .list_context_menu = list_context_menu,
     .delete_selected = search_delete_selected,
+    .modification_idx = gtkui_get_curr_playlist_mod,
 };
 
 void
@@ -438,7 +390,7 @@ search_playlist_init (GtkWidget *widget) {
     if (!col) {
         add_column_helper (listview, _("Artist / Album"), 150, -1, "%a - %b", 0);
         add_column_helper (listview, _("Track No"), 50, -1, "%n", 1);
-        add_column_helper (listview, _("Title / Track Artist"), 150, -1, "%t", 0);
+        add_column_helper (listview, _("Title"), 150, -1, "%t", 0);
         add_column_helper (listview, _("Duration"), 50, -1, "%l", 0);
     }
     else {

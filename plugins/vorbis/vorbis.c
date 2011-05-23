@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <unistd.h>
+#include <math.h>
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -82,17 +83,15 @@ static const char *metainfo[] = {
     "GENRE", "genre",
     "COMMENT", "comment",
     "PERFORMER", "performer",
-//    "ENSEMBLE", "band",
     "COMPOSER", "composer",
-    "ENCODER", "vendor",
     "DISCNUMBER", "disc",
     "COPYRIGHT", "copyright",
     "TOTALTRACKS", "numtracks",
-    "ALBUM ARTIST", "band",
+    "TRACKTOTAL", "numtracks",
     NULL
 };
 
-// refresh_playlist == 1 means "call plug_trigger_event_playlistchanged if metadata had been changed"
+// refresh_playlist == 1 means "send playlistchanged event if metadata had been changed"
 // refresh_playlist == 2 means "don't change memory, just check for changes"
 static int
 update_vorbis_comments (DB_playItem_t *it, vorbis_comment *vc, int refresh_playlist) {
@@ -112,7 +111,6 @@ update_vorbis_comments (DB_playItem_t *it, vorbis_comment *vc, int refresh_playl
             for (m = 0; metainfo[m]; m += 2) {
                 int l = strlen (metainfo[m]);
                 if (vc->comment_lengths[i] > l && !strncasecmp (metainfo[m], s, l) && s[l] == '=') {
-                    trace ("ogg adding %s\n", s);
                     if (refresh_playlist == 2) {
                         const char *val = deadbeef->pl_find_meta (it, metainfo[m+1]);
                         if (!val || strcmp (val, s+l+1)) {
@@ -121,6 +119,7 @@ update_vorbis_comments (DB_playItem_t *it, vorbis_comment *vc, int refresh_playl
                     }
                     else {
                         deadbeef->pl_append_meta (it, metainfo[m+1], s + l + 1);
+                        break;
                     }
                 }
             }
@@ -129,16 +128,28 @@ update_vorbis_comments (DB_playItem_t *it, vorbis_comment *vc, int refresh_playl
                     deadbeef->pl_add_meta (it, "cuesheet", s + 9);
                 }
                 else if (!strncasecmp (s, "replaygain_album_gain=", 22)) {
-                    it->replaygain_album_gain = atof (s + 22);
+                    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, atof (s+22));
                 }
                 else if (!strncasecmp (s, "replaygain_album_peak=", 22)) {
-                    it->replaygain_album_peak = atof (s + 22);
+                    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, atof (s+22));
                 }
                 else if (!strncasecmp (s, "replaygain_track_gain=", 22)) {
-                    it->replaygain_track_gain = atof (s + 22);
+                    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, atof (s+22));
                 }
                 else if (!strncasecmp (s, "replaygain_track_peak=", 22)) {
-                    it->replaygain_track_peak = atof (s + 22);
+                    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, atof (s+22));
+                }
+                else {
+                    const char *p = s;
+                    while (*p && *p != '=') {
+                        p++;
+                    }
+                    if (*p == '=') {
+                        char key[p-s+1];
+                        memcpy (key, s, p-s);
+                        key[p-s] = 0;
+                        deadbeef->pl_add_meta (it, key, p+1);
+                    }
                 }
             }
         }
@@ -151,9 +162,16 @@ update_vorbis_comments (DB_playItem_t *it, vorbis_comment *vc, int refresh_playl
     f &= ~DDB_TAG_MASK;
     f |= DDB_TAG_VORBISCOMMENTS;
     deadbeef->pl_set_item_flags (it, f);
-    if (refresh_playlist) {
-        deadbeef->plug_trigger_event_playlistchanged ();
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    if (plt) {
+        deadbeef->plt_modified (plt);
+        deadbeef->plt_unref (plt);
     }
+
+    if (refresh_playlist) {
+        deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+    }
+    return 0;
 }
 
 static DB_fileinfo_t *
@@ -173,12 +191,13 @@ cvorbis_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         info->cur_bit_stream = -1;
     }
     else {
-        info->cur_bit_stream = it->tracknum;
+        int tracknum = deadbeef->pl_find_meta_int (it, ":TRACKNUM", -1);
+        info->cur_bit_stream = tracknum;
     }
     info->ptrack = it;
     deadbeef->pl_item_ref (it);
 
-    info->info.file = deadbeef->fopen (it->fname);
+    info->info.file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->info.file) {
         trace ("ogg: failed to open file %s\n", it->fname);
         return -1;
@@ -198,7 +217,12 @@ cvorbis_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
             trace ("ov_open_callbacks returned %d\n", err);
             return -1;
         }
-        deadbeef->pl_set_item_duration (it, -1);
+        ddb_playlist_t *plt = deadbeef->pl_get_playlist (it);
+        deadbeef->plt_set_item_duration (plt, it, -1);
+        if (plt) {
+            deadbeef->plt_unref (plt);
+        }
+        deadbeef->pl_replace_meta (it, ":FILETYPE", "OggVorbis");
     }
     else
     {
@@ -271,8 +295,12 @@ cvorbis_free (DB_fileinfo_t *_info) {
             deadbeef->pl_item_unref (info->ptrack);
         }
         if (info->info.file) {
-            ov_clear (&info->vorbis_file);
-            //fclose (file); //-- ov_clear closes it
+            if (info->vorbis_file.datasource) {
+                ov_clear (&info->vorbis_file);
+            }
+            else {
+                deadbeef->fclose (info->info.file);
+            }
         }
         free (info);
     }
@@ -300,7 +328,12 @@ cvorbis_read (DB_fileinfo_t *_info, char *bytes, int size) {
                 info->last_comment_update = info->currentsample;
                 vorbis_comment *vc = ov_comment (&info->vorbis_file, -1);
                 update_vorbis_comments (info->ptrack, vc, 1);
-                deadbeef->plug_trigger_event_trackinfochanged (info->ptrack);
+                ddb_event_track_t *ev = (ddb_event_track_t *)deadbeef->event_alloc (DB_EV_TRACKINFOCHANGED);
+                ev->track = info->ptrack;
+                if (ev->track) {
+                    deadbeef->pl_item_ref (ev->track);
+                }
+                deadbeef->event_send ((ddb_event_t *)ev, 0, 0);
             }
             else {
                 info->ptrack = NULL;
@@ -420,20 +453,20 @@ cvorbis_seek (DB_fileinfo_t *_info, float time) {
 }
 
 static DB_playItem_t *
-cvorbis_insert (DB_playItem_t *after, const char *fname) {
+cvorbis_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     // check for validity
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         trace ("vorbis: failed to fopen %s\n", fname);
         return NULL;
     }
+    int64_t fsize = deadbeef->fgetlength (fp);
     if (fp->vfs->is_streaming ()) {
-        DB_playItem_t *it = deadbeef->pl_item_alloc ();
-        it->fname = strdup (fname);
-        it->filetype = "OggVorbis";
-        deadbeef->pl_set_item_duration (it, -1);
+        DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+        deadbeef->pl_add_meta (it, ":FILETYPE", "OggVorbis");
+        deadbeef->plt_set_item_duration (plt, it, -1);
         deadbeef->pl_add_meta (it, "title", NULL);
-        after = deadbeef->pl_insert_item (after, it);
+        after = deadbeef->plt_insert_item (plt, after, it);
         deadbeef->pl_item_unref (it);
         deadbeef->fclose (fp);
         return after;
@@ -465,12 +498,10 @@ cvorbis_insert (DB_playItem_t *after, const char *fname) {
         float duration = ov_time_total (&vorbis_file, stream);
         int totalsamples = ov_pcm_total (&vorbis_file, stream);
 
-        DB_playItem_t *it = deadbeef->pl_item_alloc ();
-        it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-        it->fname = strdup (fname);
-        it->filetype = "OggVorbis";
-        it->tracknum = stream;
-        deadbeef->pl_set_item_duration (it, duration);
+        DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+        deadbeef->pl_add_meta (it, ":FILETYPE", "OggVorbis");
+        deadbeef->pl_set_meta_int (it, ":TRACKNUM", stream);
+        deadbeef->plt_set_item_duration (plt, it, duration);
         if (nstreams > 1) {
             it->startsample = currentsample;
             it->endsample = currentsample + totalsamples;
@@ -482,8 +513,21 @@ cvorbis_insert (DB_playItem_t *after, const char *fname) {
         update_vorbis_comments (it, vc, 0);
         int samplerate = vi->rate;
 
+        char s[100];
+        snprintf (s, sizeof (s), "%lld", fsize);
+        deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+        deadbeef->pl_add_meta (it, ":BPS", "16");
+        snprintf (s, sizeof (s), "%d", vi->channels);
+        deadbeef->pl_add_meta (it, ":CHANNELS", s);
+        snprintf (s, sizeof (s), "%d", samplerate);
+        deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+        int br = (int)roundf(fsize / duration * 8 / 1000);
+        snprintf (s, sizeof (s), "%d", br);
+        deadbeef->pl_add_meta (it, ":BITRATE", s);
+
+
         if (nstreams == 1) {
-            DB_playItem_t *cue = deadbeef->pl_insert_cue (after, it, totalsamples, samplerate);
+            DB_playItem_t *cue = deadbeef->plt_insert_cue (plt, after, it, totalsamples, samplerate);
             if (cue) {
                 deadbeef->pl_item_unref (it);
                 deadbeef->pl_item_unref (cue);
@@ -494,7 +538,7 @@ cvorbis_insert (DB_playItem_t *after, const char *fname) {
             // embedded cue
             const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
             if (cuesheet) {
-                cue = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), totalsamples, samplerate);
+                cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), totalsamples, samplerate);
                 if (cue) {
                     deadbeef->pl_item_unref (it);
                     deadbeef->pl_item_unref (cue);
@@ -507,7 +551,7 @@ cvorbis_insert (DB_playItem_t *after, const char *fname) {
             currentsample += totalsamples;
         }
 
-        after = deadbeef->pl_insert_item (after, it);
+        after = deadbeef->plt_insert_item (plt, after, it);
         deadbeef->pl_item_unref (it);
     }
     ov_clear (&vorbis_file);
@@ -530,7 +574,7 @@ cvorbis_read_metadata (DB_playItem_t *it) {
     OggVorbis_File vorbis_file;
     vorbis_info *vi = NULL;
     
-    fp = deadbeef->fopen (it->fname);
+    fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         trace ("cvorbis_read_metadata: failed to fopen %s\n", it->fname);
         return -1;
@@ -550,14 +594,15 @@ cvorbis_read_metadata (DB_playItem_t *it) {
         trace ("cvorbis_read_metadata: ov_open_callbacks returned %d\n", res);
         goto error;
     }
-    vi = ov_info (&vorbis_file, it->tracknum);
+    int tracknum = deadbeef->pl_find_meta_int (it, ":TRACKNUM", -1);
+    vi = ov_info (&vorbis_file, tracknum);
     if (!vi) { // not a vorbis stream
         trace ("cvorbis_read_metadata: failed to ov_open %s\n", it->fname);
         goto error;
     }
 
     // metainfo
-    vorbis_comment *vc = ov_comment (&vorbis_file, it->tracknum);
+    vorbis_comment *vc = ov_comment (&vorbis_file, tracknum);
     if (vc) {
         update_vorbis_comments (it, vc, 0);
     }
@@ -593,7 +638,7 @@ cvorbis_write_metadata (DB_playItem_t *it) {
         trace ("cvorbis_write_metadata: vcedit_new_state failed\n");
         return -1;
     }
-    fp = fopen (it->fname, "rb");
+    fp = fopen (deadbeef->pl_find_meta (it, ":URI"), "rb");
     if (!fp) {
         trace ("cvorbis_write_metadata: failed to read metadata from %s\n", it->fname);
         goto error;
@@ -609,6 +654,7 @@ cvorbis_write_metadata (DB_playItem_t *it) {
         goto error;
     }
 
+#if 0
     // copy all unknown fields to separate buffer
     for (int i = 0; i < vc->comments; i++) {
         int m;
@@ -629,42 +675,55 @@ cvorbis_write_metadata (DB_playItem_t *it) {
             preserved_fields = f;
         }
     }
+#endif
 
     vorbis_comment_clear(vc);
     vorbis_comment_init(vc);
 
-    // add known fields
-    for (int m = 0; metainfo[m]; m += 2) {
-        const char *val = deadbeef->pl_find_meta (it, metainfo[m+1]);
-        if (val && *val) {
-            while (val) {
-                const char *next = strchr (val, '\n');
-                int l;
-                if (next) {
-                    l = next - val;
-                    next++;
+    // add unknown/custom fields
+    deadbeef->pl_lock ();
+    DB_metaInfo_t *m = deadbeef->pl_get_metadata_head (it);
+    while (m) {
+        if (m->key[0] != ':') {
+            int i;
+            for (i = 0; metainfo[i]; i += 2) {
+                if (!strcasecmp (metainfo[i+1], m->key)) {
+                    break;
                 }
-                else {
-                    l = strlen (val);
+            }
+            const char *val = m->value;
+            if (val && *val) {
+                while (val) {
+                    const char *next = strchr (val, '\n');
+                    int l;
+                    if (next) {
+                        l = next - val;
+                        next++;
+                    }
+                    else {
+                        l = strlen (val);
+                    }
+                    if (l > 0) {
+                        char s[100+l+1];
+                        int n = snprintf (s, sizeof (s), "%s=", metainfo[i] ? metainfo[i] : m->key);
+                        strncpy (s+n, val, l);
+                        *(s+n+l) = 0;
+                        vorbis_comment_add (vc, s);
+                    }
+                    val = next;
                 }
-                if (l > 0) {
-                    char s[100+l+1];
-                    int n = snprintf (s, sizeof (s), "%s=", metainfo[m]);
-                    strncpy (s+n, val, l);
-                    *(s+n+l) = 0;
-                    vorbis_comment_add (vc, s);
-                }
-                val = next;
             }
         }
+        m = m->next;
     }
+    deadbeef->pl_unlock ();
 
     // add preserved fields
     for (struct field *f = preserved_fields; f; f = f->next) {
         vorbis_comment_add (vc, f->data);
     }
 
-    snprintf (outname, sizeof (outname), "%s.temp.ogg", it->fname);
+    snprintf (outname, sizeof (outname), "%s.temp.ogg", deadbeef->pl_find_meta (it, ":URI"));
 
     out = fopen (outname, "w+b");
     if (!out) {
@@ -695,7 +754,7 @@ error:
     }
 
     if (!err) {
-        rename (outname, it->fname);
+        rename (outname, deadbeef->pl_find_meta (it, ":URI"));
     }
     else if (out) {
         unlink (outname);
@@ -706,19 +765,34 @@ error:
 
 
 static const char * exts[] = { "ogg", "ogx", NULL };
-static const char *filetypes[] = { "OggVorbis", NULL };
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "stdogg",
     .plugin.name = "OggVorbis decoder",
     .plugin.descr = "OggVorbis decoder using standard xiph.org libraries",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = vorbis_start,
     .plugin.stop = vorbis_stop,
@@ -733,8 +807,7 @@ static DB_decoder_t plugin = {
     .insert = cvorbis_insert,
     .read_metadata = cvorbis_read_metadata,
     .write_metadata = cvorbis_write_metadata,
-    .exts = exts,
-    .filetypes = filetypes
+    .exts = exts
 };
 
 DB_plugin_t *

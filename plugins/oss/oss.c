@@ -48,6 +48,8 @@ static int state;
 static int fd;
 static uintptr_t mutex;
 
+static char oss_device[100];
+
 #define BLOCKSIZE 8192
 
 static void
@@ -102,6 +104,7 @@ oss_set_hwparams (ddb_waveformat_t *fmt) {
 
     plugin.fmt.samplerate = rate;
     plugin.fmt.channels = channels;
+    plugin.fmt.is_float = 0;
     switch (samplefmt) {
     case AFMT_S8:
         plugin.fmt.bps = 8;
@@ -130,7 +133,7 @@ oss_init (void) {
     mutex = 0;
 
     // prepare oss for playback
-    const char *name = deadbeef->conf_get_str ("oss.device", "/dev/dsp");
+    const char *name = oss_device;
     fd = open (name, O_WRONLY);
     if (fd == -1) {
         fprintf (stderr, "oss: failed to open file %s\n", name);
@@ -209,15 +212,26 @@ oss_setformat (ddb_waveformat_t *fmt) {
     if (!memcmp (fmt, &plugin.fmt, sizeof (ddb_waveformat_t))) {
         return 0;
     }
-    deadbeef->mutex_lock (mutex);
 
-    if (0 != oss_set_hwparams (fmt)) {
-        return -1;
+    int _state = state;
+    int v4workaround = deadbeef->conf_get_int ("oss.v4workaround", 0);
+
+    if (v4workaround) {
+        oss_stop ();
+        memcpy (&plugin.fmt, fmt, sizeof (ddb_waveformat_t));
+    }
+    else {
+        deadbeef->mutex_lock (mutex);
+
+        if (0 != oss_set_hwparams (fmt)) {
+            deadbeef->mutex_unlock (mutex);
+            return -1;
+        }
+
+        deadbeef->mutex_unlock (mutex);
     }
 
-    deadbeef->mutex_unlock (mutex);
-
-    switch (state) {
+    switch (_state) {
     case OUTPUT_STATE_STOPPED:
         return oss_stop ();
     case OUTPUT_STATE_PLAYING:
@@ -280,17 +294,25 @@ oss_thread (void *context) {
 
         int res = 0;
         
-        char buf[BLOCKSIZE];
+        int sample_size = plugin.fmt.channels * (plugin.fmt.bps / 8);
+        int bs = BLOCKSIZE;
+        int mod = bs % sample_size;
+        if (mod > 0) {
+            bs -= mod;
+        }
+        char buf[bs];
+
         int write_size = oss_callback (buf, sizeof (buf));
         deadbeef->mutex_lock (mutex);
-        if ( write_size > 0 )
-           res = write (fd, buf, write_size);
+        if ( write_size > 0 ) {
+            res = write (fd, buf, write_size);
+        }
 
         deadbeef->mutex_unlock (mutex);
-        if (res != write_size) {
-            perror ("oss write");
-            fprintf (stderr, "oss: failed to write buffer\n");
-        }
+//        if (res != write_size) {
+//            perror ("oss write");
+//            fprintf (stderr, "oss: failed to write buffer\n");
+//        }
         usleep (1000); // this must be here to prevent mutex deadlock
     }
 }
@@ -306,7 +328,31 @@ oss_get_state (void) {
 }
 
 static int
+oss_configchanged (void) {
+    deadbeef->conf_lock ();
+    const char *dev = deadbeef->conf_get_str_fast ("oss.device", "/dev/dsp");
+    if (strcmp (dev, oss_device)) {
+        strncpy (oss_device, dev, sizeof (oss_device)-1);
+        trace ("oss: config option changed, restarting\n");
+        deadbeef->sendmessage (DB_EV_REINIT_SOUND, 0, 0, 0);
+    }
+    deadbeef->conf_unlock ();
+    return 0;
+}
+
+static int
+oss_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        oss_configchanged ();
+        break;
+    }
+    return 0;
+}
+
+static int
 oss_plugin_start (void) {
+    deadbeef->conf_get_str ("oss.device", "/dev/dsp", oss_device, sizeof (oss_device));
     return 0;
 }
 
@@ -321,20 +367,42 @@ oss_load (DB_functions_t *api) {
     return DB_PLUGIN (&plugin);
 }
 
+static const char settings_dlg[] =
+    "property \"Device file\" entry oss.device /dev/dsp;\n"
+    "property \"OSS4 samplerate bug workaround\" checkbox oss.v4workaround 0;\n";
+
 // define plugin interface
 static DB_output_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_OUTPUT,
     .plugin.id = "oss",
     .plugin.name = "OSS output plugin",
     .plugin.descr = "plays sound via OSS API",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = oss_plugin_start,
     .plugin.stop = oss_plugin_stop,
+    .plugin.configdialog = settings_dlg,
+    .plugin.message = oss_message,
     .init = oss_init,
     .free = oss_free,
     .setformat = oss_setformat,

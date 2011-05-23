@@ -91,7 +91,7 @@ void *ssf_start(const char *path, uint8 *buffer, uint32 length)
     ssf_synth_t *s = malloc (sizeof (ssf_synth_t));
     memset (s, 0, sizeof (ssf_synth_t));
 	uint8 *file, *lib_decoded, *lib_raw_file;
-	uint32 offset, plength, lengthMS, fadeMS;
+	uint32 offset, lengthMS, fadeMS;
 	uint64 file_len, lib_len, lib_raw_length;
 	corlett_t *lib;
 	char *libfile;
@@ -121,19 +121,7 @@ void *ssf_start(const char *path, uint8 *buffer, uint32 length)
 			uint64 tmp_length;
 	
             char libpath[PATH_MAX];
-            const char *e = path + strlen(path);
-            while (e > path && *e != '/') {
-                e--;
-            }
-            if (*e == '/') {
-                e++;
-                memcpy (libpath, path, e-path);
-                libpath[e-path] = 0;
-                strcat (libpath, libfile);
-            }
-            else {
-                strcpy (libpath, libfile);
-            }
+            ao_getlibpath (path, s->c->lib, libpath, sizeof (libpath));
 			#if DEBUG_LOADER	
 			printf("Loading library: %s\n", c->lib);
 			#endif

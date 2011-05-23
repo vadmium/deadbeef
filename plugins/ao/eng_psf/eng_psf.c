@@ -47,16 +47,14 @@
 #define trace(...) { fprintf(stderr, __VA_ARGS__); }
 //#define trace(fmt,...)
 
-int psf_refresh = -1; // hack
-
 typedef struct {
     corlett_t	*c;
     char psfby[256];
     mips_cpu_context *mips_cpu;
     char *spu_pOutput;
+    uint32 initialPC, initialGP, initialSP;
 } psf_synth_t;
 
-static uint32 initialPC, initialGP, initialSP;
 
 static void spu_update (unsigned char* pSound,long lBytes,void *data)
 {
@@ -64,10 +62,27 @@ static void spu_update (unsigned char* pSound,long lBytes,void *data)
 	memcpy(s->spu_pOutput, pSound, lBytes);
 }
 
+void
+ao_getlibpath (const char *path, const char *libname, char *libpath, int size) {
+    const char *e = strrchr (path, ':');
+    if (!e) {
+        e = strrchr (path, '/');
+    }
+    if (e) {
+        e++;
+        memcpy (libpath, path, e-path);
+        libpath[e-path] = 0;
+        strcat (libpath, libname);
+    }
+    else {
+        strcpy (libpath, libname);
+    }
+}
+
 void *psf_start(const char *path, uint8 *buffer, uint32 length)
 {
     psf_synth_t *s = malloc (sizeof (psf_synth_t));
-    psf_refresh = -1;
+    memset (s, 0, sizeof (psf_synth_t));
 
 	uint8 *file = NULL, *lib_decoded = NULL, *lib_raw_file = NULL, *alib_decoded = NULL;
 	uint32 offset, plength, PC, SP, GP, lengthMS, fadeMS;
@@ -103,15 +118,6 @@ void *psf_start(const char *path, uint8 *buffer, uint32 length)
 	printf("refresh: [%s]\n", c->inf_refresh);			
 	#endif
 
-	if (s->c->inf_refresh[0] == '5')
-	{
-		psf_refresh = 50;
-	}
-	if (s->c->inf_refresh[0] == '6')
-	{
-		psf_refresh = 60;
-	}
-
 	PC = file[0x10] | file[0x11]<<8 | file[0x12]<<16 | file[0x13]<<24;
 	GP = file[0x14] | file[0x15]<<8 | file[0x16]<<16 | file[0x17]<<24;
 	SP = file[0x30] | file[0x31]<<8 | file[0x32]<<16 | file[0x33]<<24;
@@ -121,24 +127,22 @@ void *psf_start(const char *path, uint8 *buffer, uint32 length)
 	#endif
 
 	s->mips_cpu = mips_alloc();
+    s->mips_cpu->psf_refresh = -1;
+	if (s->c->inf_refresh[0] == '5')
+	{
+		s->mips_cpu->psf_refresh = 50;
+	}
+	if (s->c->inf_refresh[0] == '6')
+	{
+		s->mips_cpu->psf_refresh = 60;
+	}
+
 	// Get the library file, if any
 	if (s->c->lib[0] != 0)
 	{
 		uint64 tmp_length;
         char libpath[PATH_MAX];
-        const char *e = path + strlen(path);
-        while (e > path && *e != '/') {
-            e--;
-        }
-        if (*e == '/') {
-            e++;
-            memcpy (libpath, path, e-path);
-            libpath[e-path] = 0;
-            strcat (libpath, s->c->lib);
-        }
-        else {
-            strcpy (libpath, s->c->lib);
-        }
+        ao_getlibpath (path, s->c->lib, libpath, sizeof (libpath));
 	
 		if (ao_get_lib(libpath, &lib_raw_file, &tmp_length) != AO_SUCCESS)
 		{
@@ -175,15 +179,15 @@ void *psf_start(const char *path, uint8 *buffer, uint32 length)
 		#endif
 
 		// if the original file had no refresh tag, give the lib a shot
-		if (psf_refresh == -1)
+		if (s->mips_cpu->psf_refresh == -1)
 		{
 			if (lib->inf_refresh[0] == '5')
 			{
-				psf_refresh = 50;
+				s->mips_cpu->psf_refresh = 50;
 			}
 			if (lib->inf_refresh[0] == '6')
 			{
-				psf_refresh = 60;
+				s->mips_cpu->psf_refresh = 60;
 			}
 		}
 
@@ -228,19 +232,7 @@ void *psf_start(const char *path, uint8 *buffer, uint32 length)
 		{
 			uint64 tmp_length;
             char libpath[PATH_MAX];
-            const char *e = path + strlen(path);
-            while (e > path && *e != '/') {
-                e--;
-            }
-            if (*e == '/') {
-                e++;
-                memcpy (libpath, path, e-path);
-                libpath[e-path] = 0;
-                strcat (libpath, s->c->libaux[i]);
-            }
-            else {
-                strcpy (libpath, s->c->libaux[i]);
-            }
+            ao_getlibpath (path, s->c->libaux[i], libpath, sizeof (libpath));
 		
 			if (ao_get_lib(libpath, &lib_raw_file, &tmp_length) != AO_SUCCESS)
 			{
@@ -382,9 +374,9 @@ void *psf_start(const char *path, uint8 *buffer, uint32 length)
 	// backup the initial state for restart
 	memcpy(s->mips_cpu->initial_ram, s->mips_cpu->psx_ram, 2*1024*1024);
 	memcpy(s->mips_cpu->initial_scratch, s->mips_cpu->psx_scratch, 0x400);
-	initialPC = PC;
-	initialGP = GP;
-	initialSP = SP;
+	s->initialPC = PC;
+	s->initialGP = GP;
+	s->initialSP = SP;
 
 	mips_execute(s->mips_cpu, 5000);
 	
@@ -452,12 +444,12 @@ int32 psf_command(void *handle, int32 command, int32 parameter)
 			}
 			setlength(s->mips_cpu->spu, lengthMS, fadeMS);
 
-			mipsinfo.i = initialPC;
+			mipsinfo.i = s->initialPC;
 			mips_set_info(s->mips_cpu, CPUINFO_INT_PC, &mipsinfo);
-			mipsinfo.i = initialSP;
+			mipsinfo.i = s->initialSP;
 			mips_set_info(s->mips_cpu, CPUINFO_INT_REGISTER + MIPS_R29, &mipsinfo);
 			mips_set_info(s->mips_cpu, CPUINFO_INT_REGISTER + MIPS_R30, &mipsinfo);
-			mipsinfo.i = initialGP;
+			mipsinfo.i = s->initialGP;
 			mips_set_info(s->mips_cpu, CPUINFO_INT_REGISTER + MIPS_R28, &mipsinfo);
 
 			mips_execute(s->mips_cpu, 5000);

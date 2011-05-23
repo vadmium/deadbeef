@@ -97,7 +97,7 @@ musepack_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     info->reader.get_size = musepack_vfs_get_size;
     info->reader.canseek = musepack_vfs_canseek;
 
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         return -1;
     }
@@ -112,12 +112,6 @@ musepack_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     }
     mpc_demux_get_info (info->demux, &info->si);
 
-//    info->mpcdec = mpc_decoder_init (&info->si);
-//    if (!info->mpcdec) {
-//        deadbeef->fclose ((DB_FILE *)info->reader.data);
-//        info->reader.data = NULL;
-//        return -1;
-//    }
     info->vbr_update_acc = 0;
     info->vbr_update_bits = 0;
     info->remaining = 0;
@@ -126,7 +120,9 @@ musepack_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     _info->fmt.bps = 32;
     _info->fmt.channels = info->si.channels;
     _info->fmt.samplerate = info->si.sample_freq;
-    _info->fmt.channelmask = _info->fmt.channels == 1 ? DDB_SPEAKER_FRONT_LEFT : (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT);
+    for (int i = 0; i < _info->fmt.channels; i++) {
+        _info->fmt.channelmask |= 1 << i;
+    }
     _info->readpos = 0;
     _info->plugin = &plugin;
 
@@ -292,8 +288,38 @@ musepack_seek (DB_fileinfo_t *_info, float time) {
     return musepack_seek_sample (_info, time * _info->fmt.samplerate);
 }
 
+void
+mpc_set_trk_properties (DB_playItem_t *it, mpc_streaminfo *si, int64_t fsize) {
+    char s[100];
+    snprintf (s, sizeof (s), "%lld", fsize);
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+    deadbeef->pl_add_meta (it, ":BPS", "32");
+    snprintf (s, sizeof (s), "%d", si->channels);
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", si->sample_freq);
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    snprintf (s, sizeof (s), "%d", (int)(si->average_bitrate/1000));
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
+    snprintf (s, sizeof (s), "%f", si->profile);
+    deadbeef->pl_add_meta (it, ":MPC_QUALITY_PROFILE", s);
+    deadbeef->pl_add_meta (it, ":MPC_PROFILE_NAME", si->profile_name);
+    deadbeef->pl_add_meta (it, ":MPC_ENCODER", si->encoder);
+    snprintf (s, sizeof (s), "%d.%d", (si->encoder_version&0xff000000)>>24, (si->encoder_version&0x00ff0000)>>16);
+    deadbeef->pl_add_meta (it, ":MPC_ENCODER_VERSION", s);
+    deadbeef->pl_add_meta (it, ":MPC_PNS_USED", si->pns ? "1" : "0");
+    deadbeef->pl_add_meta (it, ":MPC_TRUE_GAPLESS", si->is_true_gapless ? "1" : "0");
+    snprintf (s, sizeof (s), "%d", si->beg_silence);
+    deadbeef->pl_add_meta (it, ":MPC_BEG_SILENCE", s);
+    snprintf (s, sizeof (s), "%d", si->stream_version);
+    deadbeef->pl_add_meta (it, ":MPC_STREAM_VERSION", s);
+    snprintf (s, sizeof (s), "%d", si->max_band);
+    deadbeef->pl_add_meta (it, ":MPC_MAX_BAND", s);
+    deadbeef->pl_add_meta (it, ":MPC_MS", si->ms ? "1" : "0");
+    deadbeef->pl_add_meta (it, ":MPC_FAST_SEEK", si->fast_seek ? "1" : "0");
+}
+
 static DB_playItem_t *
-musepack_insert (DB_playItem_t *after, const char *fname) {
+musepack_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     trace ("mpc: inserting %s\n", fname);
     mpc_reader reader = {
         .read = musepack_vfs_read,
@@ -308,6 +334,7 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
         trace ("mpc: insert failed to open %s\n", fname);
         return NULL;
     }
+    int64_t fsize = deadbeef->fgetlength (fp);
     reader.data = fp;
 
     mpc_demux *demux = mpc_demux_init (&reader);
@@ -350,11 +377,9 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
         int i;
         for (i = 0; i < nchapters; i++) {
             const mpc_chap_info *ch = mpc_demux_chap (demux, i);
-            DB_playItem_t *it = deadbeef->pl_item_alloc ();
-            it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-            it->fname = strdup (fname);
-            it->filetype = "MusePack";
-            it->tracknum = i;
+            DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+            deadbeef->pl_add_meta (it, ":FILETYPE", "MusePack");
+            deadbeef->pl_set_meta_int (it, ":TRACKNUM", i);
             it->startsample = ch->sample;
             it->endsample = totalsamples-1;
             float gain = gain_title, peak = peak_title;
@@ -364,10 +389,10 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
             if (ch->peak != 0) {
                 peak = pow (10, ch->peak / (20.0 * 256.0)) / (1<<15);
             }
-            it->replaygain_album_gain = gain_album;
-            it->replaygain_album_peak = peak_album;
-            it->replaygain_track_gain = gain_title;
-            it->replaygain_track_peak = peak_title;
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, gain_album);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, peak_album);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, gain_title);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, peak_title);
             deadbeef->pl_set_item_flags (it, DDB_IS_SUBTRACK);
             if (!prev) {
                 meta = deadbeef->pl_item_alloc ();
@@ -376,11 +401,11 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
             else {
                 prev->endsample = it->startsample-1;
                 float dur = (prev->endsample - prev->startsample) / (float)si.sample_freq;
-                deadbeef->pl_set_item_duration (prev, dur);
+                deadbeef->plt_set_item_duration (plt, prev, dur);
             }
             if (i == nchapters - 1) {
                 float dur = (it->endsample - it->startsample) / (float)si.sample_freq;
-                deadbeef->pl_set_item_duration (it, dur);
+                deadbeef->plt_set_item_duration (plt, it, dur);
             }
             if (ch->tag_size > 0) {
                 uint8_t *tag = ch->tag;
@@ -389,7 +414,10 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
                     deadbeef->pl_items_copy_junk (meta, it, it);
                 }
             }
-            after = deadbeef->pl_insert_item (after, it);
+
+            mpc_set_trk_properties (it, &si, fsize);
+
+            after = deadbeef->plt_insert_item (plt, after, it);
             prev = it;
             deadbeef->pl_item_unref (it);
         }
@@ -402,17 +430,15 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
         return after;
     }
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "MusePack";
-    deadbeef->pl_set_item_duration (it, dur);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "MusePack");
+    deadbeef->plt_set_item_duration (plt, it, dur);
 
     /*int apeerr = */deadbeef->junk_apev2_read (it, fp);
-    it->replaygain_album_gain = gain_album;
-    it->replaygain_album_peak = peak_album;
-    it->replaygain_track_gain = gain_title;
-    it->replaygain_track_peak = peak_title;
+    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, gain_album);
+    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, peak_album);
+    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, gain_title);
+    deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, peak_title);
 
     deadbeef->fclose (fp);
 
@@ -422,7 +448,7 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     DB_playItem_t *cue = NULL;
     if (cuesheet) {
-        cue = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), totalsamples, si.sample_freq);
+        cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), totalsamples, si.sample_freq);
         if (cue) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (cue);
@@ -434,7 +460,8 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     }
     deadbeef->pl_unlock ();
 
-    cue  = deadbeef->pl_insert_cue (after, it, totalsamples, si.sample_freq);
+    mpc_set_trk_properties (it, &si, fsize);
+    cue  = deadbeef->plt_insert_cue (plt, after, it, totalsamples, si.sample_freq);
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
@@ -445,7 +472,7 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     mpc_demux_exit (demux);
@@ -455,7 +482,7 @@ musepack_insert (DB_playItem_t *after, const char *fname) {
 }
 
 static int musepack_read_metadata (DB_playItem_t *it) {
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         return -1;
     }
@@ -494,19 +521,36 @@ musepack_stop (void) {
 }
 
 static const char * exts[] = { "mpc", "mpp", "mp+", NULL };
-static const char *filetypes[] = { "MusePack", NULL };
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "musepack",
     .plugin.name = "MusePack decoder",
     .plugin.descr = "Musepack decoder using libmppdec",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses Musepack SV8 libs (r435), (C) 2005-2009, The Musepack Development Team\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = musepack_start,
     .plugin.stop = musepack_stop,
@@ -520,7 +564,6 @@ static DB_decoder_t plugin = {
     .read_metadata = musepack_read_metadata,
     .write_metadata = musepack_write_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *

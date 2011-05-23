@@ -82,13 +82,13 @@ adplug_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     int channels = 2;
     info->opl = new CEmuopl (samplerate, bps == 16 ? true : false, channels == 2);
 //    opl->settype (Copl::TYPE_OPL2);
-    info->decoder = CAdPlug::factory (it->fname, info->opl, CAdPlug::players);
+    info->decoder = CAdPlug::factory (deadbeef->pl_find_meta (it, ":URI"), info->opl, CAdPlug::players);
     if (!info->decoder) {
-        trace ("adplug: failed to open %s\n", it->fname);
+        trace ("adplug: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
-    info->subsong = it->tracknum;
+    info->subsong = deadbeef->pl_find_meta_int (it, ":TRACKNUM", 0);
     info->decoder->rewind (info->subsong);
     float dur = deadbeef->pl_get_item_duration (it);
     info->totalsamples = dur * samplerate;
@@ -241,7 +241,7 @@ adplug_add_meta (DB_playItem_t *it, const char *key, const char *value) {
 }
 
 DB_playItem_t *
-adplug_insert (DB_playItem_t *after, const char *fname) {
+adplug_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     // read information from the track
     // load/process cuesheet if exists
     // insert track into playlist
@@ -264,12 +264,10 @@ adplug_insert (DB_playItem_t *after, const char *fname) {
         if (dur < 0.1) {
             continue;
         }
-        DB_playItem_t *it = deadbeef->pl_item_alloc ();
-        it->decoder_id = deadbeef->plug_get_decoder_id (adplug_plugin.plugin.id);
-        it->fname = strdup (fname);
-        it->filetype = adplug_get_extension (fname);
-        it->tracknum = i;
-        deadbeef->pl_set_item_duration (it, dur);
+        DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, adplug_plugin.plugin.id);
+        deadbeef->pl_add_meta (it, ":FILETYPE", adplug_get_extension (fname));
+        deadbeef->pl_set_meta_int (it, ":TRACKNUM", i);
+        deadbeef->plt_set_item_duration (plt, it, dur);
 #if 0
         // add metainfo
         if (p->gettitle()[0]) {
@@ -287,7 +285,7 @@ adplug_insert (DB_playItem_t *after, const char *fname) {
 #endif
         deadbeef->pl_add_meta (it, "title", NULL);
         // insert
-        after = deadbeef->pl_insert_item (after, it);
+        after = deadbeef->plt_insert_item (plt, after, it);
         deadbeef->pl_item_unref (it);
     }
 

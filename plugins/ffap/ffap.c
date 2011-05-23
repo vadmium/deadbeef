@@ -36,6 +36,7 @@
 #include <stdlib.h>
 //#include <alloca.h>
 #include <assert.h>
+#include <math.h>
 #include "../../deadbeef.h"
 
 #ifdef ANDROID
@@ -689,7 +690,7 @@ ffap_init (DB_fileinfo_t *_info, DB_playItem_t *it)
 {
     ape_info_t *info = (ape_info_t*)_info;
 
-    info->fp = deadbeef->fopen (it->fname);
+    info->fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->fp) {
         return -1;
     }
@@ -1734,13 +1735,16 @@ error:
 }
 
 static DB_playItem_t *
-ffap_insert (DB_playItem_t *after, const char *fname) {
+ffap_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     APEContext ape_ctx;
     memset (&ape_ctx, 0, sizeof (ape_ctx));
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         return NULL;
     }
+
+    int64_t fsize = deadbeef->fgetlength (fp);
+
     int skip = deadbeef->junk_get_leading_size (fp);
     if (skip > 0) {
         deadbeef->fseek (fp, skip, SEEK_SET);
@@ -1760,11 +1764,9 @@ ffap_insert (DB_playItem_t *after, const char *fname) {
 
     float duration = ape_ctx.totalsamples / (float)ape_ctx.samplerate;
     DB_playItem_t *it = NULL;
-    it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "APE";
-    deadbeef->pl_set_item_duration (it, duration);
+    it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "APE");
+    deadbeef->plt_set_item_duration (plt, it, duration);
  
     /*int v2err = */deadbeef->junk_id3v2_read (it, fp);
     int v1err = deadbeef->junk_id3v1_read (it, fp);
@@ -1784,7 +1786,7 @@ ffap_insert (DB_playItem_t *after, const char *fname) {
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     DB_playItem_t *cue = NULL;
     if (cuesheet) {
-        cue = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), ape_ctx.totalsamples, ape_ctx.samplerate);
+        cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), ape_ctx.totalsamples, ape_ctx.samplerate);
         if (cue) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (cue);
@@ -1794,7 +1796,20 @@ ffap_insert (DB_playItem_t *after, const char *fname) {
     }
     deadbeef->pl_unlock ();
 
-    cue  = deadbeef->pl_insert_cue (after, it, ape_ctx.totalsamples, ape_ctx.samplerate);
+    char s[100];
+    snprintf (s, sizeof (s), "%lld", fsize);
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+    snprintf (s, sizeof (s), "%d", ape_ctx.bps);
+    deadbeef->pl_add_meta (it, ":BPS", s);
+    snprintf (s, sizeof (s), "%d", ape_ctx.channels);
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", ape_ctx.samplerate);
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    int br = (int)roundf(fsize / duration * 8 / 1000);
+    snprintf (s, sizeof (s), "%d", br);
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
+
+    cue  = deadbeef->plt_insert_cue (plt, after, it, ape_ctx.totalsamples, ape_ctx.samplerate);
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
@@ -1802,7 +1817,8 @@ ffap_insert (DB_playItem_t *after, const char *fname) {
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     return after;
@@ -1894,7 +1910,7 @@ ffap_seek (DB_fileinfo_t *_info, float seconds) {
 
 
 static int ffap_read_metadata (DB_playItem_t *it) {
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
         return -1;
     }
@@ -1940,18 +1956,37 @@ static int ffap_write_metadata (DB_playItem_t *it) {
 }
 
 static const char *exts[] = { "ape", NULL };
-static const char *filetypes[] = { "APE", NULL };
+
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "ffap",
     .plugin.name = "Monkey's Audio (APE) decoder",
     .plugin.descr = "APE player based on code from libavc and rockbox",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "based on apedec from FFMpeg Copyright (c) 2007 Benjamin Zores <ben@geexbox.org>\n"
+        "based upon libdemac from Dave Chapman.\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .open = ffap_open,
     .init = ffap_init,
@@ -1963,7 +1998,6 @@ static DB_decoder_t plugin = {
     .read_metadata = ffap_read_metadata,
     .write_metadata = ffap_write_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 #if HAVE_SSE2 && !ARCH_UNKNOWN

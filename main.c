@@ -63,9 +63,8 @@
 #define USE_ABSTRACT_NAME 0
 #endif
 
-#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-//#define trace(fmt,...)
-
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+#define trace(fmt,...)
 
 // some common global variables
 char sys_install_path[PATH_MAX]; // see deadbeef->get_prefix
@@ -97,6 +96,7 @@ client_exec_command_line (const char *cmdline, int len) {
             fprintf (stdout, _("   --stop             Stop playback\n"));
             fprintf (stdout, _("   --pause            Pause playback\n"));
             fprintf (stdout, _("   --toggle-pause     Toggle pause\n"));
+            fprintf (stdout, _("   --play-pause       Start playback if stopped, toggle pause otherwise\n"));
             fprintf (stdout, _("   --next             Next song in playlist\n"));
             fprintf (stdout, _("   --prev             Previous song in playlist\n"));
             fprintf (stdout, _("   --random           Random song in playlist\n"));
@@ -106,6 +106,7 @@ client_exec_command_line (const char *cmdline, int len) {
                              "                      [l]ength, track[n]umber, [y]ear, [c]omment,\n"
                              "                      copy[r]ight, [e]lapsed\n"));
             fprintf (stdout, _("                      e.g.: --nowplaying \"%%a - %%t\" should print \"artist - title\"\n"));
+            fprintf (stdout, _("                      for more info, see http://sourceforge.net/apps/mediawiki/deadbeef/index.php?title=Title_Formatting\n"));
             return 1;
         }
         else if (!strcmp (parg, "--version")) {
@@ -180,38 +181,48 @@ server_exec_command_line (const char *cmdline, int len, char *sendback, int sbsi
             }
         }
         else if (!strcmp (parg, "--next")) {
-            messagepump_push (M_NEXT, 0, 0, 0);
+            messagepump_push (DB_EV_NEXT, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--prev")) {
-            messagepump_push (M_PREV, 0, 0, 0);
+            messagepump_push (DB_EV_PREV, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--play")) {
-            messagepump_push (M_PLAY_CURRENT, 0, 0, 0);
+            messagepump_push (DB_EV_PLAY_CURRENT, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--stop")) {
-            messagepump_push (M_STOP, 0, 0, 0);
+            messagepump_push (DB_EV_STOP, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--pause")) {
-            messagepump_push (M_PAUSE, 0, 0, 0);
+            messagepump_push (DB_EV_PAUSE, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--toggle-pause")) {
-            messagepump_push (M_TOGGLE_PAUSE, 0, 0, 0);
+            messagepump_push (DB_EV_TOGGLE_PAUSE, 0, 0, 0);
+            return 0;
+        }
+        else if (!strcmp (parg, "--play-pause")) {
+            int state = deadbeef->get_output ()->state ();
+            if (state == OUTPUT_STATE_PLAYING) {
+                deadbeef->sendmessage (DB_EV_PAUSE, 0, 0, 0);
+            }
+            else {
+                deadbeef->sendmessage (DB_EV_PLAY_CURRENT, 0, 0, 0);
+            }
             return 0;
         }
         else if (!strcmp (parg, "--random")) {
-            messagepump_push (M_PLAY_RANDOM, 0, 0, 0);
+            messagepump_push (DB_EV_PLAY_RANDOM, 0, 0, 0);
             return 0;
         }
         else if (!strcmp (parg, "--queue")) {
             queue = 1;
         }
         else if (!strcmp (parg, "--quit")) {
-            messagepump_push (M_TERMINATE, 0, 0, 0);
+            messagepump_push (DB_EV_TERMINATE, 0, 0, 0);
         }
         else if (parg[0] != '-') {
             break; // unknown option is filename
@@ -221,44 +232,52 @@ server_exec_command_line (const char *cmdline, int len, char *sendback, int sbsi
     }
     if (parg < pend) {
         if (conf_get_int ("cli_add_to_specific_playlist", 1)) {
-            const char *str = conf_get_str ("cli_add_playlist_name", "Default");
+            char str[200];
+            conf_get_str ("cli_add_playlist_name", "Default", str, sizeof (str));
             int idx = plt_find (str);
             if (idx < 0) {
                 idx = plt_add (plt_get_count (), str);
             }
             if (idx >= 0) {
-                plt_set_curr (idx);
+                plt_set_curr_idx (idx);
             }
         }
         // add files
-        if (!queue && plt_get_curr () != -1) {
-            pl_clear ();
-            pl_reset_cursor ();
+        playlist_t *curr_plt = plt_get_curr ();
+        if (!queue) {
+            plt_clear (curr_plt);
+            messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+            plt_reset_cursor (curr_plt);
         }
         if (parg < pend) {
-            deadbeef->pl_add_files_begin ();
-        }
-        while (parg < pend) {
-            char resolved[PATH_MAX];
-            const char *pname;
-            if (realpath (parg, resolved)) {
-                pname = resolved;
+            if (deadbeef->pl_add_files_begin ((ddb_playlist_t *)curr_plt) != 0) {
+                plt_unref (curr_plt);
+                snprintf (sendback, sbsize, "it's not allowed to add files to playlist right now, because another file adding operation is in progress. please try again later.");
+                return 0;
             }
-            else {
-                pname = parg;
-            }
-            if (deadbeef->pl_add_dir (pname, NULL, NULL) < 0) {
-                if (deadbeef->pl_add_file (pname, NULL, NULL) < 0) {
-                    fprintf (stderr, "failed to add file or folder %s\n", pname);
+            while (parg < pend) {
+                char resolved[PATH_MAX];
+                const char *pname;
+                if (realpath (parg, resolved)) {
+                    pname = resolved;
                 }
+                else {
+                    pname = parg;
+                }
+                if (deadbeef->plt_add_dir ((ddb_playlist_t*)curr_plt, pname, NULL, NULL) < 0) {
+                    if (deadbeef->plt_add_file ((ddb_playlist_t*)curr_plt, pname, NULL, NULL) < 0) {
+                        fprintf (stderr, "failed to add file or folder %s\n", pname);
+                    }
+                }
+                parg += strlen (parg);
+                parg++;
             }
-            parg += strlen (parg);
-            parg++;
+            deadbeef->pl_add_files_end ();
+            plt_unref (curr_plt);
         }
-        deadbeef->pl_add_files_end ();
-        messagepump_push (M_PLAYLIST_REFRESH, 0, 0, 0);
+        messagepump_push (DB_EV_PLAYLIST_REFRESH, 0, 0, 0);
         if (!queue) {
-            messagepump_push (M_PLAY_CURRENT, 0, 1, 0);
+            messagepump_push (DB_EV_PLAY_CURRENT, 0, 1, 0);
             return 2; // don't reload playlist at startup
         }
     }
@@ -339,7 +358,7 @@ server_update (void) {
         if ((size = recv (s2, str, 2048, 0)) >= 0) {
             if (size == 1 && str[0] == 0) {
                 // FIXME: that should be called right after activation of gui plugin
-                plug_trigger_event (DB_EV_ACTIVATE, 0);
+                messagepump_push (DB_EV_ACTIVATED, 0, 0, 0);
             }
             else {
                 server_exec_command_line (str, size, sendback, sizeof (sendback));
@@ -357,30 +376,58 @@ server_update (void) {
     return 0;
 }
 
+static uintptr_t server_tid;
+static int server_terminate;
+
+void
+server_loop (void *ctx) {
+    fd_set rds;
+    int ret;
+    struct timeval timeout = {0, 0};
+
+    FD_ZERO(&rds);
+    while (!server_terminate) {
+        FD_SET(srv_socket, &rds);
+        timeout.tv_usec = 500000;
+        if ((ret = select(srv_socket + 1, &rds, NULL, NULL, &timeout)) < 0 && errno != EINTR) {
+            perror("select");
+            exit (-1);
+        }
+        if (ret > 0) {
+            if (server_update () < 0) {
+                messagepump_push (DB_EV_TERMINATE, 0, 0, 0);
+            }
+        }
+    }
+}
+
 void
 player_mainloop (void) {
     for (;;) {
-        static int srvupd_count = 0;
-        if (--srvupd_count <= 0) {
-            srvupd_count = 10;
-            if (server_update () < 0) {
-                messagepump_push (M_TERMINATE, 0, 0, 0);
-            }
-        }
         uint32_t msg;
         uintptr_t ctx;
         uint32_t p1;
         uint32_t p2;
+        int term = 0;
         while (messagepump_pop(&msg, &ctx, &p1, &p2) != -1) {
+            // broadcast to all plugins
+            DB_plugin_t **plugs = plug_get_list ();
+            for (int n = 0; plugs[n]; n++) {
+                if (plugs[n]->message) {
+                    plugs[n]->message (msg, ctx, p1, p2);
+                }
+            }
             DB_output_t *output = plug_get_output ();
             switch (msg) {
-            case M_REINIT_SOUND:
+            case DB_EV_REINIT_SOUND:
                 plug_reinit_sound ();
+                streamer_reset (1);
                 conf_save ();
                 break;
-            case M_TERMINATE:
-                return;
-            case M_PLAY_CURRENT:
+            case DB_EV_TERMINATE:
+                term = 1;
+                break;
+            case DB_EV_PLAY_CURRENT:
                 if (p1) {
                     output->stop ();
                     pl_playqueue_clear ();
@@ -390,55 +437,70 @@ player_mainloop (void) {
                     streamer_play_current_track ();
                 }
                 break;
-            case M_PLAY_NUM:
+            case DB_EV_PLAY_NUM:
                 output->stop ();
                 pl_playqueue_clear ();
                 streamer_set_nextsong (p1, 1);
+                if (pl_get_order () == PLAYBACK_ORDER_SHUFFLE_ALBUMS) {
+                    int pl = streamer_get_current_playlist ();
+                    playlist_t *plt = plt_get_for_idx (pl);
+                    plt_init_shuffle_albums (plt, p1);
+                    plt_unref (plt);
+                }
                 break;
-            case M_STOP:
+            case DB_EV_STOP:
                 streamer_set_nextsong (-2, 0);
                 break;
-            case M_NEXT:
+            case DB_EV_NEXT:
                 output->stop ();
                 streamer_move_to_nextsong (1);
                 break;
-            case M_PREV:
+            case DB_EV_PREV:
                 output->stop ();
                 streamer_move_to_prevsong ();
                 break;
-            case M_PAUSE:
+            case DB_EV_PAUSE:
                 if (output->state () != OUTPUT_STATE_PAUSED) {
                     output->pause ();
-                    plug_trigger_event_paused (1);
+                    messagepump_push (DB_EV_PAUSED, 0, 1, 0);
                 }
                 break;
-            case M_TOGGLE_PAUSE:
+            case DB_EV_TOGGLE_PAUSE:
                 if (output->state () == OUTPUT_STATE_PAUSED) {
                     output->unpause ();
-                    plug_trigger_event_paused (0);
+                    messagepump_push (DB_EV_PAUSED, 0, 0, 0);
                 }
                 else {
                     output->pause ();
-                    plug_trigger_event_paused (1);
+                    messagepump_push (DB_EV_PAUSED, 0, 1, 0);
                 }
                 break;
-            case M_PLAY_RANDOM:
+            case DB_EV_PLAY_RANDOM:
                 output->stop ();
                 streamer_move_to_randomsong ();
                 break;
-            case M_PLAYLIST_REFRESH:
+            case DB_EV_PLAYLIST_REFRESH:
                 pl_save_current ();
-                plug_trigger_event_playlistchanged ();
+                messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
                 break;
-            case M_CONFIG_CHANGED:
+            case DB_EV_CONFIGCHANGED:
                 conf_save ();
                 streamer_configchanged ();
-                plug_trigger_event (DB_EV_CONFIGCHANGED, 0);
+                break;
+            case DB_EV_SEEK:
+                streamer_set_seek (p1 / 1000.f);
                 break;
             }
+            if (msg >= DB_EV_FIRST && ctx) {
+                messagepump_event_free ((ddb_event_t *)ctx);
+            }
         }
-        usleep(50000);
-        plug_trigger_event (DB_EV_FRAMEUPDATE, 0);
+        if (term) {
+            return;
+        }
+        messagepump_wait ();
+        //usleep(50000);
+        //plug_trigger_event (DB_EV_FRAMEUPDATE, 0);
     }
 }
 
@@ -537,6 +599,17 @@ restore_resume_state (void) {
 
 int
 main (int argc, char *argv[]) {
+#if PORTABLE
+    strcpy (dbinstalldir, argv[0]);
+    char *e = dbinstalldir + strlen (dbinstalldir);
+    while (e >= dbinstalldir && *e != '/') {
+        e--;
+    }
+    *e = 0;
+#else
+    strcpy (dbinstalldir, PREFIX);
+#endif
+
 #ifdef __linux__
     signal (SIGSEGV, sigsegv_handler);
 #endif
@@ -544,7 +617,13 @@ main (int argc, char *argv[]) {
     setlocale (LC_NUMERIC, "C");
 #ifdef ENABLE_NLS
 //    fprintf (stderr, "enabling gettext support: package=" PACKAGE ", dir=" LOCALEDIR "...\n");
+#if PORTABLE
+    char localedir[PATH_MAX];
+    snprintf (localedir, sizeof (localedir), "%s/locale", dbinstalldir);
+	bindtextdomain (PACKAGE, localedir);
+#else
 	bindtextdomain (PACKAGE, LOCALEDIR);
+#endif
 	bind_textdomain_codeset (PACKAGE, "UTF-8");
 	textdomain (PACKAGE);
 #endif
@@ -562,15 +641,6 @@ main (int argc, char *argv[]) {
     srand (time (NULL));
 #ifdef __linux__
     prctl (PR_SET_NAME, "deadbeef-main", 0, 0, 0, 0);
-#endif
-
-#if PORTABLE
-    strcpy (dbinstalldir, argv[0]);
-    char *e = dbinstalldir + strlen (dbinstalldir);
-    while (e >= dbinstalldir && *e != '/') {
-        e--;
-    }
-    *e = 0;
 #endif
 
 #if PORTABLE_FULL
@@ -740,7 +810,7 @@ main (int argc, char *argv[]) {
                 fwrite (prn, 1, strlen (prn), stderr);
             }
             else if (sz > 0 && out[0]) {
-                fprintf (stderr, "got unknown response:\nlength=%d\n%s\n", (int)sz, out);
+                fprintf (stderr, "%s\n", out);
             }
         }
         close (s);
@@ -751,6 +821,11 @@ main (int argc, char *argv[]) {
 //    }
     close(s);
 
+    // become a server
+    if (server_start () < 0) {
+        exit (-1);
+    }
+
     // hack: report nowplaying
     if (!strcmp (cmdline, "--nowplaying")) {
         char nothing[] = "nothing";
@@ -758,16 +833,19 @@ main (int argc, char *argv[]) {
         return 0;
     }
 
-
     pl_init ();
+    conf_init ();
     conf_load (); // required by some plugins at startup
+
+    conf_set_str ("deadbeef_version", VERSION);
+
     volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
     messagepump_init (); // required to push messages while handling commandline
     if (plug_load_all ()) { // required to add files to playlist from commandline
         exit (-1);
     }
     pl_load_all ();
-    plt_set_curr (conf_get_int ("playlist.current", 0));
+    plt_set_curr_idx (conf_get_int ("playlist.current", 0));
 
     // execute server commands in local context
     int noloadpl = 0;
@@ -785,17 +863,13 @@ main (int argc, char *argv[]) {
         }
     }
 
-    // become a server
-    if (server_start () < 0) {
-        exit (-1);
-    }
 #if 0
     signal (SIGTERM, sigterm_handler);
     atexit (atexit_handler); // helps to save in simple cases
 #endif
 
     // start all subsystems
-    plug_trigger_event_playlistchanged ();
+    messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
 
     streamer_init ();
 
@@ -805,8 +879,15 @@ main (int argc, char *argv[]) {
         restore_resume_state ();
     }
 
+    server_tid = thread_start (server_loop, NULL);
     // this runs in main thread (blocks right here)
     player_mainloop ();
+    // terminate server and wait for completion
+    if (server_tid) {
+        server_terminate = 1;
+        thread_join (server_tid);
+        server_tid = 0;
+    }
 
     save_resume_state ();
 
@@ -834,11 +915,11 @@ main (int argc, char *argv[]) {
     // plugins might still hood references to playitems,
     // and query configuration in background
     // so unload everything 1st before final cleanup
+    plug_disconnect_all ();
     plug_unload_all ();
 
     // at this point we can simply do exit(0), but let's clean up for debugging
-    plt_free (); // plt_free may access conf_*
-    pl_free ();
+    pl_free (); // may access conf_*
     conf_free ();
     messagepump_free ();
     plug_cleanup ();

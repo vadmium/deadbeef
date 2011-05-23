@@ -65,7 +65,7 @@ main_get_cursor (void) {
 static void
 main_set_cursor (int cursor) {
     char conf[100];
-    snprintf (conf, sizeof (conf), "playlist.cursor.%d", deadbeef->plt_get_curr ());
+    snprintf (conf, sizeof (conf), "playlist.cursor.%d", deadbeef->plt_get_curr_idx ());
     deadbeef->conf_set_int (conf, cursor);
     return deadbeef->pl_set_cursor (PL_MAIN, cursor);
 }
@@ -107,16 +107,17 @@ int main_get_idx (DdbListviewIter it) {
 }
 
 void
-main_drag_n_drop (DdbListviewIter before, int from_playlist, uint32_t *indices, int length, int copy) {
-    deadbeef->plt_lock ();
-    int curr = deadbeef->plt_get_curr ();
+main_drag_n_drop (DdbListviewIter before, DdbPlaylistHandle from_playlist, uint32_t *indices, int length, int copy) {
+    deadbeef->pl_lock ();
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
     if (copy) {
-        deadbeef->pl_copy_items (PL_MAIN, from_playlist, (DB_playItem_t *)before, indices, length);
+        deadbeef->plt_copy_items (plt, PL_MAIN, (ddb_playlist_t *)from_playlist, (DB_playItem_t *)before, indices, length);
     }
     else {
-        deadbeef->pl_move_items (PL_MAIN, from_playlist, (DB_playItem_t *)before, indices, length);
+        deadbeef->plt_move_items (plt, PL_MAIN, (ddb_playlist_t *)from_playlist, (DB_playItem_t *)before, indices, length);
     }
-    deadbeef->plt_unlock ();
+    deadbeef->plt_unref (plt);
+    deadbeef->pl_unlock ();
 }
 
 void main_external_drag_n_drop (DdbListviewIter before, char *mem, int length) {
@@ -127,9 +128,9 @@ gboolean
 playlist_tooltip_handler (GtkWidget *widget, gint x, gint y, gboolean keyboard_mode, GtkTooltip *tooltip, gpointer unused)
 {
     GtkWidget *pl = lookup_widget (mainwin, "playlist");
-    DB_playItem_t *item = (DB_playItem_t *)ddb_listview_get_iter_from_coord (DDB_LISTVIEW (pl), 0, y);
-    if (item && item->fname) {
-        gtk_tooltip_set_text (tooltip, item->fname);
+    DB_playItem_t *it = (DB_playItem_t *)ddb_listview_get_iter_from_coord (DDB_LISTVIEW (pl), 0, y);
+    if (it) {
+        gtk_tooltip_set_text (tooltip, deadbeef->pl_find_meta (it, ":URI"));
         return TRUE;
     }
     return FALSE;
@@ -140,16 +141,18 @@ playlist_tooltip_handler (GtkWidget *widget, gint x, gint y, gboolean keyboard_m
 void
 main_col_sort (int col, int sort_order, void *user_data) {
     col_info_t *c = (col_info_t*)user_data;
-    deadbeef->pl_sort (PL_MAIN, c->id, c->format, sort_order-1);
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, c->id, c->format, sort_order-1);
+    deadbeef->plt_unref (plt);
 }
 void main_handle_doubleclick (DdbListview *listview, DdbListviewIter iter, int idx) {
-    deadbeef->sendmessage (M_PLAY_NUM, 0, idx, 0);
+    deadbeef->sendmessage (DB_EV_PLAY_NUM, 0, idx, 0);
 }
 
 void main_selection_changed (DdbListviewIter it, int idx) {
     DdbListview *search = DDB_LISTVIEW (lookup_widget (searchwin, "searchlist"));
     if (idx == -1) {
-        ddb_listview_refresh (search, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (search, DDB_REFRESH_LIST);
     }
     else {
         ddb_listview_draw_row (search, search_get_idx ((DB_playItem_t *)it), it);
@@ -173,8 +176,8 @@ void main_draw_group_title (DdbListview *listview, GdkDrawable *drawable, DdbLis
             draw_set_fg_color (rgb);
         }
         int ew, eh;
-        draw_text (x + 5, y + height/2 - draw_get_font_size ()/2 - 2, width-10, 0, str);
         draw_get_text_extents (str, -1, &ew, &eh);
+        draw_text (x + 5, y + height/2 - draw_get_font_size ()/2 - 2, ew+5, 0, str);
         draw_line (x + 5 + ew + 3, y+height/2, x + width, y+height/2);
     }
 }
@@ -231,6 +234,10 @@ main_column_size_changed (DdbListview *listview, int col) {
 
 void main_col_free_user_data (void *data) {
     if (data) {
+        col_info_t *inf = data;
+        if (inf->format) {
+            free (inf->format);
+        }
         free (data);
     }
 }
@@ -238,7 +245,7 @@ void main_col_free_user_data (void *data) {
 void
 main_vscroll_changed (int pos) {
     coverart_reset_queue ();
-    int curr = deadbeef->plt_get_curr ();
+    int curr = deadbeef->plt_get_curr_idx ();
     char conf[100];
     snprintf (conf, sizeof (conf), "playlist.scroll.%d", curr);
     deadbeef->conf_set_int (conf, pos);
@@ -284,6 +291,7 @@ DdbListviewBinding main_binding = {
     .list_context_menu = list_context_menu,
     .delete_selected = main_delete_selected,
     .vscroll_changed = main_vscroll_changed,
+    .modification_idx = gtkui_get_curr_playlist_mod,
 };
 
 void
@@ -296,7 +304,6 @@ main_playlist_init (GtkWidget *widget) {
     DdbListview *listview = DDB_LISTVIEW(widget);
     main_binding.ref = (void (*) (DdbListviewIter))deadbeef->pl_item_ref;
     main_binding.unref = (void (*) (DdbListviewIter))deadbeef->pl_item_unref;
-    main_binding.is_selected = (int (*) (DdbListviewIter))deadbeef->pl_is_selected;
     ddb_listview_set_binding (listview, &main_binding);
     lock_column_config = 1;
     DB_conf_item_t *col = deadbeef->conf_find ("playlist.column.", NULL);
@@ -305,7 +312,7 @@ main_playlist_init (GtkWidget *widget) {
         add_column_helper (listview, _("Playing"), 50, DB_COLUMN_PLAYING, NULL, 0);
         add_column_helper (listview, _("Artist / Album"), 150, -1, "%a - %b", 0);
         add_column_helper (listview, _("Track No"), 50, -1, "%n", 1);
-        add_column_helper (listview, _("Title / Track Artist"), 150, -1, "%t", 0);
+        add_column_helper (listview, _("Title"), 150, -1, "%t", 0);
         add_column_helper (listview, _("Duration"), 50, -1, "%l", 0);
     }
     else {
@@ -325,19 +332,24 @@ main_playlist_init (GtkWidget *widget) {
         g_object_set_property (G_OBJECT (widget), "has-tooltip", &value);
         g_signal_connect (G_OBJECT (widget), "query-tooltip", G_CALLBACK (playlist_tooltip_handler), NULL);
     }
-    strncpy (group_by_str, deadbeef->conf_get_str ("playlist.group_by", ""), sizeof (group_by_str));
+    deadbeef->conf_lock ();
+    strncpy (group_by_str, deadbeef->conf_get_str_fast ("playlist.group_by", ""), sizeof (group_by_str));
+    deadbeef->conf_unlock ();
     group_by_str[sizeof (group_by_str)-1] = 0;
 }
 
 void
 main_playlist_free (void) {
+    g_object_unref (play16_pixbuf);
+    g_object_unref (pause16_pixbuf);
+    g_object_unref (buffering16_pixbuf);
 }
 
 void
 main_refresh (void) {
     if (mainwin && gtk_widget_get_visible (mainwin)) {
         DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
-        ddb_listview_refresh (pl, DDB_REFRESH_VSCROLL | DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (pl, DDB_REFRESH_VSCROLL | DDB_REFRESH_LIST);
     }
 }
 

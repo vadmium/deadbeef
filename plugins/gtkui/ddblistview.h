@@ -41,6 +41,7 @@ typedef struct _DdbListview DdbListview;
 typedef struct _DdbListviewClass DdbListviewClass;
 
 typedef void * DdbListviewIter;
+typedef void * DdbPlaylistHandle;
 //typedef void * DdbListviewColIter;
 
 typedef struct {
@@ -68,7 +69,7 @@ typedef struct {
     int (*get_group) (DdbListviewIter it, char *str, int size);
 
     // drag-n-drop
-    void (*drag_n_drop) (DdbListviewIter before, int playlist, uint32_t *indices, int length, int copy);
+    void (*drag_n_drop) (DdbListviewIter before, DdbPlaylistHandle playlist_from, uint32_t *indices, int length, int copy);
     void (*external_drag_n_drop) (DdbListviewIter before, char *mem, int length);
 
     // callbacks
@@ -85,6 +86,7 @@ typedef struct {
     void (*col_free_user_data) (void *user_data);
     void (*vscroll_changed) (int pos);
     void (*cursor_changed) (int pos);
+    int (*modification_idx) (void);
 } DdbListviewBinding;
 
 struct _DdbListviewColumn;
@@ -103,8 +105,6 @@ struct _DdbListview {
     GtkWidget *hscrollbar;
 
     int totalwidth; // width of listview, including invisible (scrollable) part
-    GdkPixmap *backbuf;
-    GdkPixmap *backbuf_header;
     const char *title; // unique id, used for config writing, etc
     int lastpos[2]; // last mouse position (for list widget)
     // current state
@@ -141,6 +141,7 @@ struct _DdbListview {
 
     struct _DdbListviewColumn *columns;
     struct _DdbListviewGroup *groups;
+    int groups_build_idx; // must be the same as playlist modification idx
     int fullheight;
     int block_redraw_on_scroll;
     int grouptitle_height;
@@ -180,7 +181,7 @@ ddb_listview_set_cursor_noscroll (DdbListview *pl, int cursor);
 void
 ddb_listview_scroll_to (DdbListview *listview, int rowpos);
 void
-ddb_listview_set_vscroll (DdbListview *listview, gboolean scroll);
+ddb_listview_set_vscroll (DdbListview *listview, int scroll);
 int
 ddb_listview_is_scrolling (DdbListview *listview);
 int
@@ -195,8 +196,7 @@ int
 ddb_listview_column_get_info (DdbListview *listview, int col, const char **title, int *width, int *align_right, int *minheight, void **user_data);
 int
 ddb_listview_column_set_info (DdbListview *listview, int col, const char *title, int width, int align_right, int minheight, void *user_data);
-void
-ddb_listview_build_groups (DdbListview *listview);
+
 void
 ddb_listview_show_header (DdbListview *listview, int show);
 
@@ -205,8 +205,7 @@ enum {
     DDB_REFRESH_HSCROLL = 2,
     DDB_REFRESH_VSCROLL = 4,
     DDB_REFRESH_LIST    = 8,
-    DDB_EXPOSE_COLUMNS  = 16,
-    DDB_EXPOSE_LIST     = 32,
+    DDB_LIST_CHANGED    = 16,
 };
 
 void ddb_listview_refresh (DdbListview *listview, uint32_t flags);

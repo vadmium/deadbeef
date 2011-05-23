@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../../gettext.h"
+#include "../artwork/artwork.h"
 
 #define E_NOTIFICATION_BUS_NAME "org.freedesktop.Notifications"
 #define E_NOTIFICATION_INTERFACE "org.freedesktop.Notifications"
@@ -29,10 +30,12 @@
 
 DB_functions_t *deadbeef;
 DB_misc_t plugin;
+DB_artwork_plugin_t *artwork_plugin;
 
 static dbus_uint32_t replaces_id = 0;
 
-#define NOTIFY_DEFAULT_FORMAT "%a - %t"
+#define NOTIFY_DEFAULT_TITLE "%t"
+#define NOTIFY_DEFAULT_CONTENT "%a - %b"
 
 static void
 notify_thread (void *ctx) {
@@ -114,152 +117,245 @@ notify_marshal_dict_string(DBusMessageIter *iter, const char *key, const char *v
 }
 #endif
 
-static int
-on_songchanged (DB_event_trackchange_t *ev, uintptr_t data) {
-    if (ev->to && deadbeef->conf_get_int ("notify.enable", 0)) {
-        DB_playItem_t *track = ev->to;
-        if (track) {
-            char cmd[1024];
-            deadbeef->pl_format_title (track, -1, cmd, sizeof (cmd), -1, deadbeef->conf_get_str ("notify.format", NOTIFY_DEFAULT_FORMAT));
-
-            // escape &
-            char esc[1024];
-
-            char *src = cmd;
-            char *dst = esc;
-            char *end = dst + sizeof (esc) - 1;
-            while (*src && dst < end) {
-                if (*src == '&') {
-                    if (end - dst < 5) {
-                        break;
-                    }
-                    strcpy (dst, "&amp;");
-                    dst += 5;
-                    src++;
-                }
-                else if (*src == '<') {
-                    if (end - dst < 4) {
-                        break;
-                    }
-                    strcpy (dst, "&lt;");
-                    dst += 4;
-                    src++;
-                }
-                else if (*src == '>') {
-                    if (end - dst < 4) {
-                        break;
-                    }
-                    strcpy (dst, "&gt;");
-                    dst += 4;
-                    src++;
-                }
-                else if (*src == '\'') {
-                    if (end - dst < 6) {
-                        break;
-                    }
-                    strcpy (dst, "&apos;");
-                    dst += 6;
-                    src++;
-                }
-                else if (*src == '"') {
-                    if (end - dst < 6) {
-                        break;
-                    }
-                    strcpy (dst, "&quot;");
-                    dst += 6;
-                    src++;
-                }
-                else {
-                    *dst++ = *src++;
-                }
+static void
+esc_xml (const char *cmd, char *esc, int size) {
+    const char *src = cmd;
+    char *dst = esc;
+    char *end = dst + size - 1;
+    while (*src && dst < end) {
+        if (*src == '&') {
+            if (end - dst < 5) {
+                break;
             }
-            *dst = 0;
-/*
-            DBusError error;
-            dbus_error_init (&error);
-            DBusConnection *conn = dbus_bus_get (DBUS_BUS_SESSION, &error);
-            if(conn == NULL) {
-                printf("connection failed: %s",error.message);
-                exit(1);
-            }
-*/
-            DBusMessage *msg = dbus_message_new_method_call (E_NOTIFICATION_BUS_NAME, E_NOTIFICATION_PATH, E_NOTIFICATION_INTERFACE, "Notify");
-
-            const char *v_appname = "DeaDBeeF";
-            dbus_uint32_t v_id = 0;
-            const char *v_iconname = "deadbeef";
-            const char *v_summary = _("DeaDBeeF now playing");
-            const char *v_body = esc;
-            dbus_int32_t v_timeout = -1;
-
-            dbus_message_append_args (msg
-                    , DBUS_TYPE_STRING, &v_appname
-//                    , DBUS_TYPE_UINT32, &v_id
-                    , DBUS_TYPE_UINT32, &replaces_id
-                    , DBUS_TYPE_STRING, &v_iconname
-                    , DBUS_TYPE_STRING, &v_summary
-                    , DBUS_TYPE_STRING, &v_body
-                    , DBUS_TYPE_INVALID
-                    );
-
-            DBusMessageIter iter, sub;
-            // actions
-            dbus_message_iter_init_append(msg, &iter);
-            dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &sub);
-            dbus_message_iter_close_container(&iter, &sub);
-            // hints
-            dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{sv}", &sub);
-            dbus_message_iter_close_container(&iter, &sub);
-
-            dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &v_timeout);
-
-            //int serial;
-            //dbus_bool_t retval = dbus_connection_send(conn,msg,&serial);
-            //dbus_connection_flush (conn);
-            //dbus_message_unref (msg);
-
-            intptr_t tid = 0;
-            if ((tid=deadbeef->thread_start(notify_thread, msg)) != 0) {
-                dbus_message_ref (msg);
-                deadbeef->thread_detach (tid);  
-            }
-            dbus_message_unref (msg);
+            strcpy (dst, "&amp;");
+            dst += 5;
+            src++;
         }
+        else if (*src == '<') {
+            if (end - dst < 4) {
+                break;
+            }
+            strcpy (dst, "&lt;");
+            dst += 4;
+            src++;
+        }
+        else if (*src == '>') {
+            if (end - dst < 4) {
+                break;
+            }
+            strcpy (dst, "&gt;");
+            dst += 4;
+            src++;
+        }
+        else if (*src == '\'') {
+            if (end - dst < 6) {
+                break;
+            }
+            strcpy (dst, "&apos;");
+            dst += 6;
+            src++;
+        }
+        else if (*src == '"') {
+            if (end - dst < 6) {
+                break;
+            }
+            strcpy (dst, "&quot;");
+            dst += 6;
+            src++;
+        }
+        else if (*src == '\\' && *(src+1) == 'n') {
+            strcpy (dst, "\n");
+            dst++;
+            src+=2;
+        }
+        else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = 0;
+}
+
+static void show_notification (DB_playItem_t *track);
+static DB_playItem_t *last_track = NULL;
+static time_t request_timer = 0;
+
+static void
+cover_avail_callback (const char *fname, const char *artist, const char *album, void *user_data) {
+    deadbeef->pl_lock ();
+    if (last_track && (time (NULL) - request_timer < 4)) {
+        show_notification (last_track);
+    }
+    if (last_track) {
+        deadbeef->pl_item_unref (last_track);
+        last_track = NULL;
+    }
+    deadbeef->pl_unlock ();
+}
+
+static void show_notification (DB_playItem_t *track) {
+    char title[1024];
+    char content[1024];
+
+    char format[200];
+    char format_content[200];
+    deadbeef->conf_get_str ("notify.format", NOTIFY_DEFAULT_TITLE, format, sizeof (format));
+    deadbeef->conf_get_str ("notify.format_content", NOTIFY_DEFAULT_CONTENT, format_content, sizeof (format_content));
+    deadbeef->pl_format_title (track, -1, title, sizeof (title), -1, format);
+    deadbeef->pl_format_title (track, -1, content, sizeof (content), -1, format_content);
+
+    // escape &
+//    char esc_title[1024];
+    char esc_content[1024];
+//    esc_xml (title, esc_title, sizeof (esc_title));
+    esc_xml (content, esc_content, sizeof (esc_content));
+    DBusMessage *msg = dbus_message_new_method_call (E_NOTIFICATION_BUS_NAME, E_NOTIFICATION_PATH, E_NOTIFICATION_INTERFACE, "Notify");
+
+    deadbeef->pl_lock ();
+    if (last_track) {
+        deadbeef->pl_item_unref (last_track);
+        last_track = 0;
+    }
+    last_track = track;
+    deadbeef->pl_item_ref (last_track);
+    request_timer = time (NULL);
+    deadbeef->pl_unlock ();
+
+    const char *v_appname = "DeaDBeeF";
+    dbus_uint32_t v_id = 0;
+    char *v_iconname = NULL;
+    if (deadbeef->conf_get_int("notify.albumart", 0) && artwork_plugin) {
+        const char *album = deadbeef->pl_find_meta (track, "album");
+        const char *artist = deadbeef->pl_find_meta (track, "artist");
+        v_iconname = artwork_plugin->get_album_art (deadbeef->pl_find_meta (track, ":URI"), artist, album, deadbeef->conf_get_int ("notify.albumart_size", 64), cover_avail_callback, NULL);
+    }
+    if (!v_iconname) {
+        v_iconname = strdup ("deadbeef");
+    }
+    const char *v_summary = title;
+    const char *v_body = esc_content;
+    dbus_int32_t v_timeout = -1;
+
+    dbus_message_append_args (msg
+            , DBUS_TYPE_STRING, &v_appname
+            , DBUS_TYPE_UINT32, &replaces_id
+            , DBUS_TYPE_STRING, &v_iconname
+            , DBUS_TYPE_STRING, &v_summary
+            , DBUS_TYPE_STRING, &v_body
+            , DBUS_TYPE_INVALID
+            );
+
+    DBusMessageIter iter, sub;
+    // actions
+    dbus_message_iter_init_append(msg, &iter);
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &sub);
+    dbus_message_iter_close_container(&iter, &sub);
+    // hints
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{sv}", &sub);
+    dbus_message_iter_close_container(&iter, &sub);
+
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &v_timeout);
+
+    intptr_t tid = 0;
+    if ((tid=deadbeef->thread_start(notify_thread, msg)) != 0) {
+        dbus_message_ref (msg);
+        deadbeef->thread_detach (tid);  
+    }
+    dbus_message_unref (msg);
+    if (v_iconname) {
+        free (v_iconname);
+    }
+}
+
+static int
+on_songstarted (ddb_event_track_t *ev) {
+    if (ev->track && deadbeef->conf_get_int ("notify.enable", 0)) {
+        DB_playItem_t *track = ev->track;
+        if (track) {
+            show_notification (track);
+        }
+    }
+    return 0;
+}
+
+static int
+notify_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_SONGSTARTED:
+        on_songstarted ((ddb_event_track_t *)ctx);
+        break;
     }
     return 0;
 }
 
 int
 notify_start (void) {
-    deadbeef->ev_subscribe (DB_PLUGIN (&plugin), DB_EV_SONGCHANGED, DB_CALLBACK (on_songchanged), 0);
     return 0;
 }
 
 int
 notify_stop (void) {
-    deadbeef->ev_unsubscribe (DB_PLUGIN (&plugin), DB_EV_SONGCHANGED, DB_CALLBACK (on_songchanged), 0);
+    deadbeef->pl_lock ();
+    if (last_track) {
+        deadbeef->pl_item_unref (last_track);
+        last_track = NULL;
+    }
+    deadbeef->pl_unlock ();
+    return 0;
+}
+
+static int
+notify_connect (void) {
+    artwork_plugin = (DB_artwork_plugin_t *)deadbeef->plug_get_for_id ("artwork");
+    return 0;
+}
+
+static int
+notify_disconnect (void) {
+    artwork_plugin = NULL;
     return 0;
 }
 
 static const char settings_dlg[] =
     "property \"Enable\" checkbox notify.enable 0;\n"
-    "property \"Notification format\" entry notify.format \"" NOTIFY_DEFAULT_FORMAT "\";\n"
+    "property \"Notification title format\" entry notify.format \"" NOTIFY_DEFAULT_TITLE "\";\n"
+    "property \"Notification content format\" entry notify.format_content \"" NOTIFY_DEFAULT_CONTENT "\";\n"
+    "property \"Show album art\" checkbox notify.albumart 1;\n"
+    "property \"Album art size (px)\" entry notify.albumart_size 64;\n"
 ;
 
 DB_misc_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.id = "notify",
     .plugin.name = "OSD Notify",
-    .plugin.descr = "Displays notifications on track changes using system notification daemon",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.descr = "Displays notifications when new track starts.\nRequires dbus and notification daemon to be running.\nNotification daemon should be provided by your desktop environment.\n",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sourceforge.net",
     .plugin.start = notify_start,
     .plugin.stop = notify_stop,
+    .plugin.connect = notify_connect,
+    .plugin.disconnect = notify_disconnect,
     .plugin.configdialog = settings_dlg,
+    .plugin.message = notify_message,
 };
 
 DB_plugin_t *

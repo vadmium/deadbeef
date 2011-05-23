@@ -28,11 +28,12 @@ int csid_init (DB_fileinfo_t *_info, DB_playItem_t *it);
 void csid_free (DB_fileinfo_t *);
 int csid_read (DB_fileinfo_t *, char *bytes, int size);
 int csid_seek (DB_fileinfo_t *, float time);
-DB_playItem_t *csid_insert (DB_playItem_t *after, const char *fname);
+DB_playItem_t *csid_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname);
 int csid_numvoices (DB_fileinfo_t *);
 void csid_mutevoice (DB_fileinfo_t *, int voice, int mute);
 int csid_start (void);
 int csid_stop (void);
+int sid_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2);
 
 #ifdef __cplusplus
 }

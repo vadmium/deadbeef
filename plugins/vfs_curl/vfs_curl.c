@@ -55,10 +55,10 @@ typedef struct {
     uint8_t buffer[BUFFER_SIZE];
 
     DB_playItem_t *track;
-    long pos; // position in stream; use "& BUFFER_MASK" to make it index into ringbuffer
+    int64_t pos; // position in stream; use "& BUFFER_MASK" to make it index into ringbuffer
     int64_t length;
     int32_t remaining; // remaining bytes in buffer read from stream
-    int32_t skipbytes;
+    int64_t skipbytes;
     intptr_t tid; // thread id which does http requests
     intptr_t mutex;
     uint8_t nheaderpackets;
@@ -89,6 +89,29 @@ static int allow_new_streams;
 static size_t
 http_content_header_handler (void *ptr, size_t size, size_t nmemb, void *stream);
 
+static int64_t biglock;
+
+#define MAX_ABORT_FILES 100
+static DB_FILE *open_files[MAX_ABORT_FILES];
+static int num_open_files = 0;
+static DB_FILE *abort_files[MAX_ABORT_FILES];
+static int num_abort_files = 0;
+
+static int
+http_need_abort (DB_FILE *fp);
+
+static void
+http_cancel_abort (DB_FILE *fp);
+
+static void
+http_abort (DB_FILE *fp);
+
+static void
+http_reg_open_file (DB_FILE *fp);
+
+static void
+http_unreg_open_file (DB_FILE *fp);
+
 static size_t
 http_curl_write_wrapper (HTTP_FILE *fp, void *ptr, size_t size) {
     size_t avail = size;
@@ -99,7 +122,8 @@ http_curl_write_wrapper (HTTP_FILE *fp, void *ptr, size_t size) {
             deadbeef->mutex_unlock (fp->mutex);
             return 0;
         }
-        if (fp->status == STATUS_ABORTED) {
+        if (http_need_abort ((DB_FILE*)fp)) {
+            fp->status = STATUS_ABORTED;
             trace ("vfs_curl STATUS_ABORTED in the middle of packet\n");
             deadbeef->mutex_unlock (fp->mutex);
             break;
@@ -146,7 +170,12 @@ vfs_curl_set_meta (DB_playItem_t *it, const char *meta, const char *value) {
     uint32_t f = deadbeef->pl_get_item_flags (it);
     f |= DDB_TAG_ICY;
     deadbeef->pl_set_item_flags (it, f);
-    deadbeef->plug_trigger_event_trackinfochanged (it);
+    ddb_event_track_t *ev = (ddb_event_track_t *)deadbeef->event_alloc (DB_EV_TRACKINFOCHANGED);
+    ev->track = it;
+    if (ev->track) {
+        deadbeef->pl_item_ref (ev->track);
+    }
+    deadbeef->event_send ((ddb_event_t *)ev, 0, 0);
 }
 
 int
@@ -183,7 +212,12 @@ http_parse_shoutcast_meta (HTTP_FILE *fp, const char *meta, int size) {
                 else {
                     vfs_curl_set_meta (fp->track, "title", title);
                 }
-                deadbeef->plug_trigger_event_playlistchanged ();
+                ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+                if (plt) {
+                    deadbeef->plt_modified (plt);
+                    deadbeef->plt_unref (plt);
+                }
+                deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
             }
             return 0;
         }
@@ -218,13 +252,14 @@ http_curl_write (void *ptr, size_t size, size_t nmemb, void *stream) {
 
 //    trace ("http_curl_write %d bytes, wait_meta=%d\n", size * nmemb, fp->wait_meta);
     gettimeofday (&fp->last_read_time, NULL);
-    if (fp->status == STATUS_ABORTED) {
+    if (http_need_abort (stream)) {
+        fp->status = STATUS_ABORTED;
         trace ("vfs_curl STATUS_ABORTED at start of packet\n");
         return 0;
     }
-    if (fp->gotsomeheader) {
-        fp->gotheader = 1;
-    }
+//    if (fp->gotsomeheader) {
+//        fp->gotheader = 1;
+//    }
     if (!fp->gotheader) {
         // check if that's ICY
         if (!fp->icyheader && avail >= 10 && !memcmp (ptr, "ICY 200 OK", 10)) {
@@ -417,7 +452,9 @@ http_content_header_handler (void *ptr, size_t size, size_t nmemb, void *stream)
             fp->content_type = strdup (value);
         }
         else if (!strcasecmp (key, "Content-Length")) {
-            fp->length = atoi (value);
+            if (fp->length < 0) {
+                fp->length = atoi (value);
+            }
         }
         else if (!strcasecmp (key, "icy-name")) {
             if (fp->track) {
@@ -437,8 +474,13 @@ http_content_header_handler (void *ptr, size_t size, size_t nmemb, void *stream)
             fp->wait_meta = fp->icy_metaint; 
         }
     }
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    if (plt) {
+        deadbeef->plt_modified (plt);
+        deadbeef->plt_unref (plt);
+    }
     if (refresh_playlist) {
-        deadbeef->plug_trigger_event_playlistchanged ();
+        deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
     }
     if (!fp->icyheader) {
         fp->gotsomeheader = 1;
@@ -468,7 +510,8 @@ http_curl_control (void *stream, double dltotal, double dlnow, double ultotal, d
         deadbeef->mutex_unlock (fp->mutex);
         return -1;
     }
-    if (fp->status == STATUS_ABORTED) {
+    if (http_need_abort ((DB_FILE *)fp)) {
+        fp->status = STATUS_ABORTED;
         trace ("vfs_curl STATUS_ABORTED in progress callback\n");
         deadbeef->mutex_unlock (fp->mutex);
         return -1;
@@ -510,6 +553,7 @@ http_thread_func (void *ctx) {
         struct curl_slist *headers = NULL;
         curl_easy_reset (curl);
         curl_easy_setopt (curl, CURLOPT_URL, fp->url);
+        curl_easy_setopt (curl, CURLOPT_USERAGENT, "deadbeef");
         curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 1);
         curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, http_curl_write);
         curl_easy_setopt (curl, CURLOPT_WRITEDATA, ctx);
@@ -528,12 +572,13 @@ http_thread_func (void *ctx) {
         headers = curl_slist_append (headers, "Icy-Metadata:1");
         curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
         if (fp->pos > 0 && fp->length >= 0) {
-            curl_easy_setopt (curl, CURLOPT_RESUME_FROM, fp->pos);
+            curl_easy_setopt (curl, CURLOPT_RESUME_FROM, (long)fp->pos);
         }
         if (deadbeef->conf_get_int ("network.proxy", 0)) {
-            curl_easy_setopt (curl, CURLOPT_PROXY, deadbeef->conf_get_str ("network.proxy.address", ""));
+            deadbeef->conf_lock ();
+            curl_easy_setopt (curl, CURLOPT_PROXY, deadbeef->conf_get_str_fast ("network.proxy.address", ""));
             curl_easy_setopt (curl, CURLOPT_PROXYPORT, deadbeef->conf_get_int ("network.proxy.port", 8080));
-            const char *type = deadbeef->conf_get_str ("network.proxy.type", "HTTP");
+            const char *type = deadbeef->conf_get_str_fast ("network.proxy.type", "HTTP");
             int curlproxytype = CURLPROXY_HTTP;
             if (!strcasecmp (type, "HTTP")) {
                 curlproxytype = CURLPROXY_HTTP;
@@ -561,8 +606,8 @@ http_thread_func (void *ctx) {
 #endif
             curl_easy_setopt (curl, CURLOPT_PROXYTYPE, curlproxytype);
 
-            const char *proxyuser = deadbeef->conf_get_str ("network.proxy.username", "");
-            const char *proxypass = deadbeef->conf_get_str ("network.proxy.password", "");
+            const char *proxyuser = deadbeef->conf_get_str_fast ("network.proxy.username", "");
+            const char *proxypass = deadbeef->conf_get_str_fast ("network.proxy.password", "");
             if (*proxyuser || *proxypass) {
 #if LIBCURL_VERSION_MINOR >= 19 && LIBCURL_VERSION_PATCH >= 1
                 curl_easy_setopt (curl, CURLOPT_PROXYUSERNAME, proxyuser);
@@ -573,6 +618,7 @@ http_thread_func (void *ctx) {
                 curl_easy_setopt (curl, CURLOPT_PROXYUSERPWD, pwd);
 #endif
             }
+            deadbeef->conf_unlock ();
         }
 //        fp->status = STATUS_INITIAL;
         trace ("vfs_curl: calling curl_easy_perform (status=%d)...\n", fp->status);
@@ -601,10 +647,12 @@ http_thread_func (void *ctx) {
             continue;
         }
         if (fp->status != STATUS_SEEK) {
+            trace ("vfs_curl: break loop\n");
             deadbeef->mutex_unlock (fp->mutex);
             break;
         }
         else {
+            trace ("vfs_curl: restart loop\n");
             fp->skipbytes = 0;
             fp->status = STATUS_INITIAL;
             trace ("seeking to %d\n", fp->pos);
@@ -632,19 +680,20 @@ http_thread_func (void *ctx) {
     deadbeef->mutex_lock (fp->mutex);
 
     if (fp->status == STATUS_ABORTED) {
-        http_destroy (fp);
-        return;
+        trace ("vfs_curl: thread ended due to abort signal\n");
+    }
+    else {
+        trace ("vfs_curl: thread ended normally\n");
     }
     fp->status = STATUS_FINISHED;
     deadbeef->mutex_unlock (fp->mutex);
-    fp->tid = 0;
 }
 
 static void
 http_start_streamer (HTTP_FILE *fp) {
     fp->mutex = deadbeef->mutex_create ();
     fp->tid = deadbeef->thread_start (http_thread_func, fp);
-    deadbeef->thread_detach (fp->tid);
+//    deadbeef->thread_detach (fp->tid);
 }
 
 static DB_FILE *
@@ -654,6 +703,7 @@ http_open (const char *fname) {
     }
     trace ("http_open\n");
     HTTP_FILE *fp = malloc (sizeof (HTTP_FILE));
+    http_reg_open_file ((DB_FILE *)fp);
     memset (fp, 0, sizeof (HTTP_FILE));
     fp->vfs = &plugin;
     fp->url = strdup (fname);
@@ -675,15 +725,13 @@ http_close (DB_FILE *stream) {
     assert (stream);
     HTTP_FILE *fp = (HTTP_FILE *)stream;
 
-    if (fp->mutex) {
-        deadbeef->mutex_lock (fp->mutex);
-        if (fp->tid) {
-            fp->status = STATUS_ABORTED;
-            deadbeef->mutex_unlock (fp->mutex);
-            return;
-        }
+    http_abort (stream);
+    if (fp->tid) {
+        deadbeef->thread_join (fp->tid);
     }
+    http_cancel_abort ((DB_FILE *)fp);
     http_destroy (fp);
+    http_unreg_open_file ((DB_FILE *)fp);
     trace ("http_close done\n");
 }
 
@@ -695,17 +743,17 @@ http_read (void *ptr, size_t size, size_t nmemb, DB_FILE *stream) {
 //    trace ("http_read %d (status=%d)\n", size*nmemb, fp->status);
     fp->seektoend = 0;
     int sz = size * nmemb;
-    if (fp->status == STATUS_ABORTED || fp->status == STATUS_FINISHED) {
+    if (fp->status == STATUS_ABORTED || (fp->status == STATUS_FINISHED && fp->remaining == 0)) {
         return -1;
     }
     if (!fp->tid) {
         http_start_streamer (fp);
     }
-    while (fp->status != STATUS_FINISHED && sz > 0)
+    while ((fp->remaining > 0 || fp->status != STATUS_FINISHED) && sz > 0)
     {
         // wait until data is available
         while ((fp->remaining == 0 || fp->skipbytes > 0) && fp->status != STATUS_FINISHED) {
-//            trace ("vfs_curl: readwait..\n");
+//            trace ("vfs_curl: readwait, status: %d..\n", fp->status);
             deadbeef->mutex_lock (fp->mutex);
             if (fp->status == STATUS_READING) {
                 struct timeval tm;
@@ -736,6 +784,7 @@ http_read (void *ptr, size_t size, size_t nmemb, DB_FILE *stream) {
         }
     //    trace ("buffer remaining: %d\n", fp->remaining);
         deadbeef->mutex_lock (fp->mutex);
+        trace ("http_read %lld/%lld/%d\n", fp->pos, fp->length, fp->remaining);
         int cp = min (sz, fp->remaining);
         int readpos = fp->pos & BUFFER_MASK;
         int part1 = BUFFER_SIZE-readpos;
@@ -764,7 +813,7 @@ http_read (void *ptr, size_t size, size_t nmemb, DB_FILE *stream) {
 
 static int
 http_seek (DB_FILE *stream, int64_t offset, int whence) {
-    trace ("http_seek %x %d\n", offset, whence);
+    trace ("http_seek %lld %d\n", offset, whence);
     assert (stream);
     HTTP_FILE *fp = (HTTP_FILE *)stream;
     fp->seektoend = 0;
@@ -882,27 +931,122 @@ http_get_content_type (DB_FILE *stream) {
     return fp->content_type;
 }
 
-void
+static void
 http_abort (DB_FILE *fp) {
-    trace ("http_abort %p\n", fp);
-    HTTP_FILE *f = (HTTP_FILE *)fp;
-    if (f->tid) {
-        deadbeef->mutex_lock (f->mutex);
-        f->status = STATUS_ABORTED;
-        deadbeef->mutex_unlock (f->mutex);
+    trace ("abort file: %p\n", fp);
+    deadbeef->mutex_lock (biglock);
+    int i;
+    for (i = 0; i < num_abort_files; i++) {
+        if (abort_files[i] == fp) {
+            break;
+        }
     }
-    trace ("http_abort done\n");
+    if (i == num_abort_files) {
+        if (num_abort_files == MAX_ABORT_FILES) {
+            trace ("vfs_curl: abort_files list overflow\n");
+        }
+        else {
+            trace ("added file to abort list: %p\n", fp);
+            abort_files[num_abort_files++] = fp;
+        }
+    }
+    deadbeef->mutex_unlock (biglock);
+}
+
+static int
+http_need_abort (DB_FILE *fp) {
+    deadbeef->mutex_lock (biglock);
+    for (int i = 0; i < num_abort_files; i++) {
+        if (abort_files[i] == fp) {
+            trace ("need to abort: %p\n", fp);
+            deadbeef->mutex_unlock (biglock);
+            return 1;
+        }
+    }
+    deadbeef->mutex_unlock (biglock);
+    return 0;
+}
+
+static void
+http_cancel_abort (DB_FILE *fp) {
+    deadbeef->mutex_lock (biglock);
+    for (int i = 0; i < num_abort_files; i++) {
+        if (abort_files[i] == fp) {
+            if (i != num_abort_files-1) {
+                abort_files[i] = abort_files[num_abort_files-1];
+            }
+            num_abort_files--;
+            break;
+        }
+    }
+    deadbeef->mutex_unlock (biglock);
+}
+
+static void
+http_reg_open_file (DB_FILE *fp) {
+    deadbeef->mutex_lock (biglock);
+    for (int i = 0; i < num_open_files; i++) {
+        if (open_files[i] == fp) {
+            deadbeef->mutex_unlock (biglock);
+            return;
+        }
+    }
+    if (num_open_files == MAX_ABORT_FILES) {
+        fprintf (stderr, "vfs_curl: open files overflow\n");
+        deadbeef->mutex_unlock (biglock);
+        return;
+    }
+    open_files[num_open_files++] = fp;
+    deadbeef->mutex_unlock (biglock);
+}
+
+static void
+http_unreg_open_file (DB_FILE *fp) {
+    deadbeef->mutex_lock (biglock);
+    int i;
+    for (i = 0; i < num_open_files; i++) {
+        if (open_files[i] == fp) {
+            if (i != num_open_files-1) {
+                open_files[i] = open_files[num_open_files-1];
+            }
+            num_open_files--;
+            trace ("remove from open list: %p\n", fp);
+            break;
+        }
+    }
+
+    // gc abort_files
+    int j = 0;
+    while (j < num_abort_files) {
+        for (i = 0; i < num_open_files; i++) {
+            if (abort_files[j] == open_files[i]) {
+                break;
+            }
+        }
+        if (i == num_open_files) {
+            // remove abort
+            http_cancel_abort (abort_files[j]);
+            continue;
+        }
+        j++;
+    }
+    deadbeef->mutex_unlock (biglock);
 }
 
 static int
 vfs_curl_start (void) {
     allow_new_streams = 1;
+    biglock = deadbeef->mutex_create ();
     return 0;
 }
 
 static int
 vfs_curl_stop (void) {
     allow_new_streams = 0;
+    if (biglock) {
+        deadbeef->mutex_free (biglock);
+        biglock = 0;
+    }
     return 0;
 }
 
@@ -920,15 +1064,31 @@ http_is_streaming (void) {
 
 // standard stdio vfs
 static DB_vfs_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_VFS,
     .plugin.id = "vfs_curl",
     .plugin.name = "cURL vfs",
     .plugin.descr = "http and ftp streaming module using libcurl, with ICY protocol support",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = vfs_curl_start,
     .plugin.stop = vfs_curl_stop,

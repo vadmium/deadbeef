@@ -1,5 +1,6 @@
 /*
     Shellexec plugin for DeaDBeeF
+    Copyright (C) 2010-2011 Alexey Yakovenko <waker@users.sf.net>
     Copyright (C) 2010 Viktor Semykin <thesame.ml@gmail.com>
 
     This program is free software: you can redistribute it and/or modify
@@ -72,9 +73,12 @@ shellexec_load (DB_functions_t *api) {
     return DB_PLUGIN (&plugin);
 }
 
-static char*
+static const char*
 trim (char* s)
 {
+    if (!s) {
+        return "";
+    }
     char *h, *t;
     
     for (h = s; *h == ' ' || *h == '\t'; h++);
@@ -101,7 +105,7 @@ shx_callback (Shx_action_t *action, DB_playItem_t *it)
 static DB_plugin_action_t *
 shx_get_actions (DB_playItem_t *it)
 {
-    int is_local = it ? deadbeef->is_local_file (it->fname) : 1;
+    int is_local = it ? deadbeef->is_local_file (deadbeef->pl_find_meta (it, ":URI")) : 1;
 
     Shx_action_t *action;
     for (action = actions; action; action = (Shx_action_t *)action->parent.next)
@@ -150,10 +154,10 @@ shx_start ()
             continue;
         }
 
-        const char *command = args[0];
-        const char *title = args[1];
-        const char *name = args[2];
-        const char *flags = args[3];
+        const char *command = trim (args[0]);
+        const char *title = trim (args[1]);
+        const char *name = trim (args[2]);
+        const char *flags = trim (args[3]);
         if (!name) {
             name = "noname";
         }
@@ -198,16 +202,47 @@ shx_start ()
 
 // define plugin interface
 static DB_misc_t plugin = {
-    .plugin.api_vmajor = DB_API_VERSION_MAJOR,
-    .plugin.api_vminor = DB_API_VERSION_MINOR,
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.id = "shellexec",
     .plugin.name = "Shell commands",
-    .plugin.descr = "Executes configurable shell commands for tracks",
-    .plugin.author = "Viktor Semykin",
-    .plugin.email = "thesame.ml@gmail.com",
+    .plugin.descr = "Executes configurable shell commands for tracks\n"
+    "This plugin doesn't have GUI configuration yet. Please setup manually in config file\n"
+    "Syntax:\n"
+    "shellexec.NN shcmd:title:name:flags\n\n"
+    "NN is any (unique) number, e.g. 01, 02, 03, etc\n\n"
+    "shcmd is the command to execute, supports title formatting\n\n"
+    "title is the name of command displayed in UI (context menu)\n\n"
+    "name used for referencing commands from other plugins, e.g hotkeys\n\n"
+    "flags are comma-separated list of items, allowed items are:\n"
+    "    single - command allowed only for single track\n"
+    "    local - command allowed only for local files\n"
+    "    remote - command allowed only for non-local files\n"
+    "    disabled - ignore command\n\n"
+    "EXAMPLE: shellexec.00 notify-send \"%a - %t\":Show selected track:notify:singe\n"
+    "this would show the name of selected track in notification popup"
+    ,
+    .plugin.copyright = 
+        "Copyright (C) 2010-2011 Alexey Yakovenko <waker@users.sf.net>\n"
+        "Copyright (C) 2010 Viktor Semykin <thesame.ml@gmail.com>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = shx_start,
     .plugin.get_actions = shx_get_actions

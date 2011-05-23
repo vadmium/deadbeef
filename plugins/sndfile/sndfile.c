@@ -21,6 +21,8 @@
 #endif
 #include <string.h>
 #include <sndfile.h>
+#include <math.h>
+#include <stdlib.h>
 #include "../../deadbeef.h"
 
 #define min(x,y) ((x)<(y)?(x):(y))
@@ -40,6 +42,8 @@ typedef struct {
     int endsample;
     int currentsample;
     int bitrate;
+    int sf_format;
+    int read_as_short;
 } sndfile_info_t;
 
 // vfs wrapper for sf
@@ -154,9 +158,9 @@ sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     sndfile_info_t *info = (sndfile_info_t*)_info;
 
     SF_INFO inf;
-    DB_FILE *fp = deadbeef->fopen (it->fname);
+    DB_FILE *fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
-        trace ("sndfile: failed to open %s\n", it->fname);
+        trace ("sndfile: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
     int fsize = deadbeef->fgetlength (fp);
@@ -168,6 +172,7 @@ sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         return -1;
     }
     _info->plugin = &plugin;
+    info->sf_format = inf.format&0x000f;
 
     switch (inf.format&0x000f) {
     case SF_FORMAT_PCM_S8:
@@ -180,18 +185,16 @@ sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     case SF_FORMAT_PCM_24:
         _info->fmt.bps = 24;
         break;
-    case SF_FORMAT_PCM_32:
     case SF_FORMAT_FLOAT:
+        _info->fmt.is_float = 1;
+    case SF_FORMAT_PCM_32:
         _info->fmt.bps = 32;
         break;
-    case SF_FORMAT_DOUBLE:
-        fprintf (stderr, "[sndfile] 64 bit float input format is not supported (yet)\n");
-        return -1;
-//        _info->fmt.bps = 64;
-        break;
     default:
+        info->read_as_short = 1;
+        _info->fmt.bps = 16;
         fprintf (stderr, "[sndfile] unidentified input format: 0x%X\n", inf.format&0x000f);
-        return -1;
+        break;
     }
 
     _info->fmt.channels = inf.channels;
@@ -223,7 +226,9 @@ sndfile_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         info->endsample = inf.frames-1;
     }
     // hack bitrate
-    float sec = (float)(info->endsample-info->startsample) / inf.samplerate;
+
+    int totalsamples = inf.frames;
+    float sec = (float)totalsamples / inf.samplerate;
     if (sec > 0) {
         info->bitrate = fsize / sec * 8 / 1000;
     }
@@ -259,8 +264,21 @@ sndfile_read (DB_fileinfo_t *_info, char *bytes, int size) {
     }
 
     int n = 0;
-    n = sf_read_raw (info->ctx, (short *)bytes, size);
-    n /= samplesize;
+    if (info->read_as_short) {
+        n = sf_readf_short(info->ctx, (short *)bytes, size/samplesize);
+    }
+    else {
+        n = sf_read_raw (info->ctx, (short *)bytes, size);
+
+        if (info->sf_format == SF_FORMAT_PCM_U8) {
+            for (int i = 0; i < n; i++) {
+                int sample = ((uint8_t *)bytes)[i];
+                ((int8_t *)bytes)[i] = sample-0x80;
+            }
+        }
+        n /= samplesize;
+    }
+
     info->currentsample += n;
 
     size = n * samplesize;
@@ -289,7 +307,7 @@ sndfile_seek (DB_fileinfo_t *_info, float sec) {
 }
 
 static DB_playItem_t *
-sndfile_insert (DB_playItem_t *after, const char *fname) {
+sndfile_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     SF_INFO inf;
     sndfile_info_t info;
     memset (&info, 0, sizeof (info));
@@ -298,6 +316,7 @@ sndfile_insert (DB_playItem_t *after, const char *fname) {
         trace ("sndfile: failed to open %s\n", fname);
         return NULL;
     }
+    int64_t fsize = deadbeef->fgetlength (info.file);
     info.ctx = sf_open_virtual (&vfs, SFM_READ, &inf, &info);
     if (!info.ctx) {
         trace ("sndfile: sf_open failed");
@@ -310,15 +329,120 @@ sndfile_insert (DB_playItem_t *after, const char *fname) {
     deadbeef->fclose (info.file);
 
     float duration = (float)totalsamples / samplerate;
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "wav";
-    deadbeef->pl_set_item_duration (it, duration);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "wav");
+    deadbeef->plt_set_item_duration (plt, it, duration);
 
     trace ("sndfile: totalsamples=%d, samplerate=%d, duration=%f\n", totalsamples, samplerate, duration);
 
-    DB_playItem_t *cue_after = deadbeef->pl_insert_cue (after, it, totalsamples, samplerate);
+    char s[100];
+    snprintf (s, sizeof (s), "%lld", fsize);
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+
+    int bps = -1;
+    switch (inf.format&0x000f) {
+    case SF_FORMAT_PCM_S8:
+    case SF_FORMAT_PCM_U8:
+        bps = 8;
+        break;
+    case SF_FORMAT_PCM_16:
+        bps = 16;
+        break;
+    case SF_FORMAT_PCM_24:
+        bps = 24;
+        break;
+    case SF_FORMAT_FLOAT:
+    case SF_FORMAT_PCM_32:
+        bps = 32;
+        break;
+    }
+
+    if (bps == -1) {
+        snprintf (s, sizeof (s), "unknown");
+    }
+    else {
+        snprintf (s, sizeof (s), "%d", bps);
+    }
+    deadbeef->pl_add_meta (it, ":BPS", s);
+    snprintf (s, sizeof (s), "%d", inf.channels);
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", samplerate);
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    int br = (int)roundf(fsize / duration * 8 / 1000);
+    snprintf (s, sizeof (s), "%d", br);
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
+
+    // sndfile subformats
+    const char *subformats[] = {
+        "",
+        "PCM_S8",
+        "PCM_16",
+        "PCM_24",
+        "PCM_32",
+        "PCM_U8",
+        "FLOAT",
+        "DOUBLE",
+        "",
+        "",
+        "ULAW",
+        "ALAW",
+        "IMA_ADPCM",
+        "MS_ADPCM",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "GSM610",
+        "VOX_ADPCM",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "G721_32",
+        "G723_24",
+        "G723_40",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "DWVW_12",
+        "DWVW_16",
+        "DWVW_24",
+        "DWVW_N",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "DPCM_8",
+        "DPCM_16",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "VORBIS",
+    };
+
+    if (inf.format&0x000f <= SF_FORMAT_VORBIS) {
+        deadbeef->pl_add_meta (it, ":SF_FORMAT", subformats[inf.format&0x000f]);
+    }
+
+    DB_playItem_t *cue_after = deadbeef->plt_insert_cue (plt, after, it, totalsamples, samplerate);
     if (cue_after) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue_after);
@@ -326,26 +450,109 @@ sndfile_insert (DB_playItem_t *after, const char *fname) {
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     return after;
 }
 
-static const char * exts[] = { "wav", "aif", "aiff", "snd", "au", "paf", "svx", "nist", "voc", "ircam", "w64", "mat4", "mat5", "pvf", "xi", "htk", "sds", "avr", "wavex", "sd2", "caf", "wve", NULL };
-static const char *filetypes[] = { "WAV", NULL };
+#define DEFAULT_EXTS "wav;aif;aiff;snd;au;paf;svx;nist;voc;ircam;w64;mat4;mat5;pvf;xi;htk;sds;avr;wavex;sd2;caf;wve"
+
+#define EXT_MAX 100
+
+static char *exts[EXT_MAX] = {NULL};
+
+static void
+sndfile_init_exts (void) {
+    for (int i = 0; exts[i]; i++) {
+        free (exts[i]);
+    }
+    exts[0] = NULL;
+
+    int n = 0;
+    deadbeef->conf_lock ();
+    const char *new_exts = deadbeef->conf_get_str_fast ("sndfile.extensions", DEFAULT_EXTS);
+    while (*new_exts) {
+        if (n >= EXT_MAX) {
+            fprintf (stderr, "sndfile: too many extensions, max is %d\n", EXT_MAX);
+            break;
+        }
+        const char *e = new_exts;
+        while (*e && *e != ';') {
+            e++;
+        }
+        if (e != new_exts) {
+            char *ext = malloc (e-new_exts+1);
+            memcpy (ext, new_exts, e-new_exts);
+            ext[e-new_exts] = 0;
+            exts[n++] = ext;
+        }
+        if (*e == 0) {
+            break;
+        }
+        new_exts = e+1;
+    }
+    deadbeef->conf_unlock ();
+    exts[n] = NULL;
+}
+
+static int
+sndfile_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        sndfile_init_exts ();
+        break;
+    }
+    return 0;
+}
+
+static int
+sndfile_start (void) {
+    sndfile_init_exts ();
+    return 0;
+}
+
+static int
+sndfile_stop (void) {
+    for (int i = 0; exts[i]; i++) {
+        free (exts[i]);
+    }
+    exts[0] = NULL;
+    return 0;
+}
+
+static const char settings_dlg[] =
+    "property \"File Extensions (separate with ';')\" entry sndfile.extensions \"" DEFAULT_EXTS "\";\n"
+;
+
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "sndfile",
-    .plugin.name = "pcm player",
+    .plugin.name = "WAV/PCM player",
     .plugin.descr = "wav/aiff player using libsndfile",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .open = sndfile_open,
     .init = sndfile_init,
@@ -354,8 +561,11 @@ static DB_decoder_t plugin = {
     .seek = sndfile_seek,
     .seek_sample = sndfile_seek_sample,
     .insert = sndfile_insert,
-    .exts = exts,
-    .filetypes = filetypes
+    .exts = (const char **)exts,
+    .plugin.start = sndfile_start,
+    .plugin.stop = sndfile_stop,
+    .plugin.configdialog = settings_dlg,
+    .plugin.message = sndfile_message,
 };
 
 DB_plugin_t *

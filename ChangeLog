@@ -1,3 +1,75 @@
+version 0.5.1
+	fixed crash bug after deleting playlists
+	fixed importing fb2k EQ presets
+	fixed bug causing garbage output when DSP plugins were changing channels count
+	added oggenc --ignorelength bug workaround to converter
+	added new mono2stereo DSP plugin
+	fixed numerous bugs in multichannel support, down/upmixing, sampleformat conversions, etc
+	fixed updating window titlebar after editing current track metadata
+	fixed wrong middle mouse button double-click reaction in tray icon
+	fixed scrobbling last track in "don't loop" mode
+	fixed shuffle albums mode when user starts album from the middle
+	added connection timeout to libmms to prevent several-minutes freezes on unresolved hosts
+	fixed inconsistent gui reaction when going from 1st track to previos in "don't loop" mode
+	removed -s option from bundled AAC encoder preset, for compatibility with older versions of FAAC
+	fixed multiple selection "sticking" when pressing left+right mouse buttons, or trying to play missing file
+	fixed syncing converter DSP preset list with the list from Preferences DSP tab
+	FLAC plugin can now play files which report zero size, but have samples in them
+	fixed playback of U8 wav files, and all the libsndfile formats that were not working in raw reading mode
+	added option (on by default) to convert 8 bit samples to 16 bit
+	added automatic samplerate option to SRC plugin
+	restored "use ALSA resampling" option in ALSA plugin
+	fixed several output format bugs in ALSA plugin
+	added support for creating directory tree in converter plugin (Jan D. Behrens)
+	set converter output folder to $HOME when it's empty
+	added new DSP plugin method "can_bypass", to detect when DSP plugins can be bypassed by streamer
+	improved check for multiple instances
+	fixed loading cuesheets from archives
+	added automatic resampler setup on 1st run with empty dsp chain, to simulate 0.4.4 behaviour
+
+version 0.5.0
+	added support for multichannel output
+	added support for output in 8,24,32,float32 bits per sample formats
+	improved replaygain support, with new options
+	new DSP plugin API, allowing format conversions, time stretching and multiple instances
+	configurable DSP chains
+	added VGZ support to GME plugin
+	moved libsamplerate resampler to separate DSP plugin
+	added new playlist plugin API
+	added new plugin for importing and exporting M3U and PLS formats
+	added Edit->Sort By menu entry, with flexible sort options
+	DUMB, AOSDK, SHN plugins are not distributed in deadbeef tarball anymore
+	added "Shuffle albums" mode
+	improved metadata editing, allowing modification of any text fields, including custom fields
+	added support for editing metadata for multiple selected tracks
+	improved Album Artist support
+	added album covers to notifications
+	title formatting now gives access to any track properties
+	new option to auto-rename playlist when adding folders
+	multiple mp3 plugin improvements, both speed and stability
+	extended VFS plugin API to allow archive/container plugins
+	added new ZIP plugin, to add/play files from zip files without unpacking
+	numerous stability fixes in CURL plugin
+	numerous stability fixes in AAC plugin
+	fixed "hotkeys stop working after reboot" problem
+	multiple improvements in playlist sorting and grouping
+	multiple fixes in gtk widget rendering (playlist, tab bar, etc)
+	few improvements in cue parser
+	added OSS device selection to gui configuration
+	reworked plugin list UI, to make bigger description field, and per-plugin license terms
+	added saving/restoring window geometry to track properties and preferences
+	new plugin Converter: convert from any supported format using customizable encoder presets)
+	new plugin Soundtouch: resample, change pitch/tempo, timestretch, etc
+	added support for files larger than 2Gb in size
+	fixed CD Audio plugin freeze after switching CDs
+	added support for switching GUI plugins to preferences window
+	customizable lists of supported file extensions in SNDFILE and FFMPEG plugins
+	fixed rendering of right-to-left text in playlist group titles
+	added description with example to shellexec plugin
+	fixed mp3 gapless playback (via LAME info tags)
+	improved search speed
+	added --play-pause command line option
+
 version 0.4.4
 	fixed race condition in streamer interaction with output plugins
 	atexit and sigterm handlers are not used anymore to prevent playlist corruption when X session is being killed

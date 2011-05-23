@@ -23,22 +23,18 @@
 
 #define PL_MAX_ITERATORS 2
 
+// predefined properties stored in metadata for storage unification:
+// :URI - full pathname
+// :DECODER - decoder id
+// :TRACKNUM - subsong index (sid, nsf, cue, etc)
+// :DURATION - length in seconds
+
 typedef struct playItem_s {
-    char *fname; // full pathname
-    const char *decoder_id;
-    int tracknum; // used for stuff like sid, nsf, cue (will be ignored by most codecs)
     int startsample;
     int endsample;
     int shufflerating; // sort order for shuffle mode
-    float playtime; // total playtime
-    time_t started_timestamp; // result of calling time(NULL)
-    const char *filetype; // e.g. MP3 or OGG
-    float replaygain_album_gain;
-    float replaygain_album_peak;
-    float replaygain_track_gain;
-    float replaygain_track_peak;
     // private area, must not be visible to plugins
-    float _duration; // in seconds
+    float _duration;
     uint32_t _flags;
     int _refc;
     struct playItem_s *next[PL_MAX_ITERATORS]; // next item in linked list
@@ -51,12 +47,15 @@ typedef struct playItem_s {
 
 typedef struct playlist_s {
     char *title;
+    struct playlist_s *next;
     int count[2];
     float totaltime;
+    int modification_idx;
     playItem_t *head[PL_MAX_ITERATORS]; // head of linked list
     playItem_t *tail[PL_MAX_ITERATORS]; // tail of linked list
     int current_row[PL_MAX_ITERATORS]; // current row (cursor)
-    struct playlist_s *next;
+    struct DB_metaInfo_s *meta; // linked list storing metainfo
+    int refc;
 } playlist_t;
 
 // global playlist control functions
@@ -72,18 +71,11 @@ pl_lock (void);
 void
 pl_unlock (void);
 
-void
-plt_lock (void);
-
-void
-plt_unlock (void);
-
-void
-pl_global_lock (void);
-
-void
-pl_global_unlock (void);
-
+//void
+//plt_lock (void);
+//
+//void
+//plt_unlock (void);
 
 // playlist management functions
 
@@ -92,7 +84,16 @@ playlist_t *
 plt_get_curr_ptr (void);
 
 playlist_t *
-plt_get (int idx);
+plt_get_for_idx (int idx);
+
+void
+plt_ref (playlist_t *plt);
+
+void
+plt_unref (playlist_t *plt);
+
+void
+plt_free (playlist_t *plt);
 
 int
 plt_get_count (void);
@@ -116,22 +117,31 @@ int
 plt_find (const char *name);
 
 void
-plt_free (void);
-
-void
-plt_set_curr (int plt);
+plt_set_curr_idx (int plt);
 
 int
+plt_get_curr_idx (void);
+
+void
+plt_set_curr (playlist_t *plt);
+
+playlist_t *
 plt_get_curr (void);
 
 int
 plt_get_idx_of (playlist_t *plt);
 
 int
-plt_get_title (int plt, char *buffer, int bufsize);
+plt_get_title (playlist_t *plt, char *buffer, int bufsize);
 
 int
-plt_set_title (int plt, const char *title);
+plt_set_title (playlist_t *plt, const char *title);
+
+void
+plt_modified (playlist_t *plt);
+
+int
+plt_get_modification_idx (playlist_t *plt);
 
 // moves playlist #from to position #to
 void
@@ -141,32 +151,41 @@ plt_move (int from, int to);
 void
 pl_clear (void);
 
-int
-pl_add_dir (const char *dirname, int (*cb)(playItem_t *it, void *data), void *user_data);
-
-int
-pl_add_file (const char *fname, int (*cb)(playItem_t *it, void *data), void *user_data);
-
 void
-pl_add_files_begin (void);
+plt_clear (playlist_t *plt);
+
+int
+plt_add_dir (playlist_t *plt, const char *dirname, int (*cb)(playItem_t *it, void *data), void *user_data);
+
+int
+plt_add_file (playlist_t *plt, const char *fname, int (*cb)(playItem_t *it, void *data), void *user_data);
+
+int
+pl_add_files_begin (playlist_t *plt);
 
 void
 pl_add_files_end (void);
 
 playItem_t *
-pl_insert_dir (playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
+plt_insert_dir (playlist_t *plt, playItem_t *after, const char *dirname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
 
 playItem_t *
-pl_insert_file (playItem_t *after, const char *fname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
+plt_insert_file (playlist_t *playlist, playItem_t *after, const char *fname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
 
 playItem_t *
 pl_insert_item (playItem_t *after, playItem_t *it);
 
+playItem_t *
+plt_insert_item (playlist_t *playlist, playItem_t *after, playItem_t *it);
+
 int
-pl_remove_item (playItem_t *i);
+plt_remove_item (playlist_t *playlist, playItem_t *it);
 
 playItem_t *
 pl_item_alloc (void);
+
+playItem_t *
+pl_item_alloc_init (const char *fname, const char *decoder_id);
 
 void
 pl_item_ref (playItem_t *it);
@@ -181,13 +200,25 @@ int
 pl_getcount (int iter);
 
 int
+plt_get_item_count (playlist_t *plt, int iter);
+
+int
 pl_getselcount (void);
+
+int
+plt_getselcount (playlist_t *playlist);
 
 playItem_t *
 pl_get_for_idx (int idx);
 
 playItem_t *
+plt_get_item_for_idx (playlist_t *playlist, int idx, int iter);
+
+playItem_t *
 pl_get_for_idx_and_iter (int idx, int iter);
+
+int
+plt_get_item_idx (playlist_t *playlist, playItem_t *it, int iter);
 
 int
 pl_get_idx_of (playItem_t *it);
@@ -196,10 +227,10 @@ int
 pl_get_idx_of_iter (playItem_t *it, int iter);
 
 playItem_t *
-pl_insert_cue_from_buffer (playItem_t *after, playItem_t *origin, const uint8_t *buffer, int buffersize, int numsamples, int samplerate);
+plt_insert_cue_from_buffer (playlist_t *plt, playItem_t *after, playItem_t *origin, const uint8_t *buffer, int buffersize, int numsamples, int samplerate);
 
 playItem_t *
-pl_insert_cue (playItem_t *after, playItem_t *origin, int numsamples, int samplerate);
+plt_insert_cue (playlist_t *plt, playItem_t *after, playItem_t *origin, int numsamples, int samplerate);
 
 void
 pl_add_meta (playItem_t *it, const char *key, const char *value);
@@ -212,21 +243,42 @@ pl_append_meta (playItem_t *it, const char *key, const char *value);
 const char *
 pl_find_meta (playItem_t *it, const char *key);
 
+int
+pl_find_meta_int (playItem_t *it, const char *key, int def);
+
+float
+pl_find_meta_float (playItem_t *it, const char *key, float def);
+
 void
 pl_replace_meta (playItem_t *it, const char *key, const char *value);
+
+void
+pl_set_meta_int (playItem_t *it, const char *key, int value);
+
+void
+pl_set_meta_float (playItem_t *it, const char *key, float value);
+
+void
+pl_delete_meta (playItem_t *it, const char *key);
 
 void
 pl_delete_all_meta (playItem_t *it);
 
 // returns index of 1st deleted item
 int
+plt_delete_selected (playlist_t *plt);
+
+int
 pl_delete_selected (void);
+
+void
+plt_crop_selected (playlist_t *playlist);
 
 void
 pl_crop_selected (void);
 
 int
-pl_save (const char *fname);
+plt_save (playlist_t *plt, playItem_t *first, playItem_t *last, const char *fname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
 
 int
 pl_save_n (int n);
@@ -237,11 +289,14 @@ pl_save_current (void);
 int
 pl_save_all (void);
 
-int
-pl_load (const char *fname);
+playItem_t *
+plt_load (playlist_t *plt, playItem_t *after, const char *fname, int *pabort, int (*cb)(playItem_t *it, void *data), void *user_data);
 
 int
 pl_load_all (void);
+
+void
+plt_select_all (playlist_t *plt);
 
 void
 pl_select_all (void);
@@ -249,15 +304,18 @@ pl_select_all (void);
 void
 plt_reshuffle (playlist_t *playlist, playItem_t **ppmin, playItem_t **ppmax);
 
-void
-pl_reshuffle (playItem_t **ppmin, playItem_t **ppmax);
-
 // required to calculate total playtime
 void
-pl_set_item_duration (playItem_t *it, float duration);
+plt_set_item_duration (playlist_t *playlist, playItem_t *it, float duration);
 
 float
 pl_get_item_duration (playItem_t *it);
+
+void
+pl_set_item_replaygain (playItem_t *it, int idx, float value);
+
+float
+pl_get_item_replaygain (playItem_t *it, int idx);
 
 uint32_t
 pl_get_item_flags (playItem_t *it);
@@ -277,7 +335,10 @@ void
 pl_format_time (float t, char *dur, int size);
 
 void
-pl_reset_cursor (void);
+plt_reset_cursor (playlist_t *plt);
+
+float
+plt_get_totaltime (playlist_t *plt);
 
 float
 pl_get_totaltime (void);
@@ -289,7 +350,13 @@ int
 pl_is_selected (playItem_t *it);
 
 playItem_t *
+plt_get_first (playlist_t *playlist, int iter);
+
+playItem_t *
 pl_get_first (int iter);
+
+playItem_t *
+plt_get_last (playlist_t *playlist, int iter);
 
 playItem_t *
 pl_get_last (int iter);
@@ -301,25 +368,31 @@ playItem_t *
 pl_get_prev (playItem_t *it, int iter);
 
 int
+plt_get_cursor (playlist_t *plt, int iter);
+
+int
 pl_get_cursor (int iter);
+
+void
+plt_set_cursor (playlist_t *plt, int iter, int cursor);
 
 void
 pl_set_cursor (int iter, int cursor);
 
 void
-pl_move_items (int iter, int plt_from, playItem_t *drop_before, uint32_t *indexes, int count);
+plt_move_items (playlist_t *to, int iter, playlist_t *from, playItem_t *drop_before, uint32_t *indexes, int count);
 
 void
-pl_copy_items (int iter, int plt_from, playItem_t *before, uint32_t *indices, int cnt);
+plt_copy_items (playlist_t *to, int iter, playlist_t *from, playItem_t *before, uint32_t *indices, int cnt);
 
 void
-pl_search_reset (void);
+plt_search_reset (playlist_t *plt);
 
 void
-pl_search_process (const char *text);
+plt_search_process (playlist_t *plt, const char *text);
 
 void
-pl_sort (int iter, int id, const char *format, int ascending);
+plt_sort (playlist_t *plt, int iter, int id, const char *format, int ascending);
 
 // playqueue support functions
 int
@@ -347,12 +420,21 @@ void
 pl_items_copy_junk (struct playItem_s *from, struct playItem_s *first, struct playItem_s *last);
 
 struct DB_metaInfo_s *
-pl_get_metadata (playItem_t *it);
+pl_get_metadata_head (playItem_t *it);
+
+void
+pl_delete_metadata (playItem_t *it, struct DB_metaInfo_s *meta);
 
 void
 pl_set_order (int order);
 
 int
 pl_get_order (void);
+
+playlist_t *
+pl_get_playlist (playItem_t *it);
+
+void
+plt_init_shuffle_albums (playlist_t *plt, int r);
 
 #endif // __PLAYLIST_H

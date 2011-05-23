@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "shorten.h"
-#include "../../deadbeef.h"
+#include <deadbeef/deadbeef.h>
 #include "bitshift.h"
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
@@ -33,11 +33,6 @@ static DB_decoder_t plugin;
 DB_functions_t *deadbeef;
 
 shn_file *load_shn(const char *filename);
-static void shn_play(char *);
-static void shn_stop(void);
-static int  shn_get_time(void);
-static void shn_get_file_info(char *,char **,int *);
-static void shn_display_file_info(char *);
 
 typedef struct {
     DB_fileinfo_t info;
@@ -311,8 +306,9 @@ shn_init_decoder (shn_fileinfo_t *info) {
 static void
 shn_init_config (void) {
 	shn_cfg.error_output_method = ERROR_OUTPUT_DEVNULL;
-	strncpy (shn_cfg.seek_tables_path, deadbeef->conf_get_str ("shn.seektable_path", ""), sizeof (shn_cfg.seek_tables_path));
-	strncpy (shn_cfg.relative_seek_tables_path, deadbeef->conf_get_str ("shn.relative_seektable_path", "seektables"), sizeof (shn_cfg.relative_seek_tables_path));
+
+	deadbeef->conf_get_str ("shn.seektable_path", "", shn_cfg.seek_tables_path, sizeof (shn_cfg.seek_tables_path));
+	deadbeef->conf_get_str ("shn.relative_seektable_path", "seektables", shn_cfg.relative_seek_tables_path, sizeof (shn_cfg.relative_seek_tables_path));
 	shn_cfg.verbose = 0;
 	shn_cfg.swap_bytes = deadbeef->conf_get_int ("shn.swap_bytes", 0);
 }
@@ -326,9 +322,9 @@ shn_init(DB_fileinfo_t *_info, DB_playItem_t *it) {
 	char data[4];
     DB_FILE *f;
 
-	f = deadbeef->fopen (it->fname);
+	f = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!f) {
-        trace ("shn: failed to open %s\n", it->fname);
+        trace ("shn: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -340,7 +336,7 @@ shn_init(DB_fileinfo_t *_info, DB_playItem_t *it) {
 	if (deadbeef->fread((void *)data,1,4,f) != 4)
 	{
 		deadbeef->fclose(f);
-        trace ("shn: failed to read magic from %s\n", it->fname);
+        trace ("shn: failed to read magic from %s\n", deadbeef->pl_find_meta (it, ":URI"));
 		return -1;
 	}
 	deadbeef->fclose(f);
@@ -350,7 +346,7 @@ shn_init(DB_fileinfo_t *_info, DB_playItem_t *it) {
 		return -1;
     }
 
-	if (!(info->shnfile = load_shn(it->fname))) {
+	if (!(info->shnfile = load_shn(deadbeef->pl_find_meta (it, ":URI")))) {
         trace ("shn: load_shn failed\n");
 		return -1;
     }
@@ -764,7 +760,7 @@ shn_read (DB_fileinfo_t *_info, char *bytes, int size) {
                 }
             }
             n = min (nsamples, n);
-            char *src = info->shnfile->vars.buffer;
+            char *src = (char *)info->shnfile->vars.buffer;
             memcpy (bytes, src, samplesize * n);
             src += samplesize * n;
             bytes += samplesize * n;
@@ -864,7 +860,7 @@ shn_seek (DB_fileinfo_t *_info, float time) {
 }
 
 DB_playItem_t *
-shn_insert (DB_playItem_t *after, const char *fname) {
+shn_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
 	shn_file *tmp_file;
 	DB_FILE *f;
 	char data[4];
@@ -873,6 +869,7 @@ shn_insert (DB_playItem_t *after, const char *fname) {
     if (!f) {
         return NULL;
     }
+    int64_t fsize = deadbeef->fgetlength (f);
 
     int id3v2_tag_size = deadbeef->junk_get_leading_size (f);
     if (id3v2_tag_size > 0) {
@@ -897,11 +894,9 @@ shn_insert (DB_playItem_t *after, const char *fname) {
 		return NULL;
     }
 
-	DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = "Shorten";
-    deadbeef->pl_set_item_duration (it, tmp_file->wave_header.length);
+	DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "Shorten");
+    deadbeef->plt_set_item_duration (plt, it, tmp_file->wave_header.length);
 
     int apeerr = deadbeef->junk_apev2_read (it, tmp_file->vars.fd);
     int v2err = deadbeef->junk_id3v2_read (it, tmp_file->vars.fd);
@@ -909,9 +904,21 @@ shn_insert (DB_playItem_t *after, const char *fname) {
 
 	shn_unload(tmp_file);
 
+    char s[100];
+    snprintf (s, sizeof (s), "%lld", fsize);
+    deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
+    snprintf (s, sizeof (s), "%d", tmp_file->wave_header.bits_per_sample);
+    deadbeef->pl_add_meta (it, ":BPS", s);
+    snprintf (s, sizeof (s), "%d", tmp_file->wave_header.channels);
+    deadbeef->pl_add_meta (it, ":CHANNELS", s);
+    snprintf (s, sizeof (s), "%d", tmp_file->wave_header.samples_per_sec);
+    deadbeef->pl_add_meta (it, ":SAMPLERATE", s);
+    int br = (int)roundf(fsize / (float)tmp_file->wave_header.length * 8 / 1000);
+    snprintf (s, sizeof (s), "%d", br);
+    deadbeef->pl_add_meta (it, ":BITRATE", s);
     deadbeef->pl_add_meta (it, "title", NULL);
 
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     return after;
 }
@@ -1779,8 +1786,6 @@ void write_and_wait(shn_file *this_shn,int block_size)
 #endif
 
 static const char * exts[] = { "shn", NULL };
-static const char *filetypes[] = { "Shorten", NULL };
-
 
 static const char settings_dlg[] =
     "property \"Relative seek table path\" entry shn.relative_seektable_path seektables;\n"
@@ -1790,15 +1795,34 @@ static const char settings_dlg[] =
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "shn",
-    .plugin.name = "SHN player",
-    .plugin.descr = "SHN player based on xmms-shn",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.name = "Shorten player",
+    .plugin.descr = "decodes shn files",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Based on xmms-shn, http://www.etree.org/shnutils/xmms-shn/\n"
+        "Copyright (C) 2000-2007  Jason Jordan <shnutils@freeshell.org>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.configdialog = settings_dlg,
     .open = shn_open,
@@ -1809,11 +1833,10 @@ static DB_decoder_t plugin = {
     .seek_sample = shn_seek_sample,
     .insert = shn_insert,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *
-shn_load (DB_functions_t *api) {
+ddb_shn_load (DB_functions_t *api) {
     deadbeef = api;
     return DB_PLUGIN (&plugin);
 }

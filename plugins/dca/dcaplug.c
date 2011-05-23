@@ -51,7 +51,6 @@
 #define trace(fmt,...)
 
 static const char * exts[] = { "wav", "dts", "cpt", NULL };
-static const char *filetypes[] = { "DTS WAV", "DTS", NULL };
 
 enum {
     FT_DTSWAV,
@@ -101,6 +100,7 @@ typedef struct {
 
 typedef sample_t convert_t;
 
+#if 0
 #define SPEAKER_FRONT_LEFT             0x1
 #define SPEAKER_FRONT_RIGHT            0x2
 #define SPEAKER_FRONT_CENTER           0x4
@@ -155,6 +155,57 @@ static int wav_channels (int flags, uint32_t * speaker_flags)
 
     return chans;
 }
+#endif
+
+static int channel_remap[][7] = {
+// DCA_MONO
+    {0},
+// DCA_CHANNEL
+// DCA_STEREO
+// DCA_STEREO_SUMDIFF
+// DCA_STEREO_TOTAL
+    {0,1},
+    {0,1},
+    {0,1},
+    {0,1},
+//DCA_3F
+    {0,1,2},
+//DCA_2F1R
+    {0,1,2},
+//DCA_3F1R
+    {0,1,2,3},
+//DCA_2F2R
+    {0,1,2,3},
+//DCA_3F2R
+    {0,1,2,3,4},
+//DCA_4F2R
+    {0,1,2,3,4,5},
+
+/// same with LFE
+
+// DCA_MONO
+    {0,1},
+// DCA_CHANNEL
+// DCA_STEREO
+// DCA_STEREO_SUMDIFF
+// DCA_STEREO_TOTAL
+    {0,1,2},
+    {0,1,2},
+    {0,1,2},
+    {0,1,2},
+//DCA_3F
+    {1,2,0,3},
+//DCA_2F1R
+    {0,1,3,2},
+//DCA_3F1R
+    {1,2,0,4,3},
+//DCA_2F2R
+    {0,1,4,2,3},
+//DCA_3F2R
+    {1,2,0,5,3,4},
+//DCA_4F2R
+    {1,2,5,3,4,6,7} // FL|FR|LFE|FLC|FRC|RL|RR
+};
 
 static inline int16_t convert (int32_t i)
 {
@@ -227,8 +278,6 @@ dca_decode_data (ddb_dca_state_t *ddb_state, uint8_t * start, int size, int prob
                 sample_t bias = 384;
 
                 int i;
-
-                ddb_state->flags = DCA_STEREO;
 
                 if (!ddb_state->disable_adjust)
                     ddb_state->flags |= DCA_ADJUST_LEVEL;
@@ -320,7 +369,7 @@ dts_open_wav (DB_FILE *fp, wavfmt_t *fmt, int64_t *totalsamples) {
         return -1;
     }
 
-    deadbeef->fseek (fp, fmtsize - sizeof (wavfmt_t), SEEK_CUR);
+    deadbeef->fseek (fp, (int)fmtsize - (int)sizeof (wavfmt_t), SEEK_CUR);
 
     // data subchunk
 
@@ -356,9 +405,9 @@ static int
 dts_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     ddb_dca_state_t *info = (ddb_dca_state_t *)_info;
 
-    info->file = deadbeef->fopen (it->fname);
+    info->file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->file) {
-        trace ("dca: failed to open %s\n", it->fname);
+        trace ("dca: failed to open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
 
@@ -400,6 +449,7 @@ dts_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     int flags = info->flags &~ (DCA_LFE | DCA_ADJUST_LEVEL);
     switch (flags) {
     case DCA_MONO:
+        trace ("dts: mono\n");
         _info->fmt.channels = 1;
         _info->fmt.channelmask = DDB_SPEAKER_FRONT_LEFT;
         break;
@@ -408,30 +458,36 @@ dts_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     case DCA_DOLBY:
     case DCA_STEREO_SUMDIFF:
     case DCA_STEREO_TOTAL:
+        trace ("dts: stereo\n");
         _info->fmt.channels = 2;
         _info->fmt.channelmask = (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT);
         break;
     case DCA_3F:
     case DCA_2F1R:
+        trace ("dts: 3F or 2F1R\n");
         _info->fmt.channels = 3;
         _info->fmt.channelmask = (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT | DDB_SPEAKER_FRONT_CENTER);
         break;
     case DCA_2F2R:
     case DCA_3F1R:
+        trace ("dts: 2F2R or 3F1R\n");
         _info->fmt.channels = 4;
         _info->fmt.channelmask = (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT | DDB_SPEAKER_BACK_LEFT | DDB_SPEAKER_BACK_RIGHT);
         break;
     case DCA_3F2R:
+        trace ("dts: 3F2R\n");
         _info->fmt.channels = 5;
         _info->fmt.channelmask = (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT | DDB_SPEAKER_BACK_LEFT | DDB_SPEAKER_BACK_RIGHT | DDB_SPEAKER_FRONT_CENTER);
         break;
     case DCA_4F2R:
+        trace ("dts: 4F2R\n");
         _info->fmt.channels = 6;
         _info->fmt.channelmask = (DDB_SPEAKER_FRONT_LEFT | DDB_SPEAKER_FRONT_RIGHT | DDB_SPEAKER_BACK_LEFT | DDB_SPEAKER_BACK_RIGHT | DDB_SPEAKER_SIDE_LEFT | DDB_SPEAKER_SIDE_RIGHT);
         break;
     }
 
     if (info->flags & DCA_LFE) {
+        trace ("dts: LFE\n");
         _info->fmt.channelmask |= DDB_SPEAKER_LOW_FREQUENCY;
         _info->fmt.channels++;
     }
@@ -453,7 +509,7 @@ dts_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         info->endsample = totalsamples-1;
     }
 
-    trace ("dca_init: nchannels: %d, samplerate: %d\n", _info->channels, _info->samplerate);
+    trace ("dca_init: nchannels: %d, samplerate: %d\n", _info->fmt.channels, _info->fmt.samplerate);
     return 0;
 }
 
@@ -497,12 +553,31 @@ dts_read (DB_fileinfo_t *_info, char *bytes, int size) {
         if (info->remaining > 0) {
             int n = size / samplesize;
             n = min (n, info->remaining);
-            memcpy (bytes, info->output_buffer, n * samplesize);
+
+            if (!(info->flags & DCA_LFE)) {
+                memcpy (bytes, info->output_buffer, n * samplesize);
+                bytes += n * samplesize;
+            }
+            else {
+                int chmap = (info->flags & DCA_CHANNEL_MASK) &~ DCA_LFE;
+                if (info->flags & DCA_LFE) {
+                    chmap += 11;
+                }
+
+                // remap channels
+                char *in = (char *)info->output_buffer;
+                for (int s = 0; s < n; s++) {
+                    for (int i = 0; i < _info->fmt.channels; i++) {
+                        ((int16_t *)bytes)[i] = ((int16_t*)in)[channel_remap[chmap][i]];
+                    }
+                    in += samplesize;
+                    bytes += samplesize;
+                }
+            }
 
             if (info->remaining > n) {
                 memmove (info->output_buffer, info->output_buffer + n * _info->fmt.channels, (info->remaining - n) * samplesize);
             }
-            bytes += n * samplesize;
             size -= n * samplesize;
             info->remaining -= n;
 //            trace ("dca: write %d samples\n", n);
@@ -547,7 +622,7 @@ dts_seek (DB_fileinfo_t *_info, float time) {
 }
 
 static DB_playItem_t *
-dts_insert (DB_playItem_t *after, const char *fname) {
+dts_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
         trace ("dca: failed to open %s\n", fname);
@@ -564,13 +639,13 @@ dts_insert (DB_playItem_t *after, const char *fname) {
     double dur = -1;
     // WAV format
     if ((offset = dts_open_wav (fp, &fmt, &totalsamples)) != -1) {
-        filetype = filetypes[FT_DTSWAV];
+        filetype = "DTS WAV";
         dur = (float)totalsamples / fmt.nSamplesPerSec;
     }
     else {
         // try raw DTS @ 48KHz
         offset = 0;
-        filetype = filetypes[FT_DTS];
+        filetype = "DTS";
         //fprintf (stderr, "dca: unrecognized format in %s\n", fname);
         //goto error;
     }
@@ -580,6 +655,7 @@ dts_insert (DB_playItem_t *after, const char *fname) {
     // it's dts
     uint8_t buffer[BUFFER_SIZE];
     size_t size = deadbeef->fread (buffer, 1, sizeof (buffer), fp);
+    trace ("got size: %d (requested %d)\n", size, sizeof (buffer));
     ddb_dca_state_t state;
     memset (&state, 0, sizeof (state));
     state.state = dca_init (0);
@@ -606,17 +682,15 @@ dts_insert (DB_playItem_t *after, const char *fname) {
         dur = (float)totalsamples / state.sample_rate;
     }
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    it->filetype = filetype;
-    deadbeef->pl_set_item_duration (it, dur);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", filetype);
+    deadbeef->plt_set_item_duration (plt, it, dur);
 
     deadbeef->fclose (fp);
 
     // embedded cue
     DB_playItem_t *cue = NULL;
-    cue  = deadbeef->pl_insert_cue (after, it, totalsamples, state.sample_rate);
+    cue  = deadbeef->plt_insert_cue (plt, after, it, totalsamples, state.sample_rate);
     if (cue) {
         deadbeef->pl_item_unref (it);
         deadbeef->pl_item_unref (cue);
@@ -624,7 +698,7 @@ dts_insert (DB_playItem_t *after, const char *fname) {
     }
 
     deadbeef->pl_add_meta (it, "title", NULL);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
 
     return after;
@@ -647,15 +721,34 @@ dts_stop (void) {
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "dts",
     .plugin.name = "dts decoder",
-    .plugin.descr = "dts decoder using libdca from VLC project",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.descr = "plays dts-encoded files using libdca from VLC project",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses modified libdca from VLC Player project,\n"
+        "developed by Gildas Bazin <gbazin@videolan.org>"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = dts_start,
     .plugin.stop = dts_stop,
@@ -667,7 +760,6 @@ static DB_decoder_t plugin = {
     .seek_sample = dts_seek_sample,
     .insert = dts_insert,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *

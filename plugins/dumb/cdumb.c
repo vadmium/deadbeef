@@ -23,7 +23,7 @@
 #include <string.h>
 #include "dumb.h"
 #include "internal/it.h"
-#include "../../deadbeef.h"
+#include <deadbeef/deadbeef.h>
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
@@ -59,18 +59,18 @@ cdumb_open (uint32_t hints) {
 
 static int
 cdumb_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
-    trace ("cdumb_init %s\n", it->fname);
+    trace ("cdumb_init %s\n", deadbeef->pl_find_meta (it, ":URI"));
     dumb_info_t *info = (dumb_info_t *)_info;
 
     int start_order = 0;
 	int is_dos, is_it;
-    const char *ext = it->fname + strlen (it->fname) - 1;
-    while (*ext != '.' && ext > it->fname) {
+    const char *ext = deadbeef->pl_find_meta (it, ":URI") + strlen (deadbeef->pl_find_meta (it, ":URI")) - 1;
+    while (*ext != '.' && ext > deadbeef->pl_find_meta (it, ":URI")) {
         ext--;
     }
     ext++;
     const char *ftype;
-    info->duh = open_module(it->fname, ext, &start_order, &is_it, &is_dos, &ftype);
+    info->duh = open_module(deadbeef->pl_find_meta (it, ":URI"), ext, &start_order, &is_it, &is_dos, &ftype);
 
     dumb_it_do_initial_runthrough (info->duh);
 
@@ -693,8 +693,8 @@ static DUH * open_module(const char *fname, const char *ext, int *start_order, i
 	return duh;
 }
 
-static const char *convstr (const char* str, int sz) {
-    static char out[2048];
+static const char *
+convstr (const char* str, int sz, char *out, int out_sz) {
     int i;
     for (i = 0; i < sz; i++) {
         if (str[i] != ' ') {
@@ -706,38 +706,24 @@ static const char *convstr (const char* str, int sz) {
         return out;
     }
 
-    // check for utf8 (hack)
-    if (deadbeef->junk_iconv (str, sz, out, sizeof (out), "utf-8", "utf-8") >= 0) {
-        return out;
+    const char *cs = deadbeef->junk_detect_charset (str);
+    if (!cs) {
+        return str;
     }
-
-    if (deadbeef->junk_iconv (str, sz, out, sizeof (out), "iso8859-1", "utf-8") >= 0) {
-        return out;
+    else {
+        if (deadbeef->junk_iconv (str, sz, out, out_sz, cs, "utf-8") >= 0) {
+            return out;
+        }
     }
 
     trace ("cdumb: failed to detect charset\n");
     return NULL;
 }
 
-static DB_playItem_t *
-cdumb_insert (DB_playItem_t *after, const char *fname) {
-    const char *ext = fname + strlen (fname) - 1;
-    while (*ext != '.' && ext > fname) {
-        ext--;
-    }
-    ext++;
-    int start_order = 0;
-    int is_it;
-    int is_dos;
-    const char *ftype;
-    DUH* duh = open_module(fname, ext, &start_order, &is_it, &is_dos, &ftype);
-    if (!duh) {
-        return NULL;
-    }
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
-    DUMB_IT_SIGDATA * itsd = duh_get_it_sigdata(duh);
+static void
+read_metadata_internal (DB_playItem_t *it, DUMB_IT_SIGDATA *itsd) {
+    char temp[2048];
+
     if (itsd->name[0])     {
         int tl = sizeof(itsd->name);
         int i;
@@ -746,7 +732,7 @@ cdumb_insert (DB_playItem_t *after, const char *fname) {
             deadbeef->pl_add_meta (it, "title", NULL);
         }
         else {
-            deadbeef->pl_add_meta (it, "title", convstr ((char*)&itsd->name, sizeof(itsd->name)));
+            deadbeef->pl_add_meta (it, "title", convstr ((char*)&itsd->name, sizeof(itsd->name), temp, sizeof (temp)));
         }
     }
     else {
@@ -756,12 +742,12 @@ cdumb_insert (DB_playItem_t *after, const char *fname) {
     for (i = 0; i < itsd->n_instruments; i++) {
         char key[100];
         snprintf (key, sizeof (key), "INST%03d", i);
-        deadbeef->pl_add_meta (it, key, (const char *)itsd->instrument[i].name);
+        deadbeef->pl_add_meta (it, key, convstr ((char *)&itsd->instrument[i].name, sizeof (itsd->instrument[i].name), temp, sizeof (temp)));
     }
     for (i = 0; i < itsd->n_samples; i++) {
         char key[100];
         snprintf (key, sizeof (key), "SAMP%03d", i);
-        deadbeef->pl_add_meta (it, key, (const char *)itsd->sample[i].name);
+        deadbeef->pl_add_meta (it, key, convstr ((char *)&itsd->sample[i].name, sizeof (itsd->sample[i].name), temp, sizeof (temp)));
     }
 
     char s[100];
@@ -776,11 +762,62 @@ cdumb_insert (DB_playItem_t *after, const char *fname) {
     deadbeef->pl_add_meta (it, ":MOD_PATTERNS", s);
     snprintf (s, sizeof (s), "%d", itsd->n_pchannels);
     deadbeef->pl_add_meta (it, ":MOD_CHANNELS", s);
+}
+
+static int
+cdumb_read_metadata (DB_playItem_t *it) {
+    const char *fname = deadbeef->pl_find_meta (it, ":URI");
+    const char *ext = strrchr (fname, '.');
+    if (ext) {
+        ext++;
+    }
+    else {
+        ext = "";
+    }
+    int start_order = 0;
+    int is_it;
+    int is_dos;
+    const char *ftype;
+    DUH* duh = open_module(fname, ext, &start_order, &is_it, &is_dos, &ftype);
+    if (!duh) {
+        unload_duh (duh);
+        return -1;
+    }
+    DUMB_IT_SIGDATA * itsd = duh_get_it_sigdata(duh);
+
+    deadbeef->pl_delete_all_meta (it);
+    read_metadata_internal (it, itsd);
+    unload_duh (duh);
+    return 0;
+}
+
+static DB_playItem_t *
+cdumb_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
+    const char *ext = strrchr (fname, '.');
+    if (ext) {
+        ext++;
+    }
+    else {
+        ext = "";
+    }
+    int start_order = 0;
+    int is_it;
+    int is_dos;
+    const char *ftype;
+    DUH* duh = open_module(fname, ext, &start_order, &is_it, &is_dos, &ftype);
+    if (!duh) {
+        return NULL;
+    }
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
+    DUMB_IT_SIGDATA * itsd = duh_get_it_sigdata(duh);
+
+    read_metadata_internal (it, itsd);
+
     dumb_it_do_initial_runthrough (duh);
-    deadbeef->pl_set_item_duration (it, duh_get_length (duh)/65536.0f);
-    it->filetype = ftype;
+    deadbeef->plt_set_item_duration (plt, it, duh_get_length (duh)/65536.0f);
+    deadbeef->pl_add_meta (it, ":FILETYPE", ftype);
 //    printf ("duration: %f\n", _info->duration);
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     unload_duh (duh);
 
@@ -833,8 +870,6 @@ cgme_stop (void) {
     return 0;
 }
 
-static const char *filetypes[] = { "IT", "XM", "S3M", "STM", "669", "PTM", "PSM", "MTM", "RIFF", "ASY", "MOD", NULL };
-
 static const char settings_dlg[] =
     "property \"Resampling quality (0..2, higher is better)\" entry dumb.resampling_quality 2;\n"
     "property \"8-bit output (default is 16)\" checkbox dumb.8bitoutput 0;\n"
@@ -842,15 +877,35 @@ static const char settings_dlg[] =
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "stddumb",
     .plugin.name = "DUMB module player",
     .plugin.descr = "module player based on DUMB library",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "Uses a fork of DUMB (Dynamic Universal Music Bibliotheque), Version 0.9.3\n"
+        "Copyright (C) 2001-2005 Ben Davis, Robert J Ohannessian and Julien Cugniere\n"
+        "Uses code from kode54's foobar2000 plugin, http://kode54.foobar2000.org/\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = cgme_start,
     .plugin.stop = cgme_stop,
@@ -861,12 +916,12 @@ static DB_decoder_t plugin = {
     .read = cdumb_read,
     .seek = cdumb_seek,
     .insert = cdumb_insert,
+    .read_metadata = cdumb_read_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *
-dumb_load (DB_functions_t *api) {
+ddb_dumb_load (DB_functions_t *api) {
     deadbeef = api;
     return DB_PLUGIN (&plugin);
 }

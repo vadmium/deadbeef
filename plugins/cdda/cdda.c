@@ -79,18 +79,18 @@ static int
 cda_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     cdda_info_t *info = (cdda_info_t *)_info;
 
-    trace ("cdda: init %s\n", it->fname);
+    trace ("cdda: init %s\n", deadbeef->pl_find_meta (it, ":URI"));
 
-    size_t l = strlen (it->fname);
+    size_t l = strlen (deadbeef->pl_find_meta (it, ":URI"));
     char location[l+1];
-    memcpy (location, it->fname, l+1);
+    memcpy (location, deadbeef->pl_find_meta (it, ":URI"), l+1);
 
     char *nr = strchr (location, '#');
     if (nr) {
         *nr = 0; nr++;
     }
     else {
-        trace ("cdda: bad name: %s\n", it->fname);
+        trace ("cdda: bad name: %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
     int track_nr = atoi (nr);
@@ -102,6 +102,38 @@ cda_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         trace ("cdda: Could not open CD\n");
         return -1;
     }
+
+    track_t first_track = cdio_get_first_track_num (info->cdio);
+    if (first_track == 0xff) {
+        trace ("cdda: no medium found\n");
+        return -1;
+    }
+    track_t tracks = cdio_get_num_tracks (info->cdio);
+    track_t i;
+    cddb_track_t *track;
+
+    cddb_disc_t *disc = cddb_disc_new();
+
+    cddb_disc_set_length (disc, cdio_get_track_lba (info->cdio, CDIO_CDROM_LEADOUT_TRACK) / CDIO_CD_FRAMES_PER_SEC);
+
+    for (i = 0; i < tracks; i++)
+    {
+        lsn_t offset = cdio_get_track_lba (info->cdio, i+first_track);
+        track = cddb_track_new();
+        cddb_track_set_frame_offset (track, offset);
+        cddb_disc_add_track (disc, track);
+    }
+    cddb_disc_calc_discid (disc);
+    int discid = cddb_disc_get_discid (disc);
+
+    int trk_discid = deadbeef->pl_find_meta_int (it, ":CDIO_DISCID", 0);
+    if (trk_discid != discid) {
+        cddb_disc_destroy (disc);
+        trace ("cdda: the track belongs to another disc, skipped\n");
+        return -1;
+    }
+    cddb_disc_destroy (disc);
+
 
     if (TRACK_FORMAT_AUDIO != cdio_get_track_format (info->cdio, track_nr))
     {
@@ -243,7 +275,8 @@ resolve_disc (CdIo_t *cdio)
 
     conn = cddb_new();
 
-    cddb_set_server_name (conn, deadbeef->conf_get_str ("cdda.freedb.host", DEFAULT_SERVER));
+    deadbeef->conf_lock ();
+    cddb_set_server_name (conn, deadbeef->conf_get_str_fast ("cdda.freedb.host", DEFAULT_SERVER));
     cddb_set_server_port (conn, deadbeef->conf_get_int ("cdda.freedb.port", DEFAULT_PORT));
 
     if (!deadbeef->conf_get_int ("cdda.protocol", DEFAULT_PROTOCOL))
@@ -252,9 +285,10 @@ resolve_disc (CdIo_t *cdio)
         if (deadbeef->conf_get_int ("network.proxy", 0))
         {
             cddb_set_server_port(conn, deadbeef->conf_get_int ("network.proxy.port", 8080));
-            cddb_set_server_name(conn, deadbeef->conf_get_str ("network.proxy.address", ""));
+            cddb_set_server_name(conn, deadbeef->conf_get_str_fast ("network.proxy.address", ""));
         }
     }
+    deadbeef->conf_unlock ();
 
     int matches = cddb_query (conn, disc);
     if (matches == -1)
@@ -269,7 +303,7 @@ resolve_disc (CdIo_t *cdio)
 }
 
 static DB_playItem_t *
-insert_single_track (CdIo_t* cdio, DB_playItem_t *after, const char* file, int track_nr)
+insert_single_track (CdIo_t* cdio, ddb_playlist_t *plt, DB_playItem_t *after, const char* file, int track_nr, int discid)
 {
     char tmp[file ? strlen (file) + 20 : 20];
     if (file)
@@ -285,18 +319,18 @@ insert_single_track (CdIo_t* cdio, DB_playItem_t *after, const char* file, int t
 
     int sector_count = cdio_get_track_sec_count (cdio, track_nr);
 
-    DB_playItem_t *it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (tmp);
-    it->filetype = "cdda";
-    deadbeef->pl_set_item_duration (it, (float)sector_count / 75.0);
+    DB_playItem_t *it = deadbeef->pl_item_alloc_init (tmp, plugin.plugin.id);
+    deadbeef->pl_add_meta (it, ":FILETYPE", "cdda");
+    deadbeef->plt_set_item_duration (plt, it, (float)sector_count / 75.0);
 
     snprintf (tmp, sizeof (tmp), "CD Track %02d", track_nr);
     deadbeef->pl_add_meta (it, "title", tmp);
     snprintf (tmp, sizeof (tmp), "%02d", track_nr);
     deadbeef->pl_add_meta (it, "track", tmp);
 
-    after = deadbeef->pl_insert_item (after, it);
+    deadbeef->pl_set_meta_int (it, ":CDIO_DISCID", discid);
+
+    after = deadbeef->plt_insert_item (plt, after, it);
 
     return after;
 }
@@ -352,11 +386,21 @@ cddb_thread (void *items_i)
         char tmp[5];
         snprintf (tmp, sizeof (tmp), "%02d", trk);
         deadbeef->pl_add_meta (items[i], "track", tmp);
-        deadbeef->plug_trigger_event_trackinfochanged (items[i]);
+        ddb_event_track_t *ev = (ddb_event_track_t *)deadbeef->event_alloc (DB_EV_TRACKINFOCHANGED);
+        ev->track = items[i];
+        if (ev->track) {
+            deadbeef->pl_item_ref (ev->track);
+        }
+        deadbeef->event_send ((ddb_event_t *)ev, 0, 0);
     }
     cddb_disc_destroy (disc);
     cleanup_thread_params (params);
-    deadbeef->plug_trigger_event_playlistchanged ();
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    if (plt) {
+        deadbeef->plt_modified (plt);
+        deadbeef->plt_unref (plt);
+    }
+    deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
 }
 
 static void
@@ -439,7 +483,7 @@ read_disc_cdtext (struct cddb_thread_params *params)
 }
 
 static DB_playItem_t *
-cda_insert (DB_playItem_t *after, const char *fname) {
+cda_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     trace ("CDA insert: %s\n", fname);
     CdIo_t* cdio = NULL;
     int track_nr;
@@ -470,15 +514,34 @@ cda_insert (DB_playItem_t *after, const char *fname) {
         return NULL;
     }
 
+
+    // calculate discid
+    track_t first_track = cdio_get_first_track_num (cdio);
+    if (first_track == 0xff) {
+        trace ("cdda: no medium found\n");
+        cdio_destroy (cdio);
+        return NULL;
+    }
+    track_t tracks = cdio_get_num_tracks (cdio);
+    track_t i;
+    cddb_track_t *track;
+
+    cddb_disc_t *disc = cddb_disc_new();
+
+    cddb_disc_set_length (disc, cdio_get_track_lba (cdio, CDIO_CDROM_LEADOUT_TRACK) / CDIO_CD_FRAMES_PER_SEC);
+
+    for (i = 0; i < tracks; i++)
+    {
+        lsn_t offset = cdio_get_track_lba (cdio, i+first_track);
+        track = cddb_track_new();
+        cddb_track_set_frame_offset (track, offset);
+        cddb_disc_add_track (disc, track);
+    }
+    cddb_disc_calc_discid (disc);
+    int discid = cddb_disc_get_discid (disc);
+
     if (0 == strcasecmp (shortname, "all.cda") || is_image)
     {
-        track_t first_track = cdio_get_first_track_num (cdio);
-        if (first_track == 0xff) {
-            trace ("cdda: no medium found\n");
-            cdio_destroy (cdio);
-            return NULL;
-        }
-        track_t tracks = cdio_get_num_tracks (cdio);
         track_t i;
         res = after;
         struct cddb_thread_params *p = malloc (sizeof (struct cddb_thread_params));
@@ -490,7 +553,7 @@ cda_insert (DB_playItem_t *after, const char *fname) {
         for (i = 0; i < tracks; i++)
         {
             trace ("inserting track %d\n", i);
-            res = insert_single_track (cdio, res, is_image ? fname : NULL, i+first_track);
+            res = insert_single_track (cdio, plt, res, is_image ? fname : NULL, i+first_track, discid);
             if (res) {
                 p->items[i] = res;
             }
@@ -511,21 +574,29 @@ cda_insert (DB_playItem_t *after, const char *fname) {
     else
     {
         track_nr = atoi (shortname);
-        res = insert_single_track (cdio, after, NULL, track_nr);
+        res = insert_single_track (cdio, plt, after, NULL, track_nr, discid);
         if (res) {
             read_track_cdtext (cdio, track_nr, res);
             deadbeef->pl_item_unref (res);
         }
         cdio_destroy (cdio);
     }
+    cddb_disc_destroy (disc);
     return res;
 }
 
 static int
 cda_action_add_cd (DB_plugin_action_t *act, DB_playItem_t *it)
 {
-    deadbeef->pl_add_file ("all.cda", NULL, NULL);
-    deadbeef->plug_trigger_event_playlistchanged ();
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    if (plt) {
+        deadbeef->pl_add_files_begin (plt);
+        deadbeef->plt_add_file (plt, "all.cda", NULL, NULL);
+        deadbeef->pl_add_files_end ();
+        deadbeef->plt_modified (plt);
+        deadbeef->plt_unref (plt);
+    }
+    deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
 }
 
 static DB_plugin_action_t add_cd_action = {
@@ -542,8 +613,6 @@ cda_get_actions (DB_playItem_t *unused)
 }
 
 static const char *exts[] = { "cda", "nrg", NULL };
-static const char *filetypes[] = { "cdda", NULL };
-
 static const char settings_dlg[] =
     "property \"Use CDDB/FreeDB\" checkbox cdda.freedb.enable 1;\n"
     "property \"Prefer CD-Text over CDDB\" checkbox cdda.prefer_cdtext 1;\n"
@@ -555,15 +624,32 @@ static const char settings_dlg[] =
 
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "cda",
     .plugin.name = "Audio CD player",
     .plugin.descr = "Audio CD plugin using libcdio and libcddb",
-    .plugin.author = "Viktor Semykin, Alexey Yakovenko",
-    .plugin.email = "thesame.ml@gmail.com, waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "Copyright (C) 2009-2011 Viktor Semykin <thesame.ml@gmail.com>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.configdialog = settings_dlg,
     .plugin.get_actions = cda_get_actions,
@@ -575,7 +661,6 @@ static DB_decoder_t plugin = {
     .seek_sample = cda_seek_sample,
     .insert = cda_insert,
     .exts = exts,
-    .filetypes = filetypes,
 };
 
 DB_plugin_t *

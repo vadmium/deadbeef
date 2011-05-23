@@ -43,6 +43,7 @@
 #include "parser.h"
 #include "drawing.h"
 #include "eq.h"
+#include "wingeom.h"
 
 //#define trace(...) { fprintf (stderr, __VA_ARGS__); }
 #define trace(fmt,...)
@@ -144,7 +145,9 @@ on_open_activate                       (GtkMenuItem     *menuitem,
 
     gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (dlg), TRUE);
     // restore folder
-    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str ("filechooser.lastdir", ""));
+    deadbeef->conf_lock ();
+    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str_fast ("filechooser.lastdir", ""));
+    deadbeef->conf_unlock ();
     int response = gtk_dialog_run (GTK_DIALOG (dlg));
     // store folder
     gchar *folder = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dlg));
@@ -178,7 +181,9 @@ on_add_files_activate                  (GtkMenuItem     *menuitem,
     gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (dlg), TRUE);
 
     // restore folder
-    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str ("filechooser.lastdir", ""));
+    deadbeef->conf_lock ();
+    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str_fast ("filechooser.lastdir", ""));
+    deadbeef->conf_unlock ();
     int response = gtk_dialog_run (GTK_DIALOG (dlg));
     // store folder
     gchar *folder = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dlg));
@@ -212,19 +217,26 @@ on_add_folders_activate                (GtkMenuItem     *menuitem,
 {
     GtkWidget *dlg = gtk_file_chooser_dialog_new (_("Add folder(s) to playlist..."), GTK_WINDOW (mainwin), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_OK, NULL);
 
+    GtkWidget *box = gtk_hbox_new (FALSE, 8);
+    gtk_widget_show (box);
+
     GtkWidget *check = gtk_check_button_new_with_mnemonic (_("Follow symlinks"));
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (check), deadbeef->conf_get_int ("add_folders_follow_symlinks", 0));
     g_signal_connect ((gpointer) check, "toggled",
             G_CALLBACK (on_follow_symlinks_toggled),
             NULL);
     gtk_widget_show (check);
-    gtk_file_chooser_set_extra_widget (GTK_FILE_CHOOSER (dlg), check);
+    gtk_box_pack_start (GTK_BOX (box), check, FALSE, FALSE, 0);
+
+    gtk_file_chooser_set_extra_widget (GTK_FILE_CHOOSER (dlg), box);
 
     set_file_filter (dlg, NULL);
 
     gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (dlg), TRUE);
     // restore folder
-    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str ("filechooser.lastdir", ""));
+    deadbeef->conf_lock ();
+    gtk_file_chooser_set_current_folder_uri (GTK_FILE_CHOOSER (dlg), deadbeef->conf_get_str_fast ("filechooser.lastdir", ""));
+    deadbeef->conf_unlock ();
     int response = gtk_dialog_run (GTK_DIALOG (dlg));
     // store folder
     gchar *folder = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dlg));
@@ -260,7 +272,7 @@ on_quit_activate                      (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     progress_abort ();
-    deadbeef->sendmessage (M_TERMINATE, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_TERMINATE, 0, 0, 0);
 }
 
 
@@ -271,10 +283,10 @@ on_select_all1_activate                (GtkMenuItem     *menuitem,
 {
     deadbeef->pl_select_all ();
     DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
-    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST);
     pl = DDB_LISTVIEW (lookup_widget (searchwin, "searchlist"));
     if (pl) {
-        ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (pl, DDB_REFRESH_LIST);
     }
 }
 
@@ -286,7 +298,7 @@ void
 on_stopbtn_clicked                     (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_STOP, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_STOP, 0, 0, 0);
 }
 
 
@@ -294,7 +306,7 @@ void
 on_playbtn_clicked                     (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_PLAY_CURRENT, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PLAY_CURRENT, 0, 0, 0);
 }
 
 
@@ -302,7 +314,7 @@ void
 on_pausebtn_clicked                    (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_TOGGLE_PAUSE, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_TOGGLE_PAUSE, 0, 0, 0);
 }
 
 
@@ -310,7 +322,7 @@ void
 on_prevbtn_clicked                     (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_PREV, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PREV, 0, 0, 0);
 }
 
 
@@ -318,7 +330,7 @@ void
 on_nextbtn_clicked                     (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_NEXT, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_NEXT, 0, 0, 0);
 }
 
 
@@ -326,7 +338,7 @@ void
 on_playrand_clicked                    (GtkButton       *button,
                                         gpointer         user_data)
 {
-    deadbeef->sendmessage (M_PLAY_RANDOM, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PLAY_RANDOM, 0, 0, 0);
 }
 
 gboolean
@@ -337,12 +349,12 @@ on_mainwin_key_press_event             (GtkWidget       *widget,
     uint32_t maskedstate = (event->state &~ (GDK_LOCK_MASK | GDK_MOD2_MASK | GDK_MOD3_MASK | GDK_MOD5_MASK)) & 0xfff;
     if ((maskedstate == GDK_MOD1_MASK || maskedstate == 0) && event->keyval == GDK_n) {
         // button for that one is not in toolbar anymore, so handle it manually
-        deadbeef->sendmessage (M_PLAY_RANDOM, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_PLAY_RANDOM, 0, 0, 0);
     }
     else if ((maskedstate == GDK_MOD1_MASK || maskedstate == 0) && event->keyval >= GDK_1 && event->keyval <= GDK_9) {
         int pl = event->keyval - GDK_1;
         if (pl >= 0 && pl < deadbeef->plt_get_count ()) {
-            deadbeef->plt_set_curr (pl);
+            deadbeef->plt_set_curr_idx (pl);
             deadbeef->conf_set_int ("playlist.current", pl);
         }
     }
@@ -358,7 +370,7 @@ on_order_linear_activate               (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     deadbeef->conf_set_int ("playback.order", PLAYBACK_ORDER_LINEAR);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
 }
 
 
@@ -367,7 +379,7 @@ on_order_shuffle_activate              (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     deadbeef->conf_set_int ("playback.order", PLAYBACK_ORDER_SHUFFLE_TRACKS);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
 }
 
 void
@@ -375,7 +387,7 @@ on_order_shuffle_albums_activate       (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     deadbeef->conf_set_int ("playback.order", PLAYBACK_ORDER_SHUFFLE_ALBUMS);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
 }
 
 void
@@ -383,7 +395,7 @@ on_order_random_activate               (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     deadbeef->conf_set_int ("playback.order", PLAYBACK_ORDER_RANDOM);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
 }
 
 
@@ -599,7 +611,7 @@ on_seekbar_button_release_event        (GtkWidget       *widget,
         if (time < 0) {
             time = 0;
         }
-        deadbeef->streamer_seek (time);
+        deadbeef->sendmessage (DB_EV_SEEK, 0, time * 1000, 0);
         deadbeef->pl_item_unref (trk);
     }
     gtk_widget_queue_draw (widget);
@@ -624,7 +636,7 @@ on_mainwin_delete_event                (GtkWidget       *widget,
         gtk_widget_hide (widget);
     }
     else {
-        deadbeef->sendmessage (M_TERMINATE, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_TERMINATE, 0, 0, 0);
     }
     return TRUE;
 }
@@ -634,21 +646,7 @@ on_mainwin_configure_event             (GtkWidget       *widget,
                                         GdkEventConfigure *event,
                                         gpointer         user_data)
 {
-#if GTK_CHECK_VERSION(2,2,0)
-	GdkWindowState window_state = gdk_window_get_state (GDK_WINDOW (widget->window));
-#else
-	GdkWindowState window_state = gdk_window_get_state (G_OBJECT (widget));
-#endif
-    if (!(window_state & GDK_WINDOW_STATE_MAXIMIZED) && gtk_widget_get_visible (widget)) {
-        int x, y;
-        int w, h;
-        gtk_window_get_position (GTK_WINDOW (widget), &x, &y);
-        gtk_window_get_size (GTK_WINDOW (widget), &w, &h);
-        deadbeef->conf_set_int ("mainwin.geometry.x", x);
-        deadbeef->conf_set_int ("mainwin.geometry.y", y);
-        deadbeef->conf_set_int ("mainwin.geometry.w", w);
-        deadbeef->conf_set_int ("mainwin.geometry.h", h);
-    }
+    wingeom_save (widget, "mainwin");
     return FALSE;
 }
 
@@ -666,7 +664,6 @@ on_find_activate                       (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     search_start ();       
-    search_restore_attrs ();
 }
 
 void
@@ -814,26 +811,7 @@ on_mainwin_window_state_event          (GtkWidget       *widget,
                                         GdkEventWindowState *event,
                                         gpointer         user_data)
 {
-    // based on pidgin maximization handler
-#if GTK_CHECK_VERSION(2,2,0)
-    if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED) {
-        if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
-            deadbeef->conf_set_int ("mainwin.geometry.maximized", 1);
-        }
-        else {
-            deadbeef->conf_set_int ("mainwin.geometry.maximized", 0);
-        }
-    }
-#else
-	GdkWindowState new_window_state = gdk_window_get_state(G_OBJECT(widget));
-
-	if (new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
-        deadbeef->conf_set_int ("mainwin.geometry.maximized", 1);
-    }
-	else {
-        deadbeef->conf_set_int ("mainwin.geometry.maximized", 0);
-    }
-#endif
+    wingeom_save_max (event, widget, "mainwin");
     return FALSE;
 }
 
@@ -968,10 +946,10 @@ on_deselect_all1_activate              (GtkMenuItem     *menuitem,
     }
     deadbeef->pl_unlock ();
     DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
-    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST);
     pl = DDB_LISTVIEW (lookup_widget (searchwin, "searchlist"));
     if (pl) {
-        ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (pl, DDB_REFRESH_LIST);
     }
 }
 
@@ -995,7 +973,7 @@ on_invert_selection1_activate          (GtkMenuItem     *menuitem,
     }
     deadbeef->pl_unlock ();
     DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
-    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST);
 }
 
 
@@ -1005,7 +983,7 @@ on_new_playlist1_activate              (GtkMenuItem     *menuitem,
 {
     int pl = gtkui_add_new_playlist ();
     if (pl != -1) {
-        deadbeef->plt_set_curr (pl);
+        deadbeef->plt_set_curr_idx (pl);
         deadbeef->conf_set_int ("playlist.current", pl);
     }
 }
@@ -1126,31 +1104,98 @@ title_formatting_help_link_create (gchar *widget_name, gchar *string1, gchar *st
 }
 
 
+
 void
-on_album1_activate                     (GtkMenuItem     *menuitem,
+on_sortfmt_activate                    (GtkEntry        *entry,
                                         gpointer         user_data)
 {
+    GtkWidget *toplevel = gtk_widget_get_toplevel (GTK_WIDGET (entry));
+    gtk_dialog_response (GTK_DIALOG (toplevel), GTK_RESPONSE_OK);
+}
 
+
+
+GtkWidget*
+create_plugin_weblink (gchar *widget_name, gchar *string1, gchar *string2,
+                gint int1, gint int2)
+{
+    GtkWidget *link = gtk_link_button_new_with_label ("", "WWW");
+    gtk_widget_set_sensitive (link, FALSE);
+    return link;
+}
+
+void
+on_sort_by_title_activate              (GtkMenuItem     *menuitem,
+                                        gpointer         user_data)
+{
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, -1, "%t", 1);
+    deadbeef->plt_unref (plt);
+
+    DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    ddb_listview_clear_sort (pl);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
 }
 
 
 void
-on_artist1_activate                    (GtkMenuItem     *menuitem,
+on_sort_by_track_nr_activate           (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, -1, "%n", 1);
+    deadbeef->plt_unref (plt);
 
+    DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    ddb_listview_clear_sort (pl);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
 }
 
 
 void
-on_date1_activate                      (GtkMenuItem     *menuitem,
+on_sort_by_album_activate              (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, -1, "%b", 1);
+    deadbeef->plt_unref (plt);
 
+    DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    ddb_listview_clear_sort (pl);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
 }
 
+
 void
-on_custom2_activate                    (GtkMenuItem     *menuitem,
+on_sort_by_artist_activate             (GtkMenuItem     *menuitem,
+                                        gpointer         user_data)
+{
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, -1, "%a", 1);
+    deadbeef->plt_unref (plt);
+
+    DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    ddb_listview_clear_sort (pl);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
+}
+
+
+void
+on_sort_by_date_activate               (GtkMenuItem     *menuitem,
+                                        gpointer         user_data)
+{
+    ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+    deadbeef->plt_sort (plt, PL_MAIN, -1, "%y", 1);
+    deadbeef->plt_unref (plt);
+
+    DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
+    ddb_listview_clear_sort (pl);
+    ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
+}
+
+
+void
+on_sort_by_custom_activate             (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
     GtkWidget *dlg = create_sortbydlg ();
@@ -1160,7 +1205,9 @@ on_custom2_activate                    (GtkMenuItem     *menuitem,
     GtkEntry *entry = GTK_ENTRY (lookup_widget (dlg, "sortfmt"));
     
     gtk_combo_box_set_active (combo, deadbeef->conf_get_int ("gtkui.sortby_order", 0));
-    gtk_entry_set_text (entry, deadbeef->conf_get_str ("gtkui.sortby_fmt", ""));
+    deadbeef->conf_lock ();
+    gtk_entry_set_text (entry, deadbeef->conf_get_str_fast ("gtkui.sortby_fmt", ""));
+    deadbeef->conf_unlock ();
 
     int r = gtk_dialog_run (GTK_DIALOG (dlg));
 
@@ -1173,24 +1220,15 @@ on_custom2_activate                    (GtkMenuItem     *menuitem,
         deadbeef->conf_set_int ("gtkui.sortby_order", order);
         deadbeef->conf_set_str ("gtkui.sortby_fmt", fmt);
 
-        deadbeef->pl_sort (PL_MAIN, -1, fmt, order == 0 ? 1 : 0);
+        ddb_playlist_t *plt = deadbeef->plt_get_curr ();
+        deadbeef->plt_sort (plt, PL_MAIN, -1, fmt, order == 0 ? 1 : 0);
+        deadbeef->plt_unref (plt);
 
         DdbListview *pl = DDB_LISTVIEW (lookup_widget (mainwin, "playlist"));
         ddb_listview_clear_sort (pl);
-        ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_EXPOSE_LIST);
+        ddb_listview_refresh (pl, DDB_REFRESH_LIST | DDB_LIST_CHANGED);
     }
 
     gtk_widget_destroy (dlg);
     dlg = NULL;
 }
-
-
-void
-on_sortfmt_activate                    (GtkEntry        *entry,
-                                        gpointer         user_data)
-{
-    GtkWidget *toplevel = gtk_widget_get_toplevel (GTK_WIDGET (entry));
-    gtk_dialog_response (GTK_DIALOG (toplevel), GTK_RESPONSE_OK);
-}
-
-

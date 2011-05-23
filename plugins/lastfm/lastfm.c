@@ -62,18 +62,25 @@ static char lfm_err[CURL_ERROR_SIZE];
 
 static char lfm_nowplaying[2048]; // packet for nowplaying, or ""
 #define LFM_SUBMISSION_QUEUE_SIZE 50
-//static char lfm_subm_queue[LFM_SUBMISSION_QUEUE_SIZE][2048];
-static DB_playItem_t *lfm_subm_queue[LFM_SUBMISSION_QUEUE_SIZE];
+
+typedef struct {
+    DB_playItem_t *it;
+    time_t started_timestamp;
+} subm_item_t;
+
+static subm_item_t lfm_subm_queue[LFM_SUBMISSION_QUEUE_SIZE];
 
 static void
 lfm_update_auth (void) {
-    const char *user = deadbeef->conf_get_str ("lastfm.login", "");
-    const char *pass = deadbeef->conf_get_str ("lastfm.password", "");
+    deadbeef->conf_lock ();
+    const char *user = deadbeef->conf_get_str_fast ("lastfm.login", "");
+    const char *pass = deadbeef->conf_get_str_fast ("lastfm.password", "");
     if (strcmp (user, lfm_user) || strcmp (pass, lfm_pass)) {
         strcpy (lfm_user, user);
         strcpy (lfm_pass, pass);
         lfm_sess[0] = 0;
     }
+    deadbeef->conf_unlock ();
 }
 
 static size_t
@@ -128,9 +135,10 @@ curl_req_send (const char *req, const char *post) {
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, strlen(post));
     }
     if (deadbeef->conf_get_int ("network.proxy", 0)) {
-        curl_easy_setopt (curl, CURLOPT_PROXY, deadbeef->conf_get_str ("network.proxy.address", ""));
+        deadbeef->conf_lock ();
+        curl_easy_setopt (curl, CURLOPT_PROXY, deadbeef->conf_get_str_fast ("network.proxy.address", ""));
         curl_easy_setopt (curl, CURLOPT_PROXYPORT, deadbeef->conf_get_int ("network.proxy.port", 8080));
-        const char *type = deadbeef->conf_get_str ("network.proxy.type", "HTTP");
+        const char *type = deadbeef->conf_get_str_fast ("network.proxy.type", "HTTP");
         int curlproxytype = CURLPROXY_HTTP;
         if (!strcasecmp (type, "HTTP")) {
             curlproxytype = CURLPROXY_HTTP;
@@ -158,8 +166,8 @@ curl_req_send (const char *req, const char *post) {
 #endif
         curl_easy_setopt (curl, CURLOPT_PROXYTYPE, curlproxytype);
 
-        const char *proxyuser = deadbeef->conf_get_str ("network.proxy.username", "");
-        const char *proxypass = deadbeef->conf_get_str ("network.proxy.password", "");
+        const char *proxyuser = deadbeef->conf_get_str_fast ("network.proxy.username", "");
+        const char *proxypass = deadbeef->conf_get_str_fast ("network.proxy.password", "");
         if (*proxyuser || *proxypass) {
 #if LIBCURL_VERSION_MINOR >= 19 && LIBCURL_VERSION_PATCH >= 1
             curl_easy_setopt (curl, CURLOPT_PROXYUSERNAME, proxyuser);
@@ -170,6 +178,7 @@ curl_req_send (const char *req, const char *post) {
             curl_easy_setopt (curl, CURLOPT_PROXYUSERPWD, pwd);
 #endif
         }
+        deadbeef->conf_unlock ();
     }
     int status = curl_easy_perform(curl);
     curl_easy_cleanup (curl);
@@ -207,12 +216,14 @@ auth (void) {
     deadbeef->md5 (sig, token, strlen (token));
     deadbeef->md5_to_str (token, sig);
 
-    const char *scrobbler_url = deadbeef->conf_get_str ("lastfm.scrobbler_url", SCROBBLER_URL_LFM);
+    deadbeef->conf_lock ();
+    const char *scrobbler_url = deadbeef->conf_get_str_fast ("lastfm.scrobbler_url", SCROBBLER_URL_LFM);
 #if LFM_TESTMODE
     snprintf (req, sizeof (req), "%s/?hs=true&p=1.2.1&c=tst&v=1.0&u=%s&t=%d&a=%s", scrobbler_url, lfm_user, (int)timestamp, token);
 #else
     snprintf (req, sizeof (req), "%s/?hs=true&p=1.2.1&c=%s&v=%d.%d&u=%s&t=%d&a=%s", scrobbler_url, LFM_CLIENTID, plugin.plugin.version_major, plugin.plugin.version_minor, lfm_user, (int)timestamp, token);
 #endif
+    deadbeef->conf_unlock ();
     // handshake
     int status = curl_req_send (req, NULL);
     if (!status) {
@@ -403,7 +414,7 @@ lfm_add_keyvalue_uri_encoded (char **out, int *outl, const char *key, const char
 // subm is submission idx, or -1 for nowplaying
 // returns number of bytes added, or -1
 static int
-lfm_format_uri (int subm, DB_playItem_t *song, char *out, int outl) {
+lfm_format_uri (int subm, DB_playItem_t *song, char *out, int outl, time_t started_timestamp) {
     if (subm > 50) {
         trace ("lastfm: it's only allowed to send up to 50 submissions at once (got idx=%d)\n", subm);
         return -1;
@@ -469,7 +480,7 @@ lfm_format_uri (int subm, DB_playItem_t *song, char *out, int outl) {
     out += processed;
     outl -= processed;
     if (subm >= 0) {
-        processed = snprintf (out, outl, "i[%d]=%d&o[%d]=P&r[%d]=&", subm, (int)song->started_timestamp, subm, subm);
+        processed = snprintf (out, outl, "i[%d]=%d&o[%d]=P&r[%d]=&", subm, (int)started_timestamp, subm, subm);
         if (processed > outl) {
 //            trace ("failed to add i[%d]=%d&o[%d]=P&r[%d]=&\n", subm, (int)song->started_timestamp, subm, subm);
             return -1;
@@ -482,13 +493,13 @@ lfm_format_uri (int subm, DB_playItem_t *song, char *out, int outl) {
 }
 
 static int
-lastfm_songstarted (DB_event_track_t *ev, uintptr_t data) {
-    trace ("lfm songstarted %s\n", ev->track->fname);
+lastfm_songstarted (ddb_event_track_t *ev, uintptr_t data) {
+    trace ("lfm songstarted %p\n", ev->track);
     if (!deadbeef->conf_get_int ("lastfm.enable", 0)) {
         return 0;
     }
     deadbeef->mutex_lock (lfm_mutex);
-    if (lfm_format_uri (-1, ev->track, lfm_nowplaying, sizeof (lfm_nowplaying)) < 0) {
+    if (lfm_format_uri (-1, ev->track, lfm_nowplaying, sizeof (lfm_nowplaying), ev->started_timestamp) < 0) {
         lfm_nowplaying[0] = 0;
     }
 //    trace ("%s\n", lfm_nowplaying);
@@ -501,40 +512,45 @@ lastfm_songstarted (DB_event_track_t *ev, uintptr_t data) {
 }
 
 static int
-lastfm_songfinished (DB_event_track_t *ev, uintptr_t data) {
-    trace ("lfm songfinished %s\n", ev->track->fname);
+lastfm_songchanged (ddb_event_trackchange_t *ev, uintptr_t data) {
     if (!deadbeef->conf_get_int ("lastfm.enable", 0)) {
         return 0;
     }
+    // previous track must exist
+    if (!ev->from) {
+        return 0;
+    }
+    trace ("lfm songfinished %s\n", deadbeef->pl_find_meta (ev->from, ":URI"));
 #if !LFM_IGNORE_RULES
     // check submission rules
     // duration must be >= 30 sec
-    if (deadbeef->pl_get_item_duration (ev->track) < 30) {
-        trace ("track duration is %f seconds. not eligible for submission\n", deadbeef->pl_get_item_duration (ev->track));
+    if (deadbeef->pl_get_item_duration (ev->from) < 30) {
+        trace ("track duration is %f seconds. not eligible for submission\n", deadbeef->pl_get_item_duration (ev->from));
         return 0;
     }
     // must be played for >=240sec of half the total time
-    if (ev->track->playtime < 240 && ev->track->playtime < deadbeef->pl_get_item_duration (ev->track)/2) {
-        trace ("track playtime=%f seconds. not eligible for submission\n", ev->track->playtime);
+    if (ev->playtime < 240 && ev->playtime < deadbeef->pl_get_item_duration (ev->from)/2) {
+        trace ("track playtime=%f seconds. not eligible for submission\n", ev->playtime);
         return 0;
     }
 
 #endif
 
-    if (!deadbeef->pl_find_meta (ev->track, "artist")
-            || !deadbeef->pl_find_meta (ev->track, "title")
-//            || !deadbeef->pl_find_meta (ev->track, "album")
+    if (!deadbeef->pl_find_meta (ev->from, "artist")
+            || !deadbeef->pl_find_meta (ev->from, "title")
+//            || !deadbeef->pl_find_meta (ev->from, "album")
        ) {
-        trace ("lfm: not enough metadata for submission, artist=%s, title=%s, album=%s\n", deadbeef->pl_find_meta (ev->track, "artist"), deadbeef->pl_find_meta (ev->track, "title"), deadbeef->pl_find_meta (ev->track, "album"));
+        trace ("lfm: not enough metadata for submission, artist=%s, title=%s, album=%s\n", deadbeef->pl_find_meta (ev->from, "artist"), deadbeef->pl_find_meta (ev->from, "title"), deadbeef->pl_find_meta (ev->from, "album"));
         return 0;
     }
     deadbeef->mutex_lock (lfm_mutex);
     // find free place in queue
     for (int i = 0; i < LFM_SUBMISSION_QUEUE_SIZE; i++) {
-        if (!lfm_subm_queue[i]) {
+        if (!lfm_subm_queue[i].it) {
             trace ("lfm: song is now in queue for submission\n");
-            lfm_subm_queue[i] = deadbeef->pl_item_alloc ();
-            deadbeef->pl_item_copy (lfm_subm_queue[i], ev->track);
+            lfm_subm_queue[i].it = ev->from;
+            lfm_subm_queue[i].started_timestamp = ev->started_timestamp;
+            deadbeef->pl_item_ref (ev->from);
             break;
         }
     }
@@ -599,8 +615,8 @@ lfm_send_submissions (void) {
     int res;
     deadbeef->mutex_lock (lfm_mutex);
     for (i = 0; i < LFM_SUBMISSION_QUEUE_SIZE; i++) {
-        if (lfm_subm_queue[i]) {
-            res = lfm_format_uri (idx, lfm_subm_queue[i], r, len);
+        if (lfm_subm_queue[i].it) {
+            res = lfm_format_uri (idx, lfm_subm_queue[i].it, r, len, lfm_subm_queue[i].started_timestamp);
             if (res < 0) {
                 trace ("lfm: failed to format uri\n");
                 return;
@@ -645,9 +661,10 @@ lfm_send_submissions (void) {
                 trace ("submission successful, response:\n%s\n", lfm_reply);
                 deadbeef->mutex_lock (lfm_mutex);
                 for (i = 0; i < LFM_SUBMISSION_QUEUE_SIZE; i++) {
-                    if (lfm_subm_queue[i]) {
-                        deadbeef->pl_item_unref (lfm_subm_queue[i]);
-                        lfm_subm_queue[i] = NULL;
+                    if (lfm_subm_queue[i].it) {
+                        deadbeef->pl_item_unref (lfm_subm_queue[i].it);
+                        lfm_subm_queue[i].it = NULL;
+                        lfm_subm_queue[i].started_timestamp = 0;
                     }
                 }
                 deadbeef->mutex_unlock (lfm_mutex);
@@ -660,9 +677,11 @@ lfm_send_submissions (void) {
     trace ("submission successful (NOSEND=1):\n");
     deadbeef->mutex_lock (lfm_mutex);
     for (i = 0; i < LFM_SUBMISSION_QUEUE_SIZE; i++) {
-        if (lfm_subm_queue[i]) {
-            deadbeef->pl_item_unref (lfm_subm_queue[i]);
-            lfm_subm_queue[i] = NULL;
+        if (lfm_subm_queue[i].it) {
+            deadbeef->pl_item_unref (lfm_subm_queue[i].it);
+            lfm_subm_queue[i].it = NULL;
+            lfm_subm_queue[i].started_timestamp = 0;
+
         }
     }
     deadbeef->mutex_unlock (lfm_mutex);
@@ -788,6 +807,18 @@ auth_v2 (void) {
 #endif
 // }}}
 
+static int
+lfm_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_SONGSTARTED:
+        lastfm_songstarted ((ddb_event_track_t *)ctx, 0);
+        break;
+    case DB_EV_SONGCHANGED:
+        lastfm_songchanged ((ddb_event_trackchange_t *)ctx, 0);
+        break;
+    }
+    return 0;
+}
 
 static int
 lastfm_start (void) {
@@ -799,9 +830,6 @@ lastfm_start (void) {
     lfm_mutex = deadbeef->mutex_create_nonrecursive ();
     lfm_cond = deadbeef->cond_create ();
     lfm_tid = deadbeef->thread_start (lfm_thread, NULL);
-    // subscribe to frameupdate event
-    deadbeef->ev_subscribe (DB_PLUGIN (&plugin), DB_EV_SONGSTARTED, DB_CALLBACK (lastfm_songstarted), 0);
-    deadbeef->ev_subscribe (DB_PLUGIN (&plugin), DB_EV_SONGFINISHED, DB_CALLBACK (lastfm_songfinished), 0);
 
     return 0;
 }
@@ -811,8 +839,6 @@ lastfm_stop (void) {
     trace ("lastfm_stop\n");
     if (lfm_mutex) {
         lfm_stopthread = 1;
-        deadbeef->ev_unsubscribe (DB_PLUGIN (&plugin), DB_EV_SONGSTARTED, DB_CALLBACK (lastfm_songstarted), 0);
-        deadbeef->ev_unsubscribe (DB_PLUGIN (&plugin), DB_EV_SONGFINISHED, DB_CALLBACK (lastfm_songfinished), 0);
 
         trace ("lfm_stop signalling cond\n");
         deadbeef->cond_signal (lfm_cond);
@@ -846,7 +872,6 @@ lfm_action_lookup (DB_plugin_action_t *action, DB_playItem_t *it)
     char *command = NULL;
     if (-1 == asprintf (&command, "xdg-open 'http://www.last.fm/music/%s/_/%s' &", eartist, etitle))
         return 0;
-    printf ("executing %s\n", command);
     system (command);
     free (command);
 }
@@ -901,17 +926,34 @@ static const char settings_dlg[] =
 
 // define plugin interface
 static DB_misc_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_MISC,
     .plugin.name = "last.fm scrobbler",
-    .plugin.descr = "sends played songs information to your last.fm account",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.descr = "Sends played songs information to your last.fm account, or other service that use AudioScrobbler protocol",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = lastfm_start,
     .plugin.stop = lastfm_stop,
     .plugin.configdialog = settings_dlg,
-    .plugin.get_actions = lfm_get_actions
+    .plugin.get_actions = lfm_get_actions,
+    .plugin.message = lfm_message,
 };

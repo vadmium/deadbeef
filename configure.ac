@@ -34,28 +34,29 @@ fi
 case "$host" in
   i386-*-* | i486-*-* | i586-*-* | i686-*-* | i86pc-*-*)
     AC_DEFINE(ARCH_X86_32, 1, [architecture is x86])
-    LIB="lib-x86-32"
+    LIB="../deadbeef-deps/lib-x86-32"
     ;;
   x86_64-apple-*)
     AC_DEFINE(ARCH_X86_64_OSX, 1, [architecture is x86_64 for OSX])
-    LIB="lib-x86-64-osx"
+    LIB="../deadbeef-deps/lib-x86-64-osx"
     ;;
   x86_64-*-* | amd64-*-*)
     AC_DEFINE(ARCH_X86_64, 1, [architecture is x86_64])
-    LIB="lib-x86-64"
+    LIB="../deadbeef-deps/lib-x86-64"
     ;;
   powerpc-*-* )
     AC_DEFINE(ARCH_PPC_32, 1, [architecture is ppc32])
-    LIB="lib-ppc-32"
+    LIB="../deadbeef-deps/lib-ppc-32"
     ;;
   powerpc64-*-* )
     AC_DEFINE(ARCH_PPC_64, 1, [architecture is ppc64])
-    LIB="lib-ppc-64"
+    LIB="../deadbeef-deps/lib-ppc-64"
     ;;
   *)
     AC_DEFINE(ARCH_UNKNOWN, 1, [architecture is unknown])
     ;;
 esac
+AC_SUBST(LIB)
 
 test "x$prefix" = xNONE && prefix=$ac_default_prefix
 
@@ -71,7 +72,7 @@ AC_ARG_ENABLE(alsa,     [AS_HELP_STRING([--disable-alsa    ], [disable ALSA outp
 AC_ARG_ENABLE(oss,      [AS_HELP_STRING([--disable-oss     ], [disable Open Sound System output plugin (default: enabled)])], [enable_oss=$enableval], [enable_oss=yes])
 AC_ARG_ENABLE(pulse,    [AS_HELP_STRING([--disable-pulse   ], [disable PulseAudio output plugin (default: enabled)])], [enable_pulse=$enableval], [enable_pulse=yes])
 AC_ARG_ENABLE(gtkui,    [AS_HELP_STRING([--disable-gtkui   ], [disable standard GTK2 user interface plugin (default: enabled)])], [enable_gtkui=$enableval], [enable_gtkui=yes])
-AC_ARG_ENABLE(gtk3,     [AS_HELP_STRING([--enable-gtk3     ], [use GTK3 library (default: disabled)])], [enable_gtk3=$enableval], [enable_gtk3=no])
+dnl AC_ARG_ENABLE(gtk3,     [AS_HELP_STRING([--enable-gtk3     ], [use GTK3 library (default: disabled)])], [enable_gtk3=$enableval], [enable_gtk3=no])
 AC_ARG_ENABLE(vfs_curl, [AS_HELP_STRING([--disable-vfs-curl], [disable HTTP streaming vfs plugin (default: enabled)])], [enable_vfs_curl=$enableval], [enable_vfs_curl=yes])
 AC_ARG_ENABLE(lfm,      [AS_HELP_STRING([--disable-lfm     ], [disable last.fm/libre.fm scrobbler plugin (default: enabled)])], [enable_lfm=$enableval], [enable_lfm=yes])
 AC_ARG_ENABLE(artwork,  [AS_HELP_STRING([--disable-artwork ], [disable album art loader plugin (default: enabled)])], [enable_artwork=$enableval], [enable_artwork=yes])
@@ -102,11 +103,16 @@ AC_ARG_ENABLE(portable, [AS_HELP_STRING([--enable-portable ], [make portable bui
 AC_ARG_ENABLE(src,      [AS_HELP_STRING([--enable-src      ], [build libsamplerate (SRC) plugin (default: auto)])], [enable_src=$enableval], [enable_src=yes])
 AC_ARG_ENABLE(m3u,      [AS_HELP_STRING([--enable-m3u      ], [build m3u plugin (default: auto)])], [enable_m3u=$enableval], [enable_m3u=yes])
 AC_ARG_ENABLE(vfs-zip,      [AS_HELP_STRING([--enable-vfs-zip      ], [build vfs_zip plugin (default: auto)])], [enable_vfs_zip=$enableval], [enable_vfs_zip=yes])
+AC_ARG_ENABLE(converter,      [AS_HELP_STRING([--enable-converter      ], [build converter plugin (default: auto)])], [enable_converter=$enableval], [enable_converter=yes])
+AC_ARG_ENABLE(artwork-imlib2, [AS_HELP_STRING([--enable-artwork-imlib2      ], [use imlib2 in artwork plugin (default: auto)])], [enable_artwork_imlib2=$enableval], [enable_artwork_imlib2=yes])
 
 if test "x$enable_staticlink" != "xno" ; then
     AC_DEFINE_UNQUOTED([STATICLINK], [1], [Define if building static version])
     STATICLINK=yes
 fi
+
+dnl check for libdl
+AC_CHECK_LIB([dl], [main], [HAVE_DL=yes;DL_LIBS="-ldl";AC_SUBST(DL_LIBS)])
 
 if test "x$enable_portable" != "xno" && test "x$enable_staticlink" != "xno" ; then
     AC_DEFINE_UNQUOTED([PORTABLE], [1], [Define if building portable version])
@@ -128,7 +134,7 @@ CFLAGS="$CFLAGS $INSANE_CFLAGS -D_GNU_SOURCE $PREFIXFLAGS"
 
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_ZLIB=yes
-    ZLIB_LIBS="../../$LIB/libz.a"
+    ZLIB_LIBS="../../$LIB/lib/libz.a"
 else
     AC_CHECK_LIB([z], [main], [HAVE_ZLIB=yes])
     ZLIB_LIBS="-lz"
@@ -137,7 +143,7 @@ AC_SUBST(ZLIB_LIBS)
 
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_ZIP=yes
-    ZIP_LIBS="../../$LIB/libzip.a"
+    ZIP_LIBS="../../$LIB/lib/libzip.a ../../$LIB/lib/libz.a"
 else
     AC_CHECK_LIB([zip], [main], [HAVE_ZIP=yes])
     ZIP_LIBS="-lzip"
@@ -145,11 +151,11 @@ fi
 AC_SUBST(ZIP_LIBS)
 
 if test "x$enable_gtkui" != "xno" ; then
-    if test "x$enable_gtk3" == "xyes" ; then
-        PKG_CHECK_MODULES(GTKUI_DEPS, gtk+-3.0 >= 2.90 gthread-2.0 glib-2.0, HAVE_GTK=yes, HAVE_GTK=no)
-    else
+dnl    if test "x$enable_gtk3" == "xyes" ; then
+dnl        PKG_CHECK_MODULES(GTKUI_DEPS, gtk+-3.0 >= 2.90 gthread-2.0 glib-2.0, HAVE_GTK=yes, HAVE_GTK=no)
+dnl    else
         PKG_CHECK_MODULES(GTKUI_DEPS, gtk+-2.0 >= 2.12 gthread-2.0 glib-2.0, HAVE_GTK=yes, HAVE_GTK=no)
-    fi
+dnl    fi
 else
     HAVE_GTK=no
 fi
@@ -160,12 +166,21 @@ fi
 
 if test "x$enable_ffmpeg" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
-    FFMPEG_DEPS_LIBS="../../$LIB/libavcodec.a -lpthread ../../$LIB/libavformat.a ../../$LIB/libavcodec.a ../../$LIB/libavutil.a ../../$LIB/libavcore.a -lm ../../$LIB/libz.a "
+    FFMPEG_DEPS_LIBS="../../$LIB/lib/libavcodec.a -lpthread ../../$LIB/lib/libavformat.a ../../$LIB/lib/libavcodec.a ../../$LIB/lib/libavutil.a ../../$LIB/lib/libavcore.a -lm ../../$LIB/lib/libz.a "
     AC_SUBST(FFMPEG_DEPS_LIBS)
     HAVE_FFMPEG=yes
 else
     PKG_CHECK_MODULES(FFMPEG_DEPS, libavcodec >= 51.0.0 libavutil libavformat >= 52.0.0, HAVE_FFMPEG=yes, HAVE_FFMPEG=no)
 fi
+fi
+
+if test "x$enable_staticlink" != "xno" ; then
+    HAVE_DBUS=yes
+    DBUS_DEPS_LIBS="../../$LIB/lib/libdbus-1.a ../../$LIB/lib/libexpat.a -lrt"
+    DBUS_DEPS_CFLAGS="-I../../$LIB/include/dbus-1"
+    AC_SUBST(DBUS_DEPS_LIBS)
+else
+    PKG_CHECK_MODULES(DBUS_DEPS, dbus-1, HAVE_DBUS=yes, HAVE_DBUS=no)
 fi
 
 if test "x$enable_pulse" != "xno" ; then
@@ -189,7 +204,7 @@ fi
 dnl curl lib
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_CURL=yes
-    CURL_LIBS="../../$LIB/libcurl.a -lrt"
+    CURL_LIBS="../../$LIB/lib/libcurl.a -lrt"
     AC_SUBST(CURL_LIBS)
 else
     AC_CHECK_LIB([curl], [main], [HAVE_CURL=yes])
@@ -197,21 +212,12 @@ else
     AC_SUBST(CURL_LIBS)
 fi
 
-if test "x$enable_staticlink" != "xno" ; then
-    HAVE_DBUS=yes
-    DBUS_DEPS_LIBS="../../$LIB/libdbus-1.a ../../$LIB/libexpat.a -lrt"
-    DBUS_DEPS_CFLAGS="-I../../$LIB/include/dbus-1"
-    AC_SUBST(DBUS_DEPS_LIBS)
-else
-    PKG_CHECK_MODULES(DBUS_DEPS, dbus-1, HAVE_DBUS=yes, HAVE_DBUS=no)
-fi
-
 dnl mpgmad plugin
 
 if test "x$enable_mpgmad" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_MPGMAD=yes
-    MAD_LIBS="../../$LIB/libmad.a"
+    MAD_LIBS="../../$LIB/lib/libmad.a"
     AC_SUBST(MAD_LIBS)
 else
     AC_CHECK_LIB([mad], [main], [HAVE_LIBMAD=yes])
@@ -227,7 +233,7 @@ dnl vorbis plugin
 if test "x$enable_vorbis" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_VORBISPLUGIN=yes
-    VORBIS_LIBS="../../$LIB/libogg.a ../../$LIB/libvorbis.a ../../$LIB/libvorbisenc.a ../../$LIB/libvorbisfile.a"
+    VORBIS_LIBS="../../$LIB/lib/libogg.a ../../$LIB/lib/libvorbis.a ../../$LIB/lib/libvorbisenc.a ../../$LIB/lib/libvorbisfile.a"
     AC_SUBST(VORBIS_LIBS)
 else
     AC_CHECK_LIB([vorbis], [main], [HAVE_VORBIS=yes])
@@ -244,7 +250,7 @@ dnl flac plugin
 if test "x$enable_flac" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_FLACPLUGIN=yes
-    FLAC_LIBS="../../$LIB/libFLAC.a ../../$LIB/libogg.a"
+    FLAC_LIBS="../../$LIB/lib/libFLAC.a ../../$LIB/lib/libogg.a"
     AC_SUBST(FLAC_LIBS)
 else
     AC_CHECK_LIB([FLAC], [main], [HAVE_FLAC=yes])
@@ -260,7 +266,7 @@ dnl wavpack plugin
 if test "x$enable_wavpack" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_WAVPACKPLUGIN=yes
-    WAVPACK_LIBS="../../$LIB/libwavpack.a"
+    WAVPACK_LIBS="../../$LIB/lib/libwavpack.a"
     AC_SUBST(WAVPACK_LIBS)
 else
     AC_CHECK_LIB([wavpack], [main], [HAVE_WAVPACK=yes])
@@ -276,7 +282,7 @@ dnl libsndfile plugin
 if test "x$enable_sndfile" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_SNDFILEPLUGIN=yes
-    SNDFILE_LIBS="../../$LIB/libsndfile.a"
+    SNDFILE_LIBS="../../$LIB/lib/libsndfile.a"
     AC_SUBST(SNDFILE_LIBS)
 else
     AC_CHECK_LIB([sndfile], [main], [HAVE_SNDFILE=yes])
@@ -301,7 +307,7 @@ dnl cdda plugin
 if test "x$enable_cdda" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
     HAVE_CDDAPLUGIN=yes
-    CDDA_LIBS="../../$LIB/libcdio.a ../../$LIB/libudf.a ../../$LIB/libiso9660.a ../../$LIB/libcddb.a"
+    CDDA_LIBS="../../$LIB/lib/libcdio.a ../../$LIB/lib/libudf.a ../../$LIB/lib/libiso9660.a ../../$LIB/lib/libcddb.a"
     AC_SUBST(CDDA_LIBS)
 else
     AC_CHECK_LIB([cdio], [main], [HAVE_CDIO=yes])
@@ -404,8 +410,28 @@ if test "x$enable_shellexec" != "xno" ; then
     HAVE_SHELLEXEC=yes
 fi
 
+
 if test "x$enable_artwork" != "xno" ; then
-    if test "x$HAVE_CURL" = "xyes" && test "x$HAVE_VFS_CURL" = "xyes" ; then
+    if test "x$enable_staticlink" != "xno" ; then
+        HAVE_JPEG=yes
+        JPEG_DEPS_LIBS="../../$LIB/lib/libjpeg.a"
+        AC_SUBST(JPEG_DEPS_LIBS)
+        HAVE_PNG=yes
+        PNG_DEPS_LIBS="../../$LIB/lib/libpng.a ../../$LIB/lib/libz.a"
+        AC_SUBST(PNG_DEPS_LIBS)
+        HAVE_IMLIB2=no
+    else
+        if test "x$enable_artwork_imlib2" != "xno" ; then
+            PKG_CHECK_MODULES(IMLIB2_DEPS, imlib2, HAVE_IMLIB2=yes, HAVE_IMLIB2=no)
+        fi
+
+        if test "x$enable_artwork_imlib2" == "xno" || test "x$HAVE_IMLIB2" == "xno" ; then
+            AC_CHECK_LIB([jpeg], [main], [HAVE_JPEG=yes;JPEG_DEPS_LIBS="-ljpeg";AC_SUBST(JPEG_DEPS_LIBS)])
+            AC_CHECK_LIB([png], [main], [HAVE_PNG=yes;PNG_DEPS_LIBS="-lpng -lz";AC_SUBST(PNG_DEPS_LIBS)])
+        fi
+    fi
+
+    if test "x$HAVE_VFS_CURL" = "xyes" && ( test "x$HAVE_JPEG" == "xyes" || test "x$HAVE_IMLIB2" == "xyes" ) ; then
         HAVE_ARTWORK=yes
     fi
 fi
@@ -428,7 +454,7 @@ fi
 
 if test "x$enable_src" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
-    LIBSAMPLERATE_DEPS_LIBS="../../$LIB/libsamplerate.a -lpthread -ldl"
+    LIBSAMPLERATE_DEPS_LIBS="../../$LIB/lib/libsamplerate.a -lpthread ${DL_LIBS}"
     AC_SUBST(LIBSAMPLERATE_DEPS_LIBS)
     HAVE_DSP_SRC=yes
 else
@@ -477,7 +503,7 @@ fi
 
 if test "x$enable_aac" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
-    FAAD2_LIBS="../../$LIB/libfaad.a"
+    FAAD2_LIBS="../../$LIB/lib/libfaad.a"
     AC_SUBST(FAAD2_LIBS)
     HAVE_AAC=yes
 else
@@ -506,7 +532,13 @@ if test "x$enable_vfs_zip" != "xno" ; then
     fi
 fi
 
-PLUGINS_DIRS="plugins/lastfm plugins/mpgmad plugins/vorbis plugins/flac plugins/wavpack plugins/sndfile plugins/vfs_curl plugins/cdda plugins/gtkui plugins/alsa plugins/ffmpeg plugins/hotkeys plugins/oss plugins/artwork plugins/adplug plugins/ffap plugins/sid plugins/nullout plugins/supereq plugins/vtx plugins/gme plugins/pulse plugins/notify plugins/musepack plugins/wildmidi plugins/tta plugins/dca plugins/aac plugins/mms plugins/shellexec plugins/dsp_libsrc plugins/m3u plugins/vfs_zip"
+if test "x$enable_converter" != "xno" ; then
+    if test "x$HAVE_GTK" = "xyes" ; then
+        HAVE_CONVERTER=yes
+    fi
+fi
+
+PLUGINS_DIRS="plugins/lastfm plugins/mpgmad plugins/vorbis plugins/flac plugins/wavpack plugins/sndfile plugins/vfs_curl plugins/cdda plugins/gtkui plugins/alsa plugins/ffmpeg plugins/hotkeys plugins/oss plugins/artwork plugins/adplug plugins/ffap plugins/sid plugins/nullout plugins/supereq plugins/vtx plugins/gme plugins/pulse plugins/notify plugins/musepack plugins/wildmidi plugins/tta plugins/dca plugins/aac plugins/mms plugins/shellexec plugins/dsp_libsrc plugins/m3u plugins/vfs_zip plugins/converter"
 
 AM_CONDITIONAL(HAVE_VORBIS, test "x$HAVE_VORBISPLUGIN" = "xyes")
 AM_CONDITIONAL(HAVE_FLAC, test "x$HAVE_FLACPLUGIN" = "xyes")
@@ -544,6 +576,10 @@ AM_CONDITIONAL(PORTABLE_FULL, test "x$PORTABLE_FULL" = "xyes")
 AM_CONDITIONAL(HAVE_DSP_SRC, test "x$HAVE_DSP_SRC" = "xyes")
 AM_CONDITIONAL(HAVE_M3U, test "x$HAVE_M3U" = "xyes")
 AM_CONDITIONAL(HAVE_VFS_ZIP, test "x$HAVE_VFS_ZIP" = "xyes")
+AM_CONDITIONAL(HAVE_CONVERTER, test "x$HAVE_CONVERTER" = "xyes")
+AM_CONDITIONAL(HAVE_IMLIB2, test "x$HAVE_IMLIB2" = "xyes")
+AM_CONDITIONAL(HAVE_JPEG, test "x$HAVE_JPEG" = "xyes")
+AM_CONDITIONAL(HAVE_PNG, test "x$HAVE_PNG" = "xyes")
 
 AC_SUBST(PLUGINS_DIRS)
 
@@ -604,6 +640,7 @@ PRINT_PLUGIN_INFO([mms],[mms streaming support],[test "x$HAVE_MMS" = "xyes"])
 PRINT_PLUGIN_INFO([dsp_src],[High quality samplerate conversion using libsamplerate],[test "x$HAVE_DSP_SRC" = "xyes"])
 PRINT_PLUGIN_INFO([m3u],[M3U and PLS playlist support],[test "x$HAVE_M3U" = "xyes"])
 PRINT_PLUGIN_INFO([vfs_zip],[zip archive support],[test "x$HAVE_VFS_ZIP" = "xyes"])
+PRINT_PLUGIN_INFO([converter],[plugin for converting files to any formats],[test "x$HAVE_CONVERTER" = "xyes"])
 
 echo
 
@@ -644,6 +681,7 @@ plugins/mms/Makefile
 plugins/dsp_libsrc/Makefile
 plugins/m3u/Makefile
 plugins/vfs_zip/Makefile
+plugins/converter/Makefile
 intl/Makefile
 po/Makefile.in
 deadbeef.desktop

@@ -52,32 +52,11 @@ static snd_pcm_uframes_t period_size;
 static snd_pcm_uframes_t req_buffer_size;
 static snd_pcm_uframes_t req_period_size;
 
+static int conf_alsa_resample = 1;
 static char conf_alsa_soundcard[100] = "default";
-
-//static snd_async_handler_t *pcm_callback;
 
 static int
 palsa_callback (char *stream, int len);
-
-#if 0
-static void
-alsa_callback (snd_async_handler_t *pcm_callback) {
-    snd_pcm_t *pcm_handle = snd_async_handler_get_pcm(pcm_callback);
-    snd_pcm_sframes_t avail;
-    int err;
-    printf ("alsa_callback\n");
-
-    avail = snd_pcm_avail_update(pcm_handle);
-    while (avail >= period_size) {
-        char buf[avail * 4];
-        palsa_callback (buf, avail * 4);
-        if ((err = snd_pcm_writei (pcm_handle, buf, period_size)) < 0) {
-            perror ("snd_pcm_writei");
-        }
-        avail = snd_pcm_avail_update(pcm_handle);
-    }
-}
-#endif
 
 static void
 palsa_thread (void *context);
@@ -147,7 +126,6 @@ retry:
     }
 
     snd_pcm_format_t sample_fmt;
-
     switch (plugin.fmt.bps) {
     case 8:
         sample_fmt = SND_PCM_FORMAT_S8;
@@ -182,13 +160,44 @@ retry:
 #endif
         }
         break;
-    };
+    }
 
-    //sample_fmt = SND_PCM_FORMAT_S16_LE;
     if ((err = snd_pcm_hw_params_set_format (audio, hw_params, sample_fmt)) < 0) {
-        fprintf (stderr, "cannot set sample format (%s)\n",
-                snd_strerror (err));
-        goto error;
+        fprintf (stderr, "cannot set sample format (%s), trying all supported formats\n", snd_strerror (err));
+
+        int fmt_cnt[] = { 16, 24, 32, 32, 8 };
+#if WORDS_BIGENDIAN
+        int fmt[] = { SND_PCM_FORMAT_S16_BE, SND_PCM_FORMAT_S24_3BE, SND_PCM_FORMAT_S32_BE, SND_PCM_FORMAT_FLOAT_BE, SND_PCM_FORMAT_S8, -1 };
+#else
+        int fmt[] = { SND_PCM_FORMAT_S16_LE, SND_PCM_FORMAT_S24_3LE, SND_PCM_FORMAT_S32_LE, SND_PCM_FORMAT_FLOAT_LE, SND_PCM_FORMAT_S8, -1 };
+#endif
+
+        // 1st try formats with higher bps
+        int i = 0;
+        for (i = 0; fmt[i] != -1; i++) {
+            if (fmt[i] != sample_fmt && fmt_cnt[i] > plugin.fmt.bps) {
+                if (snd_pcm_hw_params_set_format (audio, hw_params, fmt[i]) >= 0) {
+                    fprintf (stderr, "cannot set sample format (%s), trying all supported formats\n", snd_strerror (err));
+                    break;
+                }
+            }
+        }
+        if (fmt[i] == -1) {
+            // next try formats with lower bps
+            i = 0;
+            for (i = 0; fmt[i] != -1; i++) {
+                if (fmt[i] != sample_fmt && fmt_cnt[i] < plugin.fmt.bps) {
+                    if (snd_pcm_hw_params_set_format (audio, hw_params, fmt[i]) >= 0) {
+                        fprintf (stderr, "cannot set sample format (%s), trying all supported formats\n", snd_strerror (err));
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (fmt[i] == -1) {
+            goto error;
+        }
     }
 
     snd_pcm_hw_params_get_format (hw_params, &sample_fmt);
@@ -197,7 +206,7 @@ retry:
     int val = plugin.fmt.samplerate;
     int ret = 0;
 
-    if ((err = snd_pcm_hw_params_set_rate_resample (audio, hw_params, 1)) < 0) {
+    if ((err = snd_pcm_hw_params_set_rate_resample (audio, hw_params, conf_alsa_resample)) < 0) {
         fprintf (stderr, "cannot setup resampling (%s)\n",
                 snd_strerror (err));
         goto error;
@@ -211,13 +220,24 @@ retry:
     plugin.fmt.samplerate = val;
     trace ("chosen samplerate: %d Hz\n", val);
 
-    if ((err = snd_pcm_hw_params_set_channels (audio, hw_params, plugin.fmt.channels)) < 0) {
+    int chanmin, chanmax;
+    snd_pcm_hw_params_get_channels_min (hw_params, &chanmin);
+    snd_pcm_hw_params_get_channels_max (hw_params, &chanmax);
+
+    trace ("minchan: %d, maxchan: %d\n", chanmin, chanmax);
+    int nchan = plugin.fmt.channels;
+    if (nchan > chanmax) {
+        nchan = chanmax;
+    }
+    else if (nchan < chanmin) {
+        nchan = chanmin;
+    }
+    trace ("setting chan=%d\n", nchan);
+    if ((err = snd_pcm_hw_params_set_channels (audio, hw_params, nchan)) < 0) {
         fprintf (stderr, "cannot set channel count (%s)\n",
                 snd_strerror (err));
-        goto error;
     }
 
-    int nchan;
     snd_pcm_hw_params_get_channels (hw_params, &nchan);
     trace ("alsa channels: %d\n", nchan);
 
@@ -236,12 +256,6 @@ retry:
         fprintf (stderr, "cannot set parameters (%s)\n",
                 snd_strerror (err));
         goto error;
-
-//        if (plugin.fmt.channels > 2 && plugin.fmt.samplerate >= 96000) {
-//            plugin.fmt.samplerate = 48000;
-//            fprintf (stderr, "falling back to 48000KHz\n");
-//            goto retry;
-//        }
     }
 
     plugin.fmt.is_float = 0;
@@ -313,7 +327,8 @@ palsa_init (void) {
     mutex = 0;
 
     // get and cache conf variables
-    strcpy (conf_alsa_soundcard, deadbeef->conf_get_str ("alsa_soundcard", "default"));
+    conf_alsa_resample = deadbeef->conf_get_int ("alsa.resample", 1);
+    deadbeef->conf_get_str ("alsa_soundcard", "default", conf_alsa_soundcard, sizeof (conf_alsa_soundcard));
     trace ("alsa_soundcard: %s\n", conf_alsa_soundcard);
 
     snd_pcm_sw_params_t *sw_params = NULL;
@@ -360,7 +375,7 @@ palsa_init (void) {
                 snd_strerror (err));
         goto open_error;
     }
-    fprintf (stderr, "alsa avail_min: %d frames\n", (int)av);
+    trace ("alsa avail_min: %d frames\n", (int)av);
 
 
 //    if ((err = snd_pcm_sw_params_set_start_threshold (audio, sw_params, 0U)) < 0) {
@@ -437,11 +452,14 @@ palsa_setformat (ddb_waveformat_t *fmt) {
     state = OUTPUT_STATE_STOPPED;
     snd_pcm_drop (audio);
     int ret = palsa_set_hw_params (fmt);
-    UNLOCK;
     if (ret < 0) {
-        trace ("palsa_change_rate: impossible to set requested format\n");
+        trace ("palsa_setformat: impossible to set requested format\n");
+        // even if it failed -- copy the format
+        memcpy (&plugin.fmt, fmt, sizeof (ddb_waveformat_t));
+        UNLOCK;
         return -1;
     }
+    UNLOCK;
     trace ("new format %dbit %s %dch %dHz channelmask=%X\n", plugin.fmt.bps, plugin.fmt.is_float ? "float" : "int", plugin.fmt.channels, plugin.fmt.samplerate, plugin.fmt.channelmask);
 
     switch (s) {
@@ -597,7 +615,11 @@ palsa_thread (void *context) {
         LOCK;
         /* find out how much space is available for playback data */
         snd_pcm_sframes_t frames_to_deliver = snd_pcm_avail_update (audio);
-        while (frames_to_deliver >= period_size) {
+
+        // FIXME: pushing data without waiting for next buffer will drain entire
+        // streamer buffer, and might lead to stuttering
+        // however, waiting for buffer does a lot of cpu wakeups
+        while (/*state == OUTPUT_STATE_PLAYING*/frames_to_deliver >= period_size) {
             if (alsa_terminate) {
                 break;
             }
@@ -606,7 +628,12 @@ palsa_thread (void *context) {
             int bytes_to_write = palsa_callback (buf, period_size * (plugin.fmt.bps>>3) * plugin.fmt.channels);
 
             if (bytes_to_write >= (plugin.fmt.bps>>3) * plugin.fmt.channels) {
-               err = snd_pcm_writei (audio, buf, snd_pcm_bytes_to_frames(audio, bytes_to_write));
+                UNLOCK;
+                err = snd_pcm_writei (audio, buf, snd_pcm_bytes_to_frames(audio, bytes_to_write));
+                LOCK;
+                if (alsa_terminate) {
+                    break;
+                }
             }
             else {
                 UNLOCK;
@@ -628,13 +655,13 @@ palsa_thread (void *context) {
                             exit (-1);
                         }
                     }
-            //        deadbeef->sendmessage (M_REINIT_SOUND, 0, 0, 0);
+            //        deadbeef->sendmessage (DB_EV_REINIT_SOUND, 0, 0, 0);
             //        break;
                 }
                 else {
-                    if (err != -EPIPE) {
-                        fprintf (stderr, "alsa: snd_pcm_writei error=%d, %s\n", err, snd_strerror (err));
-                    }
+                    //if (err != -EPIPE) {
+                    //    fprintf (stderr, "alsa: snd_pcm_writei error=%d, %s\n", err, snd_strerror (err));
+                    //}
                     snd_pcm_prepare (audio);
                     snd_pcm_start (audio);
                     continue;
@@ -643,7 +670,7 @@ palsa_thread (void *context) {
             frames_to_deliver = snd_pcm_avail_update (audio);
         }
         UNLOCK;
-        usleep (period_size * 1000000 / plugin.fmt.samplerate / 2);
+        usleep ((period_size-frames_to_deliver) * 1000000 / plugin.fmt.samplerate / plugin.fmt.channels);
     }
 }
 
@@ -653,17 +680,21 @@ palsa_callback (char *stream, int len) {
 }
 
 static int
-palsa_configchanged (DB_event_t *ev, uintptr_t data) {
-    const char *alsa_soundcard = deadbeef->conf_get_str ("alsa_soundcard", "default");
+alsa_configchanged (void) {
+    deadbeef->conf_lock ();
+    int alsa_resample = deadbeef->conf_get_int ("alsa.resample", 1);
+    const char *alsa_soundcard = deadbeef->conf_get_str_fast ("alsa_soundcard", "default");
     int buffer = deadbeef->conf_get_int ("alsa.buffer", DEFAULT_BUFFER_SIZE);
     int period = deadbeef->conf_get_int ("alsa.period", DEFAULT_PERIOD_SIZE);
     if (audio &&
-            (strcmp (alsa_soundcard, conf_alsa_soundcard)
+            (alsa_resample != conf_alsa_resample
+            || strcmp (alsa_soundcard, conf_alsa_soundcard)
             || buffer != req_buffer_size
             || period != req_period_size)) {
         trace ("alsa: config option changed, restarting\n");
-        deadbeef->sendmessage (M_REINIT_SOUND, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_REINIT_SOUND, 0, 0, 0);
     }
+    deadbeef->conf_unlock ();
     return 0;
 }
 
@@ -702,14 +733,22 @@ palsa_get_state (void) {
 }
 
 static int
+alsa_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        alsa_configchanged ();
+        break;
+    }
+    return 0;
+}
+
+static int
 alsa_start (void) {
-    deadbeef->ev_subscribe (DB_PLUGIN (&plugin), DB_EV_CONFIGCHANGED, DB_CALLBACK (palsa_configchanged), 0);
     return 0;
 }
 
 static int
 alsa_stop (void) {
-    deadbeef->ev_unsubscribe (DB_PLUGIN (&plugin), DB_EV_CONFIGCHANGED, DB_CALLBACK (palsa_configchanged), 0);
     return 0;
 }
 
@@ -720,6 +759,7 @@ alsa_load (DB_functions_t *api) {
 }
 
 static const char settings_dlg[] =
+    "property \"Use ALSA resampling\" checkbox alsa.resample 1;\n"
     "property \"Release device while stopped\" checkbox alsa.freeonstop 0;\n"
     "property \"Preferred buffer size\" entry alsa.buffer " DEFAULT_BUFFER_SIZE_STR ";\n"
     "property \"Preferred period size\" entry alsa.period " DEFAULT_PERIOD_SIZE_STR ";\n"
@@ -727,18 +767,36 @@ static const char settings_dlg[] =
 
 // define plugin interface
 static DB_output_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_OUTPUT,
+    .plugin.id = "alsa",
     .plugin.name = "ALSA output plugin",
     .plugin.descr = "plays sound through linux standard alsa library",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = alsa_start,
     .plugin.stop = alsa_stop,
     .plugin.configdialog = settings_dlg,
+    .plugin.message = alsa_message,
     .init = palsa_init,
     .free = palsa_free,
     .setformat = palsa_setformat,

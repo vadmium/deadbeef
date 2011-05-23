@@ -86,34 +86,6 @@ trim (char* s)
     return h;
 }
 
-static void
-cmd_seek_fwd (void *unused) {
-    deadbeef->playback_set_pos (deadbeef->playback_get_pos () + 5);
-}
-
-static void
-cmd_seek_back (void *unused) {
-    deadbeef->playback_set_pos (deadbeef->playback_get_pos () - 5);
-}
-
-static void
-cmd_volume_up (void *unused) {
-    deadbeef->volume_set_db (deadbeef->volume_get_db () + 2);
-}
-
-static void
-cmd_volume_down (void *unused) {
-    deadbeef->volume_set_db (deadbeef->volume_get_db () - 2);
-}
-
-static void
-cmd_stop_after_current (void *unused) {
-    int var = deadbeef->conf_get_int ("playlist.stop_after_current", 0);
-    var = 1 - var;
-    deadbeef->conf_set_int ("playlist.stop_after_current", var);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
-}
-
 /*
     FIXME: This function has many common code with plcommon.c
     and it does full traverse of playlist twice
@@ -152,17 +124,17 @@ cmd_invoke_plugin_command (DB_plugin_action_t *action)
 
     if (selected_count == 0)
     {
-        fprintf (stderr, "No tracks selected\n");
+        trace ("No tracks selected\n");
         return;
     }
-    if ((selected_count == 1) && (0 == action->flags & DB_ACTION_SINGLE_TRACK))
+    if ((selected_count == 1) && (!(action->flags & DB_ACTION_SINGLE_TRACK)))
     {
-        fprintf (stderr, "Hotkeys: action %s not allowed for single track\n", action->name);
+        trace ("Hotkeys: action %s not allowed for single track\n", action->name);
         return;
     }
-    if ((selected_count > 1) && (0 == action->flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS))
+    if ((selected_count > 1) && (!(action->flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS)))
     {
-        fprintf (stderr, "Hotkeys: action %s not allowed for multiple tracks\n", action->name);
+        trace ("Hotkeys: action %s not allowed for multiple tracks\n", action->name);
         return;
     }
 
@@ -204,53 +176,6 @@ get_action (const char* command)
     }
 
     return NULL;
-
-
-#if 0
-    /*
-        These deadbeef functions don't take any parameters
-        but I assume we use cdecl convention so actual
-        parameters count doesn't matter.
-    */
-    // +waker:
-    // TODO: export all this commands as standard plugin actions
-    // ignore typecast warnings for now
-    if (!strcasecmp (command, "toggle_pause"))
-        return deadbeef->playback_pause;
-
-    else if (!strcasecmp (command, "play"))
-        return deadbeef->playback_play;
-
-    else if (!strcasecmp (command, "prev"))
-        return deadbeef->playback_prev;
-
-    else if (!strcasecmp (command, "next"))
-        return deadbeef->playback_next;
-
-    else if (!strcasecmp (command, "stop"))
-        return deadbeef->playback_stop;
-
-    else if (!strcasecmp (command, "play_random"))
-        return deadbeef->playback_random;
-
-    else if (!strcasecmp (command, "seek_fwd"))
-        return cmd_seek_fwd;
-
-    else if (!strcasecmp (command, "seek_back"))
-        return cmd_seek_back;
-
-    else if (!strcasecmp (command, "volume_up"))
-        return cmd_volume_up;
-
-    else if (!strcasecmp (command, "volume_down"))
-        return cmd_volume_down;
-
-    else if (!strcasecmp (command, "toggle_stop_after_current"))
-        return cmd_stop_after_current;
-
-    return cmd_invoke_plugin_command;
-//    return NULL;
-#endif
 }
 
 static int
@@ -265,7 +190,6 @@ read_config (Display *disp)
 
     DB_conf_item_t *item = deadbeef->conf_find ("hotkeys.", NULL);
     while (item) {
-//        fprintf (stderr, "hotkeys: adding %s %s\n", item->key, item->value);
         if (command_count == MAX_COMMAND_COUNT)
         {
             fprintf (stderr, "hotkeys: maximum number (%d) of commands exceeded\n", MAX_COMMAND_COUNT);
@@ -327,7 +251,7 @@ read_config (Display *disp)
                 }
                 if (!cmd_entry->keycode)
                 {
-                    fprintf (stderr, "hotkeys: got 0 from get_keycode while adding hotkey: %s %s\n", item->key, item->value);
+                    trace ("hotkeys: got 0 from get_keycode while adding hotkey: %s %s\n", item->key, item->value);
                     break;
                 }
             }
@@ -335,14 +259,14 @@ read_config (Display *disp)
 
         if (done) {
             if (cmd_entry->keycode == 0) {
-                fprintf (stderr, "hotkeys: Key not found while parsing %s %s\n", item->key, item->value);
+                trace ("hotkeys: Key not found while parsing %s %s\n", item->key, item->value);
             }
             else {
                 command = trim (command);
                 cmd_entry->action = get_action (command);
                 if (!cmd_entry->action)
                 {
-                    fprintf (stderr, "hotkeys: Unknown command <%s> while parsing %s %s\n", command,  item->key, item->value);
+                    trace ("hotkeys: Unknown command <%s> while parsing %s %s\n", command,  item->key, item->value);
                 }
                 else {
                     command_count++;
@@ -393,7 +317,7 @@ static int
 x_err_handler (Display *d, XErrorEvent *evt) {
     char buffer[1024];
     XGetErrorText (d, evt->error_code, buffer, sizeof (buffer));
-    fprintf (stderr, "hotkeys: xlib error: %s\n", buffer);
+    trace ("hotkeys: xlib error: %s\n", buffer);
 
     return 0;
 }
@@ -461,7 +385,7 @@ hotkeys_event_loop (void *unused) {
 }
 
 static int
-hotkeys_start (void) {
+hotkeys_connect (void) {
     finished = 0;
     loop_tid = 0;
     disp = XOpenDisplay (NULL);
@@ -475,12 +399,11 @@ hotkeys_start (void) {
     read_config (disp);
     XSync (disp, 0);
     loop_tid = deadbeef->thread_start (hotkeys_event_loop, 0);
-
     return 0;
 }
 
 static int
-hotkeys_stop (void) {
+hotkeys_disconnect (void) {
     if (loop_tid) {
         finished = 1;
         deadbeef->thread_join (loop_tid);
@@ -508,31 +431,31 @@ hotkeys_reset (void) {
 
 int
 action_play_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_PLAY_CURRENT, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PLAY_CURRENT, 0, 0, 0);
     return 0;
 }
 
 int
 action_prev_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_PREV, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PREV, 0, 0, 0);
     return 0;
 }
 
 int
 action_next_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_NEXT, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_NEXT, 0, 0, 0);
     return 0;
 }
 
 int
 action_stop_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_STOP, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_STOP, 0, 0, 0);
     return 0;
 }
 
 int
 action_toggle_pause_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_TOGGLE_PAUSE, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_TOGGLE_PAUSE, 0, 0, 0);
     return 0;
 }
 
@@ -540,17 +463,17 @@ int
 action_play_pause_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
     int state = deadbeef->get_output ()->state ();
     if (state == OUTPUT_STATE_PLAYING) {
-        deadbeef->sendmessage (M_PAUSE, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_PAUSE, 0, 0, 0);
     }
     else {
-        deadbeef->sendmessage (M_PLAY_CURRENT, 0, 0, 0);
+        deadbeef->sendmessage (DB_EV_PLAY_CURRENT, 0, 0, 0);
     }
     return 0;
 }
 
 int
 action_play_random_cb (struct DB_plugin_action_s *action, DB_playItem_t *it) {
-    deadbeef->sendmessage (M_PLAY_RANDOM, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_PLAY_RANDOM, 0, 0, 0);
     return 0;
 }
 
@@ -583,7 +506,7 @@ action_toggle_stop_after_current_cb (struct DB_plugin_action_s *action, DB_playI
     int var = deadbeef->conf_get_int ("playlist.stop_after_current", 0);
     var = 1 - var;
     deadbeef->conf_set_int ("playlist.stop_after_current", var);
-    deadbeef->sendmessage (M_CONFIG_CHANGED, 0, 0, 0);
+    deadbeef->sendmessage (DB_EV_CONFIGCHANGED, 0, 0, 0);
     return 0;
 }
 
@@ -691,20 +614,36 @@ hotkeys_get_actions (DB_playItem_t *it)
 
 // define plugin interface
 static DB_hotkeys_plugin_t plugin = {
-    .misc.plugin.api_vmajor = DB_API_VERSION_MAJOR,
-    .misc.plugin.api_vminor = DB_API_VERSION_MINOR,
+    .misc.plugin.api_vmajor = 1,
+    .misc.plugin.api_vminor = 0,
     .misc.plugin.version_major = 1,
     .misc.plugin.version_minor = 0,
     .misc.plugin.type = DB_PLUGIN_MISC,
     .misc.plugin.id = "hotkeys",
     .misc.plugin.name = "Global hotkeys support",
-    .misc.plugin.descr = "Allows to control player with global hotkeys",
-    .misc.plugin.author = "Viktor Semykin",
-    .misc.plugin.email = "thesame.ml@gmail.com",
+    .misc.plugin.descr = "Allows one to control player with global hotkeys",
+    .misc.plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "Copyright (C) 2009-2011 Viktor Semykin <thesame.ml@gmail.com>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .misc.plugin.website = "http://deadbeef.sf.net",
-    .misc.plugin.start = hotkeys_start,
-    .misc.plugin.stop = hotkeys_stop,
     .misc.plugin.get_actions = hotkeys_get_actions,
+    .misc.plugin.start = hotkeys_connect,
+    .misc.plugin.stop = hotkeys_disconnect,
     .get_name_for_keycode = hotkeys_get_name_for_keycode,
     .reset = hotkeys_reset,
 };

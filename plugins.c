@@ -44,6 +44,7 @@
 #include "vfs.h"
 #include "premix.h"
 #include "dsppreset.h"
+#include "pltmeta.h"
 
 extern void android_trace (const char *fmt, ...);
 #define trace(...) { android_trace(__VA_ARGS__); }
@@ -56,15 +57,10 @@ extern void android_trace (const char *fmt, ...);
 
 //#define DISABLE_VERSIONCHECK 1
 
-static uintptr_t mutex;
-
 // deadbeef api
 static DB_functions_t deadbeef_api = {
-    // FIXME: set to 1.0 after api freeze
-    .vmajor = 0,
-    .vminor = 0,
-    .ev_subscribe = plug_ev_subscribe,
-    .ev_unsubscribe = plug_ev_unsubscribe,
+    .vmajor = DB_API_VERSION_MAJOR,
+    .vminor = DB_API_VERSION_MINOR,
     .md5 = plug_md5,
     .md5_to_str = plug_md5_to_str,
     .md5_init = (void (*)(DB_md5_t *s))md5_init,
@@ -77,7 +73,6 @@ static DB_functions_t deadbeef_api = {
     .streamer_get_playing_track = (DB_playItem_t *(*) (void))streamer_get_playing_track,
     .streamer_get_streaming_track = (DB_playItem_t *(*) (void))streamer_get_streaming_track,
     .streamer_get_playpos = streamer_get_playpos,
-    .streamer_seek = streamer_set_seek,
     .streamer_ok_to_read = streamer_ok_to_read,
     .streamer_reset = streamer_reset,
     .streamer_read = streamer_read,
@@ -87,6 +82,7 @@ static DB_functions_t deadbeef_api = {
     .streamer_get_current_playlist = streamer_get_current_playlist,
     .streamer_get_dsp_chain = streamer_get_dsp_chain,
     .streamer_set_dsp_chain = streamer_set_dsp_chain,
+    .streamer_dsp_refresh = streamer_dsp_refresh,
     // folders
     .get_config_dir = plug_get_config_dir,
     .get_prefix = plug_get_prefix,
@@ -110,79 +106,128 @@ static DB_functions_t deadbeef_api = {
     .cond_signal = cond_signal,
     .cond_broadcast = cond_broadcast,
     // playlist management
+    .plt_ref = (void (*) (ddb_playlist_t *plt))plt_ref,
+    .plt_unref = (void (*) (ddb_playlist_t *plt))plt_unref,
     .plt_get_count = plt_get_count,
     .plt_get_head = (DB_playItem_t * (*) (int plt))plt_get_head,
     .plt_get_sel_count = plt_get_sel_count,
     .plt_add = plt_add,
     .plt_remove = plt_remove,
-    .plt_free = plt_free,
-    .plt_set_curr = plt_set_curr,
-    .plt_get_curr = plt_get_curr,
-    .plt_get_title = plt_get_title,
-    .plt_set_title = plt_set_title,
+    .plt_clear = (void (*)(ddb_playlist_t *))plt_clear,
+    .pl_clear = pl_clear,
+    .plt_set_curr = (void (*) (ddb_playlist_t *plt))plt_set_curr,
+    .plt_get_curr = (ddb_playlist_t *(*) (void))plt_get_curr,
+    .plt_set_curr_idx = (void (*) (int plt))plt_set_curr_idx,
+    .plt_get_curr_idx = (int (*) (void))plt_get_curr_idx,
     .plt_move = plt_move,
+    // playlist saving and loading
+    .plt_load = (DB_playItem_t * (*) (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))plt_load,
+    .plt_save = (int (*)(ddb_playlist_t *plt, DB_playItem_t *first, DB_playItem_t *last, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))plt_save,
+    // getting and working with a handle must be guarded using plt_lock/unlock
+    .plt_get_for_idx = (ddb_playlist_t *(*)(int idx))plt_get_for_idx,
+    .plt_get_title = (int (*)(ddb_playlist_t *handle, char *buffer, int sz))plt_get_title,
+    .plt_set_title = (int (*)(ddb_playlist_t *handle, const char *buffer))plt_set_title,
+    .plt_modified = (void (*) (ddb_playlist_t *handle))plt_modified,
+    .plt_get_modification_idx = (int (*) (ddb_playlist_t *handle))plt_get_modification_idx,
+    .plt_get_item_idx = (int (*) (ddb_playlist_t *plt, DB_playItem_t *it, int iter))plt_get_item_idx,
+
+    // playlist metadata
+    .plt_add_meta = (void (*) (ddb_playlist_t *handle, const char *key, const char *value))plt_add_meta,
+    .plt_replace_meta = (void (*) (ddb_playlist_t *handle, const char *key, const char *value))plt_replace_meta,
+    .plt_append_meta = (void (*) (ddb_playlist_t *handle, const char *key, const char *value))plt_append_meta,
+    .plt_set_meta_int = (void (*) (ddb_playlist_t *handle, const char *key, int value))plt_set_meta_int,
+    .plt_set_meta_float = (void (*) (ddb_playlist_t *handle, const char *key, float value))plt_set_meta_float,
+    .plt_find_meta = (const char *(*) (ddb_playlist_t *handle, const char *key))plt_find_meta,
+    .plt_get_metadata_head = (DB_metaInfo_t * (*) (ddb_playlist_t *handle))plt_get_metadata_head,
+    .plt_delete_metadata = (void (*) (ddb_playlist_t *handle, DB_metaInfo_t *meta))plt_delete_metadata,
+    .plt_find_meta_int = (int (*) (ddb_playlist_t *handle, const char *key, int def))plt_find_meta_int,
+    .plt_find_meta_float = (float (*) (ddb_playlist_t *handle, const char *key, float def))plt_find_meta_float,
+    .plt_delete_all_meta = (void (*) (ddb_playlist_t *handle))plt_delete_all_meta,
+
+    // operating on playlist items
+    .plt_insert_item = (DB_playItem_t *(*) (ddb_playlist_t *playlist, DB_playItem_t *after, DB_playItem_t *it))plt_insert_item,
+    .plt_insert_file = (DB_playItem_t *(*) (ddb_playlist_t *playlist, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))plt_insert_file,
+    .plt_insert_dir = (DB_playItem_t *(*) (ddb_playlist_t *plt, DB_playItem_t *after, const char *dirname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))plt_insert_dir,
+    .plt_set_item_duration = (void (*) (ddb_playlist_t *plt, DB_playItem_t *it, float duration))plt_set_item_duration,
+    .plt_remove_item = (int (*) (ddb_playlist_t *playlist, DB_playItem_t *it))plt_remove_item,
+    .plt_getselcount = (int (*) (ddb_playlist_t *playlist))plt_getselcount,
+
     // playlist access
     .pl_lock = pl_lock,
     .pl_unlock = pl_unlock,
-    .plt_lock = plt_lock,
-    .plt_unlock = plt_unlock,
+    //.plt_lock = plt_lock,
+    //.plt_unlock = plt_unlock,
     .pl_item_alloc = (DB_playItem_t* (*)(void))pl_item_alloc,
+    .pl_item_alloc_init = (DB_playItem_t* (*)(const char *fname, const char *decoder_id))pl_item_alloc_init,
     .pl_item_ref = (void (*)(DB_playItem_t *))pl_item_ref,
     .pl_item_unref = (void (*)(DB_playItem_t *))pl_item_unref,
     .pl_item_copy = (void (*)(DB_playItem_t *, DB_playItem_t *))pl_item_copy,
-    .pl_add_file = (int (*) (const char *, int (*cb)(DB_playItem_t *it, void *data), void *))pl_add_file,
-    .pl_add_dir = (int (*) (const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_add_dir,
-    .pl_add_files_begin = pl_add_files_begin,
+    .plt_add_file = (int (*) (ddb_playlist_t *plt, const char *, int (*cb)(DB_playItem_t *it, void *data), void *))plt_add_file,
+    .plt_add_dir = (int (*) (ddb_playlist_t *plt, const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data))plt_add_dir,
+    .pl_add_files_begin = (int (*) (ddb_playlist_t *plt))pl_add_files_begin,
     .pl_add_files_end = pl_add_files_end,
-    .pl_insert_item = (DB_playItem_t *(*) (DB_playItem_t *after, DB_playItem_t *it))pl_insert_item,
-    .pl_insert_dir = (DB_playItem_t *(*) (DB_playItem_t *after, const char *dirname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_insert_dir,
-    .pl_insert_file = (DB_playItem_t *(*) (DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data))pl_insert_file,
     .pl_get_idx_of = (int (*) (DB_playItem_t *it))pl_get_idx_of,
     .pl_get_idx_of_iter = (int (*) (DB_playItem_t *it, int iter))pl_get_idx_of_iter,
     .pl_get_for_idx = (DB_playItem_t * (*)(int))pl_get_for_idx,
     .pl_get_for_idx_and_iter = (DB_playItem_t * (*) (int idx, int iter))pl_get_for_idx_and_iter,
-    .pl_set_item_duration = (void (*) (DB_playItem_t *it, float duration))pl_set_item_duration,
     .pl_get_item_duration = (float (*) (DB_playItem_t *it))pl_get_item_duration,
     .pl_get_item_flags = (uint32_t (*) (DB_playItem_t *it))pl_get_item_flags,
     .pl_set_item_flags = (void (*) (DB_playItem_t *it, uint32_t flags))pl_set_item_flags,
-    .pl_sort = pl_sort,
+    .plt_sort = (void (*) (ddb_playlist_t *plt, int iter, int id, const char *format, int ascending))plt_sort,
     .pl_items_copy_junk = (void (*)(DB_playItem_t *from, DB_playItem_t *first, DB_playItem_t *last))pl_items_copy_junk,
+    .pl_set_item_replaygain = (void (*)(DB_playItem_t *it, int idx, float value))pl_set_item_replaygain,
+    .pl_get_item_replaygain = (float (*)(DB_playItem_t *it, int idx))pl_get_item_replaygain,
+    .plt_get_totaltime = (float (*) (ddb_playlist_t *plt))plt_get_totaltime,
+    .plt_get_item_idx = (int (*) (ddb_playlist_t *playlist, DB_playItem_t *it, int iter))plt_get_item_idx,
+    .plt_get_item_for_idx = (DB_playItem_t * (*) (ddb_playlist_t *playlist, int idx, int iter))plt_get_item_for_idx,
     .pl_get_totaltime = pl_get_totaltime,
     .pl_getcount = pl_getcount,
+    .plt_get_item_count = (int (*)(ddb_playlist_t *plt, int iter))plt_get_item_count,
+    .plt_delete_selected = (int (*) (ddb_playlist_t *plt))plt_delete_selected,
     .pl_delete_selected = pl_delete_selected,
+    .plt_set_cursor = (void (*)(ddb_playlist_t *plt, int iter, int cursor))plt_set_cursor,
     .pl_set_cursor = pl_set_cursor,
+    .plt_get_cursor = (int (*)(ddb_playlist_t *plt, int iter))plt_get_cursor,
     .pl_get_cursor = pl_get_cursor,
     .pl_set_selected = (void (*) (DB_playItem_t *, int))pl_set_selected,
     .pl_is_selected = (int (*) (DB_playItem_t *))pl_is_selected,
-    .pl_clear = pl_clear,
-    .pl_load = pl_load,
-    .pl_save = pl_save,
     .pl_save_current = pl_save_current,
     .pl_save_all = pl_save_all,
+    .plt_select_all = (void (*) (ddb_playlist_t *plt))plt_select_all,
     .pl_select_all = pl_select_all,
+    .plt_crop_selected = (void (*) (ddb_playlist_t *plt))plt_crop_selected,
     .pl_crop_selected = pl_crop_selected,
     .pl_getselcount = pl_getselcount,
+    .plt_get_first = (DB_playItem_t *(*) (ddb_playlist_t *plt, int))plt_get_first,
     .pl_get_first = (DB_playItem_t *(*) (int))pl_get_first,
+    .plt_get_last = (DB_playItem_t *(*) (ddb_playlist_t *plt, int))plt_get_last,
     .pl_get_last = (DB_playItem_t *(*) (int))pl_get_last,
     .pl_get_next = (DB_playItem_t *(*) (DB_playItem_t *, int))pl_get_next,
     .pl_get_prev = (DB_playItem_t *(*) (DB_playItem_t *, int))pl_get_prev,
     .pl_format_title = (int (*) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt))pl_format_title,
     .pl_format_title_escaped = (int (*) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt))pl_format_title_escaped,
     .pl_format_time = pl_format_time,
-    .pl_move_items = (void (*) (int iter, int plt_from, DB_playItem_t *drop_before, uint32_t *indexes, int count))pl_move_items,
-    .pl_copy_items = (void (*) (int iter, int plt_from, DB_playItem_t *before, uint32_t *indices, int cnt))pl_copy_items,
-    .pl_search_reset = pl_search_reset,
-    .pl_search_process = pl_search_process,
+    .plt_move_items = (void (*) (ddb_playlist_t *to, int iter, ddb_playlist_t *from, DB_playItem_t *drop_before, uint32_t *indexes, int count))plt_move_items,
+    .plt_copy_items = (void (*) (ddb_playlist_t *to, int iter, ddb_playlist_t *from, DB_playItem_t *before, uint32_t *indices, int cnt))plt_copy_items,
+    .plt_search_reset = (void (*)(ddb_playlist_t *plt))plt_search_reset,
+    .plt_search_process = (void (*)(ddb_playlist_t *plt, const char *t))plt_search_process,
+    .pl_get_playlist = (ddb_playlist_t * (*) (DB_playItem_t *it))pl_get_playlist,
     // metainfo
     .pl_add_meta = (void (*) (DB_playItem_t *, const char *, const char *))pl_add_meta,
     .pl_append_meta = (void (*) (DB_playItem_t *, const char *, const char *))pl_append_meta,
+    .pl_set_meta_int = (void (*) (DB_playItem_t *it, const char *key, int value))pl_set_meta_int,
+    .pl_set_meta_float = (void (*) (DB_playItem_t *it, const char *key, float value))pl_set_meta_float,
+    .pl_delete_meta = (void (*)(DB_playItem_t *, const char *key))pl_delete_meta,
     .pl_find_meta = (const char *(*) (DB_playItem_t *, const char *))pl_find_meta,
+    .pl_find_meta_int = (int (*) (DB_playItem_t *it, const char *key, int def))pl_find_meta_int,
+    .pl_find_meta_float = (float (*) (DB_playItem_t *it, const char *key, float def))pl_find_meta_float,
     .pl_replace_meta = (void (*) (DB_playItem_t *, const char *, const char *))pl_replace_meta,
     .pl_delete_all_meta = (void (*) (DB_playItem_t *it))pl_delete_all_meta,
-    .pl_get_metadata = (DB_metaInfo_t *(*)(DB_playItem_t *it))pl_get_metadata,
+    .pl_get_metadata_head = (DB_metaInfo_t *(*)(DB_playItem_t *it))pl_get_metadata_head,
+    .pl_delete_metadata = (void (*)(DB_playItem_t *, DB_metaInfo_t *))pl_delete_metadata,
     // cuesheet support
-    .pl_insert_cue_from_buffer = (DB_playItem_t *(*) (DB_playItem_t *after, DB_playItem_t *origin, const uint8_t *buffer, int buffersize, int numsamples, int samplerate))pl_insert_cue_from_buffer,
-    .pl_insert_cue = (DB_playItem_t *(*)(DB_playItem_t *after, DB_playItem_t *origin, int numsamples, int samplerate))pl_insert_cue,
+    .plt_insert_cue_from_buffer = (DB_playItem_t *(*) (ddb_playlist_t *plt, DB_playItem_t *after, DB_playItem_t *origin, const uint8_t *buffer, int buffersize, int numsamples, int samplerate))plt_insert_cue_from_buffer,
+    .plt_insert_cue = (DB_playItem_t *(*)(ddb_playlist_t *plt, DB_playItem_t *after, DB_playItem_t *origin, int numsamples, int samplerate))plt_insert_cue,
     // playqueue support
     .pl_playqueue_push = (int (*) (DB_playItem_t *))pl_playqueue_push,
     .pl_playqueue_clear = pl_playqueue_clear,
@@ -237,7 +282,13 @@ static DB_functions_t deadbeef_api = {
     .fabort = vfs_fabort,
     // message passing
     .sendmessage = messagepump_push,
+    .event_alloc = messagepump_event_alloc,
+    .event_free = messagepump_event_free,
+    .event_send = messagepump_push_event,
     // configuration access
+    .conf_lock = conf_lock,
+    .conf_unlock = conf_unlock,
+    .conf_get_str_fast = conf_get_str_fast,
     .conf_get_str = conf_get_str,
     .conf_get_float = conf_get_float,
     .conf_get_int = conf_get_int,
@@ -256,13 +307,10 @@ static DB_functions_t deadbeef_api = {
     .plug_get_dsp_list = plug_get_dsp_list,
     .plug_get_playlist_list = plug_get_playlist_list,
     .plug_get_list = plug_get_list,
+    .plug_get_gui_names = plug_get_gui_names,
     .plug_get_decoder_id = plug_get_decoder_id,
     .plug_remove_decoder_id = plug_remove_decoder_id,
     .plug_get_for_id = plug_get_for_id,
-    // plugin events
-    .plug_trigger_event_trackchange = (void (*) (DB_playItem_t *from, DB_playItem_t *to))plug_trigger_event_trackchange,
-    .plug_trigger_event_trackinfochanged = (void (*) (DB_playItem_t *track))plug_trigger_event_trackinfochanged,
-    .plug_trigger_event_playlistchanged = plug_trigger_event_playlistchanged,
     // misc utilities
     .is_local_file = plug_is_local_file,
     // pcm utilities
@@ -303,17 +351,21 @@ plug_get_pixmap_dir (void) {
 void
 plug_volume_set_db (float db) {
     volume_set_db (db);
-    plug_trigger_event_volumechanged ();
+    messagepump_push (DB_EV_VOLUMECHANGED, 0, 0, 0);
 }
 
 void
 plug_volume_set_amp (float amp) {
     volume_set_amp (amp);
-    plug_trigger_event_volumechanged ();
+    messagepump_push (DB_EV_VOLUMECHANGED, 0, 0, 0);
 }
 
 #define MAX_PLUGINS 100
 DB_plugin_t *g_plugins[MAX_PLUGINS+1];
+
+#define MAX_GUI_PLUGINS 10
+char *g_gui_names[MAX_GUI_PLUGINS+1];
+int g_num_gui_names;
 
 DB_decoder_t *g_decoder_plugins[MAX_DECODER_PLUGINS+1];
 
@@ -349,15 +401,6 @@ plug_md5_to_str (char *str, const uint8_t sig[16]) {
     *str = 0;
 }
 
-// event handlers
-typedef struct {
-    DB_plugin_t *plugin;
-    DB_callback_t callback;
-    uintptr_t data;
-} evhandler_t;
-#define MAX_HANDLERS 100
-static evhandler_t handlers[DB_EV_MAX][MAX_HANDLERS];
-
 // plugin control structures
 typedef struct plugin_s {
     void *handle;
@@ -368,44 +411,11 @@ typedef struct plugin_s {
 plugin_t *plugins;
 plugin_t *plugins_tail;
 
-void
-plug_ev_subscribe (DB_plugin_t *plugin, int ev, DB_callback_t callback, uintptr_t data) {
-    assert (ev < DB_EV_MAX && ev >= 0);
-    int i;
-    mutex_lock (mutex);
-    for (i = 0; i < MAX_HANDLERS; i++) {
-        if (!handlers[ev][i].plugin) {
-            handlers[ev][i].plugin = plugin;
-            handlers[ev][i].callback = callback;
-            handlers[ev][i].data = data;
-            break;
-        }
-    }
-    mutex_unlock (mutex);
-    if (i == MAX_HANDLERS) {
-        trace ("failed to subscribe plugin %s to event %d (too many event handlers)\n", plugin->name, ev);
-    }
-}
-
-void
-plug_ev_unsubscribe (DB_plugin_t *plugin, int ev, DB_callback_t callback, uintptr_t data) {
-    assert (ev < DB_EV_MAX && ev >= 0);
-    mutex_lock (mutex);
-    for (int i = 0; i < MAX_HANDLERS; i++) {
-        if (handlers[ev][i].plugin == plugin) {
-            handlers[ev][i].plugin = NULL;
-            handlers[ev][i].callback = NULL;
-            handlers[ev][i].data = 0;
-            break;
-        }
-    }
-    mutex_unlock (mutex);
-}
-
 float
 plug_playback_get_pos (void) {
     playItem_t *trk = streamer_get_playing_track ();
-    if (!trk || trk->_duration <= 0) {
+    float dur = trk ? pl_get_item_duration (trk) : -1;
+    if (!trk || dur <= 0) {
         if (trk) {
             pl_item_unref (trk);
         }
@@ -414,110 +424,24 @@ plug_playback_get_pos (void) {
     if (trk) {
         pl_item_unref (trk);
     }
-    return streamer_get_playpos () * 100 / trk->_duration;
+    return streamer_get_playpos () * 100 / dur;
 }
 
 void
 plug_playback_set_pos (float pos) {
     playItem_t *trk = streamer_get_playing_track ();
-    if (!trk || trk->_duration <= 0) {
+    float dur = trk ? pl_get_item_duration (trk) : -1;
+    if (!trk || dur <= 0) {
         if (trk) {
             pl_item_unref (trk);
         }
         return;
     }
-    float t = pos * trk->_duration / 100.f;
+    float t = pos * dur / 100.f;
     if (trk) {
         pl_item_unref (trk);
     }
     streamer_set_seek (t);
-}
-
-/////// non-api functions (plugin support)
-void
-plug_event_call (DB_event_t *ev) {
-    if (!mutex) {
-        trace ("plug: event passed before plugin initialization\n");
-    }
-    ev->time = time (NULL);
-//    printf ("plug_event_call enter %d\n", ev->event);
-    mutex_lock (mutex);
-
-    for (int i = 0; i < MAX_HANDLERS; i++) {
-        if (handlers[ev->event][i].plugin) {
-            handlers[ev->event][i].callback (ev, handlers[ev->event][i].data);
-        }
-    }
-//    if (ev->event == DB_EV_PLAYLISTSWITCH) {
-//        printf ("DB_EV_PLAYLISTSWITCH %d %d\n", plt_get_curr (), conf_get_int ("playlist.current", 0));
-//        pl_save_current ();
-//    }
-
-    mutex_unlock (mutex);
-//    printf ("plug_event_call leave %d\n", ev->event);
-}
-
-void
-plug_trigger_event (int ev, uintptr_t param) {
-    DB_event_t *event;
-    switch (ev) {
-    case DB_EV_SONGSTARTED:
-    case DB_EV_SONGFINISHED:
-        {
-        DB_event_track_t *pev = alloca (sizeof (DB_event_track_t));
-        playItem_t *pltrack = streamer_get_playing_track ();
-        pev->track = DB_PLAYITEM (pltrack);
-        if (pltrack) {
-            pl_item_unref (pltrack);
-        }
-        event = DB_EVENT (pev);
-        }
-        break;
-    default:
-        event = alloca (sizeof (DB_event_t));
-    }
-    event->event = ev;
-    plug_event_call (event);
-}
-
-void
-plug_trigger_event_trackchange (playItem_t *from, playItem_t *to) {
-    DB_event_trackchange_t event;
-    event.ev.event = DB_EV_SONGCHANGED;
-    //printf ("plug_trigger_event_trackchange %p %d %p %d\n", from, from ? from->_refc : -1, to, to ? to->_refc : -1);
-    event.from = (DB_playItem_t *)from;
-    event.to = (DB_playItem_t *)to;
-    plug_event_call (DB_EVENT (&event));
-}
-void
-plug_trigger_event_trackinfochanged (playItem_t *track) {
-    DB_event_track_t event;
-    event.ev.event = DB_EV_TRACKINFOCHANGED;
-    event.track = DB_PLAYITEM (track);
-    //printf ("\033[0;31mtrackinfochanged %p(%s), playing: %p, streaming: %p\033[37;0m\n", track, track->fname, streamer_get_playing_track (), streamer_get_streaming_track ());
-    plug_event_call (DB_EVENT (&event));
-}
-
-void
-plug_trigger_event_paused (int paused) {
-    DB_event_state_t event;
-    event.ev.event = DB_EV_PAUSED;
-    event.state = paused;
-    plug_event_call (DB_EVENT (&event));
-}
-
-void
-plug_trigger_event_playlistchanged (void) {
-    DB_event_t event;
-    event.event = DB_EV_PLAYLISTCHANGED;
-    plug_event_call (DB_EVENT (&event));
-}
-
-void
-plug_trigger_event_volumechanged (void) {
-    DB_event_t event;
-    event.event = DB_EV_VOLUMECHANGED;
-    plug_event_call (DB_EVENT (&event));
 }
 
 int
@@ -526,16 +450,45 @@ plug_init_plugin (DB_plugin_t* (*loadfunc)(DB_functions_t *), void *handle) {
     if (!plugin_api) {
         return -1;
     }
+
+    // check if same plugin with the same or bigger version is loaded already
+    plugin_t *prev = NULL;
+    for (plugin_t *p = plugins; p; prev = p, p = p->next) {
+        if (p->plugin->id && plugin_api->id && !strcmp (p->plugin->id, plugin_api->id)) {
+            if (plugin_api->version_major > p->plugin->version_major || (plugin_api->version_major == p->plugin->version_major && plugin_api->version_minor > p->plugin->version_minor)) {
+                trace ("found newer version of plugin \"%s\", replacing\n", plugin_api->id);
+                // unload older plugin before replacing
+                dlclose (p->handle);
+                if (prev) {
+                    prev->next = p->next;
+                }
+                else {
+                    plugins = p->next;
+                }
+                if (p->handle) {
+                    dlclose (p->handle);
+                }
+                free (p);
+            }
+            else {
+                trace ("found copy of plugin \"%s\", but newer version is already loaded\n", plugin_api->id)
+                return -1;
+            }
+        }
+    }
+
 #if !DISABLE_VERSIONCHECK
     if (plugin_api->api_vmajor != 0 || plugin_api->api_vminor != 0) {
         // version check enabled
-        if (plugin_api->api_vmajor != DB_API_VERSION_MAJOR || plugin_api->api_vminor != DB_API_VERSION_MINOR) {
-            trace ("\033[0;31mWARNING: plugin \"%s\" wants API v%d.%d (got %d.%d), will not be loaded\033[0;m\n", plugin_api->name, plugin_api->api_vmajor, plugin_api->api_vminor, DB_API_VERSION_MAJOR, DB_API_VERSION_MINOR);
-            return -1;
+        if (DB_API_VERSION_MAJOR != 9 && DB_API_VERSION_MINOR != 9) {
+            if (plugin_api->api_vmajor != DB_API_VERSION_MAJOR || plugin_api->api_vminor > DB_API_VERSION_MINOR) {
+                trace ("\033[0;31mWARNING: plugin \"%s\" wants API v%d.%d (got %d.%d), will not be loaded\033[0;m\n", plugin_api->name, plugin_api->api_vmajor, plugin_api->api_vminor, DB_API_VERSION_MAJOR, DB_API_VERSION_MINOR);
+                return -1;
+            }
         }
     }
     else {
-            trace ("\033[0;31mWARNING: plugin \"%s\" has disabled version check. do not distribute!\033[0;m\n", plugin_api->name);
+            trace ("\033[0;31mWARNING: plugin \"%s\" has disabled version check. please don't distribute it!\033[0;m\n", plugin_api->name);
     }
 #endif
     plugin_t *plug = malloc (sizeof (plugin_t));
@@ -567,34 +520,122 @@ plug_remove_plugin (void *p) {
     for (i = 0; g_decoder_plugins[i]; i++) {
         if (g_decoder_plugins[i] == p) {
             memmove (&g_decoder_plugins[i], &g_decoder_plugins[i+1], (MAX_DECODER_PLUGINS+1-i-1) * sizeof (void*));
+            break;
         }
     }
     for (i = 0; g_vfs_plugins[i]; i++) {
         if (g_vfs_plugins[i] == p) {
             memmove (&g_vfs_plugins[i], &g_vfs_plugins[i+1], (MAX_VFS_PLUGINS+1-i-1) * sizeof (void*));
+            break;
         }
     }
     for (i = 0; g_dsp_plugins[i]; i++) {
         if (g_dsp_plugins[i] == p) {
             memmove (&g_dsp_plugins[i], &g_dsp_plugins[i+1], (MAX_DSP_PLUGINS+1-i-1) * sizeof (void*));
+            break;
         }
     }
     for (i = 0; g_output_plugins[i]; i++) {
         if (g_output_plugins[i] == p) {
             memmove (&g_output_plugins[i], &g_output_plugins[i+1], (MAX_OUTPUT_PLUGINS+1-i-1) * sizeof (void*));
+            break;
         }
     }
     for (i = 0; g_playlist_plugins[i]; i++) {
         if (g_playlist_plugins[i] == p) {
             memmove (&g_playlist_plugins[i], &g_playlist_plugins[i+1], (MAX_PLAYLIST_PLUGINS+1-i-1) * sizeof (void*));
+            break;
         }
     }
+}
+
+// d_name must be writable w/o sideeffects; contain valid .so name
+// l must be strlen(d_name)
+static int
+load_plugin (const char *plugdir, char *d_name, int l) {
+    char fullname[PATH_MAX];
+    snprintf (fullname, PATH_MAX, "%s/%s", plugdir, d_name);
+    trace ("loading plugin %s/%s\n", plugdir, d_name);
+    void *handle = dlopen (fullname, RTLD_NOW);
+    if (!handle) {
+        //trace ("dlopen error: %s\n", dlerror ());
+#ifdef ANDROID
+        break;
+#else
+        strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
+        trace ("trying %s...\n", fullname);
+        handle = dlopen (fullname, RTLD_NOW);
+        if (!handle) {
+            //trace ("dlopen error: %s\n", dlerror ());
+            return -1;
+        }
+        else {
+            fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
+        }
+#endif
+    }
+    d_name[l-3] = 0;
+    strcat (d_name, "_load");
+#ifndef ANDROID
+    DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
+#else
+    DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
+#endif
+    if (!plug_load) {
+        trace ("dlsym error: %s\n", dlerror ());
+        dlclose (handle);
+        return -1;
+    }
+    if (plug_init_plugin (plug_load, handle) < 0) {
+        d_name[l-3] = 0;
+        dlclose (handle);
+        return -1;
+    }
+    return 0;
+}
+
+static int
+load_gui_plugin (const char **plugdirs) {
+    char conf_gui_plug[100];
+    conf_get_str ("gui_plugin", "GTK2", conf_gui_plug, sizeof (conf_gui_plug));
+    char name[100];
+
+    // try to load selected plugin
+    for (int i = 0; g_gui_names[i]; i++) {
+        trace ("checking GUI plugin: %s\n", g_gui_names[i]);
+        if (!strcmp (g_gui_names[i], conf_gui_plug)) {
+            trace ("found selected GUI plugin: %s\n", g_gui_names[i]);
+            for (int n = 0; plugdirs[n]; n++) {
+                snprintf (name, sizeof (name), "ddb_gui_%s.so", conf_gui_plug);
+                if (!load_plugin (plugdirs[n], name, strlen (name))) {
+                    return 0;
+                }
+            }
+            break;
+        }
+    }
+    trace ("selected GUI plugin not found or failed to load, trying to find another GUI plugin\n");
+
+    // try any plugin
+    for (int i = 0; g_gui_names[i]; i++) {
+        for (int n = 0; plugdirs[n]; n++) {
+            snprintf (name, sizeof (name), "ddb_gui_%s.so", g_gui_names[i]);
+            if (!load_plugin (plugdirs[n], name, strlen (name))) {
+                return 0;
+            }
+            else {
+                trace ("plugin not found or failed to load\n");
+            }
+        }
+    }
+    return -1;
 }
 
 int
 load_plugin_dir (const char *plugdir) {
     int n = 0;
-    const char *conf_blacklist_plugins = conf_get_str ("blacklist_plugins", "");
+    char conf_blacklist_plugins[1000];
+    conf_get_str ("blacklist_plugins", "", conf_blacklist_plugins, sizeof (conf_blacklist_plugins));
     trace ("loading plugins from %s\n", plugdir);
     struct dirent **namelist = NULL;
     n = scandir (plugdir, &namelist, NULL, dirent_alphasort);
@@ -653,44 +694,38 @@ load_plugin_dir (const char *plugdir) {
                     break;
                 }
 #endif
-                char fullname[PATH_MAX];
-                snprintf (fullname, PATH_MAX, "%s/%s", plugdir, d_name);
-                trace ("loading plugin %s\n", d_name);
-                void *handle = dlopen (fullname, RTLD_NOW);
-                if (!handle) {
-                    trace ("dlopen error: %s\n", dlerror ());
-#ifdef ANDROID
-                    break;
-#else
-                    strcpy (fullname + strlen(fullname) - 3, ".fallback.so");
-                    trace ("trying %s...\n", fullname);
-                    handle = dlopen (fullname, RTLD_NOW);
-                    if (!handle) {
-                        trace ("dlopen error: %s\n", dlerror ());
+
+                // add gui plugin names
+                if (!strncmp (d_name, "ddb_gui_", 8)) {
+                    trace ("found gui plugin %s\n", d_name);
+                    if (g_num_gui_names >= MAX_GUI_PLUGINS) {
+                        fprintf (stderr, "too many gui plugins\n");
+                        break; // no more gui plugins allowed
+                    }
+                    char *nm = d_name + 8;
+                    char *e = strrchr (nm, '.');
+                    if (!e) {
                         break;
                     }
-                    else {
-                        fprintf (stderr, "successfully started fallback plugin %s\n", fullname);
+                    if (strcmp (e, ".so")) {
+                        break;
                     }
-#endif
-                }
-                d_name[l-3] = 0;
-                strcat (d_name, "_load");
-#ifndef ANDROID
-                DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name);
-#else
-                DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
-#endif
-                if (!plug_load) {
-                    trace ("dlsym error: %s\n", dlerror ());
-                    dlclose (handle);
+                    *e = 0;
+                    // ignore fallbacks
+                    e = strrchr (nm, '.');
+                    if (e && !strcasecmp (e, ".fallback")) {
+                        break;
+                    }
+                    // add to list
+                    // FIXME check for gui plugins dupes
+                    g_gui_names[g_num_gui_names++] = strdup (nm);
+                    g_gui_names[g_num_gui_names] = NULL;
+                    trace ("added %s gui plugin\n", nm);
                     break;
                 }
-                if (plug_init_plugin (plug_load, handle) < 0) {
-                    d_name[l-3] = 0;
-                    trace ("plugin %s is incompatible with current version of deadbeef, please upgrade the plugin\n", d_name);
-                    dlclose (handle);
-                    break;
+
+                if (0 != load_plugin (plugdir, d_name, l)) {
+                    trace ("plugin not found or failed to load\n");
                 }
                 break;
             }
@@ -707,16 +742,15 @@ plug_load_all (void) {
     trace ("\033[0;31mDISABLE_VERSIONCHECK=1! do not distribute!\033[0;m\n");
 #endif
 
-    trace ("plug: mutex_create\n");
-    mutex = mutex_create ();
+#ifndef ANDROID
     const char *dirname = deadbeef->get_plugin_dir ();
 
-#ifndef ANDROID
     char *xdg_local_home = getenv ("XDG_LOCAL_HOME");
     char xdg_plugin_dir[1024];
 
     if (xdg_local_home) {
-        strcpy (xdg_plugin_dir, xdg_local_home);
+        strncpy (xdg_plugin_dir, xdg_local_home, sizeof (xdg_plugin_dir));
+        xdg_plugin_dir[sizeof(xdg_plugin_dir)-1] = 0;
     } else {
         char *homedir = getenv ("HOME");
 
@@ -733,7 +767,8 @@ plug_load_all (void) {
         }
     }
 
-    const char *plugins_dirs[] = { dirname, xdg_plugin_dir, NULL };
+    // load from HOME 1st, than replace from installdir if needed
+    const char *plugins_dirs[] = { xdg_plugin_dir, dirname, NULL };
 #else
     const char *plugins_dirs[] = { dirname, NULL };
 #endif
@@ -774,6 +809,10 @@ plug_load_all (void) {
         p = e+1;
     }
 #endif
+
+
+    // load gui plugin
+    load_gui_plugin (plugins_dirs);
 
 // load all compiled-in modules
 #define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
@@ -864,7 +903,6 @@ plug_load_all (void) {
         prev = plug;
         plug = plug->next;
     }
-
 //    trace ("numplugins: %d, numdecoders: %d, numvfs: %d\n", numplugins, numdecoders, numvfs);
     g_plugins[numplugins] = NULL;
     g_decoder_plugins[numdecoders] = NULL;
@@ -890,6 +928,9 @@ plug_connect_all (void) {
             if (plug->plugin->connect () < 0) {
                 fprintf (stderr, "plugin %s failed to connect to dependencies, deactivated.\n", plug->plugin->name);
 
+                if (plug->plugin->disconnect) {
+                    plug->plugin->disconnect ();
+                }
                 if (plug->plugin->stop) {
                     plug->plugin->stop ();
                 }
@@ -917,6 +958,22 @@ plug_connect_all (void) {
 }
 
 void
+plug_disconnect_all (void) {
+    trace ("plug_disconnect_all\n");
+    plugin_t *plug;
+    plugin_t *prev = NULL;
+    for (plug = plugins; plug;) {
+        if (plug->plugin->disconnect) {
+            if (plug->plugin->disconnect () < 0) {
+                trace ("plugin %s failed to disconnect\n", plug->plugin->name);
+            }
+        }
+        prev = plug;
+        plug = plug->next;
+    }
+}
+
+void
 plug_unload_all (void) {
     trace ("plug_unload_all\n");
     plugin_t *p;
@@ -930,13 +987,15 @@ plug_unload_all (void) {
     trace ("stopped all plugins\n");
     while (plugins) {
         plugin_t *next = plugins->next;
-#ifndef ANDROID
         if (plugins->handle) {
             dlclose (plugins->handle);
         }
-#endif
         free (plugins);
         plugins = next;
+    }
+    for (int i = 0; g_gui_names[i]; i++) {
+        free (g_gui_names[i]);
+        g_gui_names[i] = NULL;
     }
     plugins_tail = NULL;
     trace ("all plugins had been unloaded\n");
@@ -944,10 +1003,6 @@ plug_unload_all (void) {
 
 void
 plug_cleanup (void) {
-    if (mutex) {
-        mutex_free (mutex);
-        mutex = 0;
-    }
     plug_free_decoder_ids ();
 }
 
@@ -981,6 +1036,11 @@ plug_get_list (void) {
     return g_plugins;
 }
 
+const char **
+plug_get_gui_names (void) {
+    return (const char **)g_gui_names;
+}
+
 DB_output_t *
 plug_get_output (void) {
     return output_plugin;
@@ -991,7 +1051,8 @@ plug_select_output (void) {
 #ifdef ANDROID
     return 0;
 #else
-    const char *outplugname = conf_get_str ("output_plugin", _("ALSA output plugin"));
+    char outplugname[100];
+    conf_get_str ("output_plugin", "ALSA output plugin", outplugname, sizeof (outplugname));
     for (int i = 0; g_output_plugins[i]; i++) {
         DB_output_t *p = g_output_plugins[i];
         if (!strcmp (p->plugin.name, outplugname)) {
@@ -1010,7 +1071,7 @@ plug_select_output (void) {
     if (!output_plugin) {
         return -1;
     }
-    plug_trigger_event (DB_EV_OUTPUTCHANGED, 0);
+    messagepump_push (DB_EV_OUTPUTCHANGED, 0, 0, 0);
     return 0;
 #endif
 }
@@ -1020,17 +1081,27 @@ plug_reinit_sound (void) {
     DB_output_t *prev = plug_get_output ();
     int state = OUTPUT_STATE_STOPPED;
 
+    ddb_waveformat_t fmt = {0};
+
+    streamer_get_output_format (&fmt);
     if (prev) {
         state = prev->state ();
+        if (!fmt.channels) {
+            memcpy (&fmt, &prev->fmt, sizeof (fmt));
+        }
         prev->free ();
     }
 
     if (plug_select_output () < 0) {
-        const char *outplugname = conf_get_str ("output_plugin", "ALSA output plugin");
+        char outplugname[100];
+        conf_get_str ("output_plugin", "ALSA output plugin", outplugname, sizeof (outplugname));
         trace ("failed to select output plugin %s\nreverted to %s\n", outplugname, prev->plugin.name);
         output_plugin = prev;
     }
     DB_output_t *output = plug_get_output ();
+    if (fmt.channels) {
+        output->setformat (&fmt);
+    }
     if (output->init () < 0) {
         streamer_reset (1);
         streamer_set_nextsong (-2, 0);

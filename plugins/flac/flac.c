@@ -39,16 +39,17 @@ typedef struct {
     FLAC__StreamDecoder *decoder;
     char *buffer; // this buffer always has float samples
     int remaining; // bytes remaining in buffer from last read
-    int startsample;
-    int endsample;
-    int currentsample;
-    int totalsamples;
+    int64_t startsample;
+    int64_t endsample;
+    int64_t currentsample;
+    int64_t totalsamples;
     int flac_critical_error;
     int init_stop_decoding;
     int tagsize;
     DB_FILE *file;
 
     // used only on insert
+    ddb_playlist_t *plt;
     DB_playItem_t *after;
     DB_playItem_t *last;
     DB_playItem_t *it;
@@ -204,10 +205,10 @@ cflac_open (uint32_t hints) {
 
 static int
 cflac_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
-    trace ("cflac_init %s\n", it->fname);
+    trace ("cflac_init %s\n", deadbeef->pl_find_meta (it, ":URI"));
     flac_info_t *info = (flac_info_t *)_info;
 
-    info->file = deadbeef->fopen (it->fname);
+    info->file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->file) {
         trace ("cflac_init failed to open file\n");
         return -1;
@@ -215,8 +216,8 @@ cflac_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     info->flac_critical_error = 0;
 
-    const char *ext = it->fname + strlen (it->fname);
-    while (ext > it->fname && *ext != '/' && *ext != '.') {
+    const char *ext = deadbeef->pl_find_meta (it, ":URI") + strlen (deadbeef->pl_find_meta (it, ":URI"));
+    while (ext > deadbeef->pl_find_meta (it, ":URI") && *ext != '/' && *ext != '.') {
         ext--;
     }
     if (*ext == '.') {
@@ -291,8 +292,12 @@ cflac_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     if (res) {
         fsize -= position;
     }
-    FLAC__uint64 flac_totalsamples = FLAC__stream_decoder_get_total_samples (info->decoder);
-    float sec = flac_totalsamples / _info->fmt.samplerate;
+    int64_t totalsamples = FLAC__stream_decoder_get_total_samples (info->decoder);
+    if (totalsamples <= 0) {
+        trace ("flac: totalsamples=%lld\n", totalsamples);
+//        return -1;
+    }
+    float sec = totalsamples / (float)_info->fmt.samplerate;
     if (sec > 0) {
         info->bitrate = fsize / sec * 8 / 1000;
     }
@@ -343,6 +348,9 @@ cflac_free (DB_fileinfo_t *_info) {
         if (info->buffer) {
             free (info->buffer);
         }
+        if (info->file) {
+            deadbeef->fclose (info->file);
+        }
         free (_info);
     }
 }
@@ -351,11 +359,13 @@ static int
 cflac_read (DB_fileinfo_t *_info, char *bytes, int size) {
     flac_info_t *info = (flac_info_t *)_info;
     int samplesize = _info->fmt.channels * _info->fmt.bps / 8;
-    if (size / samplesize + info->currentsample > info->endsample) {
-        size = (info->endsample - info->currentsample + 1) * samplesize;
-        trace ("size truncated to %d bytes, cursample=%d, endsample=%d\n", size, info->currentsample, info->endsample);
-        if (size <= 0) {
-            return 0;
+    if (info->endsample >= 0) {
+        if (size / samplesize + info->currentsample > info->endsample) {
+            size = (info->endsample - info->currentsample + 1) * samplesize;
+            trace ("size truncated to %d bytes, cursample=%d, endsample=%d\n", size, info->currentsample, info->endsample);
+            if (size <= 0) {
+                return 0;
+            }
         }
     }
     int initsize = size;
@@ -537,16 +547,16 @@ cflac_add_metadata (DB_playItem_t *it, char *s, int length) {
             deadbeef->pl_add_meta (it, "cuesheet", s + 9);
         }
         else if (!strncasecmp (s, "replaygain_album_gain=", 22)) {
-            it->replaygain_album_gain = atof (s + 22);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMGAIN, atof (s+22));
         }
         else if (!strncasecmp (s, "replaygain_album_peak=", 22)) {
-            it->replaygain_album_peak = atof (s + 22);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_ALBUMPEAK, atof (s+22));
         }
         else if (!strncasecmp (s, "replaygain_track_gain=", 22)) {
-            it->replaygain_track_gain = atof (s + 22);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKGAIN, atof (s+22));
         }
         else if (!strncasecmp (s, "replaygain_track_peak=", 22)) {
-            it->replaygain_track_peak = atof (s + 22);
+            deadbeef->pl_set_item_replaygain (it, DDB_REPLAYGAIN_TRACKPEAK, atof (s+22));
         }
         else {
             const char *eq = strchr (s, '=');
@@ -572,12 +582,17 @@ cflac_init_metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__Str
     DB_playItem_t *it = info->it;
     //it->tracknum = 0;
     if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
-        trace ("flac: samplerate=%d, channels=%d\n", metadata->data.stream_info.sample_rate, metadata->data.stream_info.channels);
+        trace ("flac: samplerate=%d, channels=%d, totalsamples=%d\n", metadata->data.stream_info.sample_rate, metadata->data.stream_info.channels, metadata->data.stream_info.total_samples);
         _info->fmt.samplerate = metadata->data.stream_info.sample_rate;
         _info->fmt.channels = metadata->data.stream_info.channels;
         _info->fmt.bps = metadata->data.stream_info.bits_per_sample;
         info->totalsamples = metadata->data.stream_info.total_samples;
-        deadbeef->pl_set_item_duration (it, metadata->data.stream_info.total_samples / (float)metadata->data.stream_info.sample_rate);
+        if (metadata->data.stream_info.total_samples > 0) {
+            deadbeef->plt_set_item_duration (info->plt, it, metadata->data.stream_info.total_samples / (float)metadata->data.stream_info.sample_rate);
+        }
+        else {
+            deadbeef->plt_set_item_duration (info->plt, it, -1);
+        }
     }
     else if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT) {
         const FLAC__StreamMetadata_VorbisComment *vc = &metadata->data.vorbis_comment;
@@ -599,7 +614,7 @@ cflac_init_metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__Str
 }
 
 static DB_playItem_t *
-cflac_insert (DB_playItem_t *after, const char *fname) {
+cflac_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     trace ("flac: inserting %s\n", fname);
     DB_playItem_t *it = NULL;
     FLAC__StreamDecoder *decoder = NULL;
@@ -608,6 +623,7 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
     info.fname = fname;
     info.after = after;
     info.last = after;
+    info.plt = plt;
     info.file = deadbeef->fopen (fname);
     if (!info.file) {
         goto cflac_insert_fail;
@@ -663,9 +679,7 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
     // read all metadata
     FLAC__stream_decoder_set_md5_checking(decoder, 0);
     FLAC__stream_decoder_set_metadata_respond_all (decoder);
-    it = deadbeef->pl_item_alloc ();
-    it->decoder_id = deadbeef->plug_get_decoder_id (plugin.plugin.id);
-    it->fname = strdup (fname);
+    it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
     info.it = it;
     if (skip > 0) {
         deadbeef->fseek (info.file, skip, SEEK_SET);
@@ -690,12 +704,11 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
     }
     FLAC__stream_decoder_delete(decoder);
     decoder = NULL;
-    it->filetype = isogg ? "OggFLAC" : "FLAC";
+    deadbeef->pl_add_meta (it, ":FILETYPE", isogg ? "OggFLAC" : "FLAC");
 
     char s[100];
-    printf ("tagsize: %d\n", info.tagsize);
     int64_t fsize = deadbeef->fgetlength (info.file);
-    snprintf (s, sizeof (s), "%llu", fsize);
+    snprintf (s, sizeof (s), "%lld", fsize);
     deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
     snprintf (s, sizeof (s), "%d", info.info.fmt.channels);
     deadbeef->pl_add_meta (it, ":CHANNELS", s);
@@ -709,7 +722,7 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
     // try embedded cue
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     if (cuesheet) {
-        DB_playItem_t *last = deadbeef->pl_insert_cue_from_buffer (after, it, cuesheet, strlen (cuesheet), info.totalsamples, info.info.fmt.samplerate);
+        DB_playItem_t *last = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), info.totalsamples, info.info.fmt.samplerate);
         if (last) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (last);
@@ -718,7 +731,7 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
     }
 
     // try external cue
-    DB_playItem_t *cue_after = deadbeef->pl_insert_cue (after, it, info.totalsamples, info.info.fmt.samplerate);
+    DB_playItem_t *cue_after = deadbeef->plt_insert_cue (plt, after, it, info.totalsamples, info.info.fmt.samplerate);
     if (cue_after) {
         if (info.file) {
             deadbeef->fclose (info.file);
@@ -728,7 +741,7 @@ cflac_insert (DB_playItem_t *after, const char *fname) {
         trace ("flac: loaded external cuesheet\n");
         return cue_after;
     }
-    after = deadbeef->pl_insert_item (after, it);
+    after = deadbeef->plt_insert_item (plt, after, it);
     deadbeef->pl_item_unref (it);
     if (info.file) {
         deadbeef->fclose (info.file);
@@ -758,7 +771,7 @@ cflac_read_metadata (DB_playItem_t *it) {
         trace ("cflac_read_metadata: FLAC__metadata_chain_new failed\n");
         return -1;
     }
-    FLAC__bool res = FLAC__metadata_chain_read (chain, it->fname);
+    FLAC__bool res = FLAC__metadata_chain_read (chain, deadbeef->pl_find_meta (it, ":URI"));
     if (!res) {
         trace ("cflac_read_metadata: FLAC__metadata_chain_read failed\n");
         goto error;
@@ -823,7 +836,7 @@ cflac_write_metadata (DB_playItem_t *it) {
         trace ("cflac_write_metadata: FLAC__metadata_chain_new failed\n");
         return -1;
     }
-    FLAC__bool res = FLAC__metadata_chain_read (chain, it->fname);
+    FLAC__bool res = FLAC__metadata_chain_read (chain, deadbeef->pl_find_meta (it, ":URI"));
     if (!res) {
         trace ("cflac_write_metadata: FLAC__metadata_chain_read failed\n");
         goto error;
@@ -835,53 +848,80 @@ cflac_write_metadata (DB_playItem_t *it) {
         trace ("cflac_write_metadata: FLAC__metadata_iterator_new failed\n");
         goto error;
     }
+    FLAC__StreamMetadata *data = NULL;
 
+    // find existing vorbiscomment block
     FLAC__metadata_iterator_init (iter, chain);
     do {
-        FLAC__StreamMetadata *data = FLAC__metadata_iterator_get_block (iter);
+        data = FLAC__metadata_iterator_get_block (iter);
         if (data && data->type == FLAC__METADATA_TYPE_VORBIS_COMMENT) {
-            for (int m = 0; metainfo[m]; m += 2) {
-                const char *val = deadbeef->pl_find_meta (it, metainfo[m+1]);
-                if (val) {
-                    do {} while (1 == FLAC__metadata_object_vorbiscomment_remove_entry_matching (data, metainfo[m]));
-                }
-                if (val && *val) {
-                    while (val) {
-                        const char *next = strchr (val, '\n');
-                        int l;
-                        if (next) {
-                            l = next - val;
-                            next++;
-                        }
-                        else {
-                            l = strlen (val);
-                        }
-                        if (l > 0) {
-                            char s[100+l+1];
-                            int n = snprintf (s, sizeof (s), "%s=", metainfo[m]);
-                            strncpy (s+n, val, l);
-                            *(s+n+l) = 0;
-                            FLAC__StreamMetadata_VorbisComment_Entry ent = {
-                                .length = strlen (s),
-                                .entry = (FLAC__byte*)s
-                            };
-                            //FLAC__metadata_object_vorbiscomment_replace_comment (data, ent, 1, 1);
-                            FLAC__metadata_object_vorbiscomment_append_comment (data, ent, 1);
-                        }
-                        val = next;
-                    }
-                }
-            }
+            break;
         }
     } while (FLAC__metadata_iterator_next (iter));
 
-    FLAC__metadata_iterator_delete (iter);
+    if (data) {
+        // delete all comments
+        FLAC__metadata_object_vorbiscomment_resize_comments (data, 0);
+    }
+    else {
+        // create new and add to chain
+		data = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
+        if (!data) {
+            fprintf (stderr, "flac: failed to allocate new vorbis comment block\n");
+            goto error;
+        }
+        if(!FLAC__metadata_iterator_insert_block_after(iter, data)) {
+            fprintf (stderr, "flac: failed to append vorbis comment block to chain\n");
+            goto error;
+        }
+    }
+
+    DB_metaInfo_t *m = deadbeef->pl_get_metadata_head (it);
+    while (m) {
+        if (m->key[0] != ':') {
+            int i;
+            for (i = 0; metainfo[i]; i += 2) {
+                if (!strcasecmp (metainfo[i+1], m->key)) {
+                    break;
+                }
+            }
+            const char *val = m->value;
+            if (val && *val) {
+                while (val) {
+                    const char *next = strchr (val, '\n');
+                    int l;
+                    if (next) {
+                        l = next - val;
+                        next++;
+                    }
+                    else {
+                        l = strlen (val);
+                    }
+                    if (l > 0) {
+                        char s[100+l+1];
+                        int n = snprintf (s, sizeof (s), "%s=", metainfo[i] ? metainfo[i] : m->key);
+                        strncpy (s+n, val, l);
+                        *(s+n+l) = 0;
+                        FLAC__StreamMetadata_VorbisComment_Entry ent = {
+                            .length = strlen (s),
+                            .entry = (FLAC__byte*)s
+                        };
+                        FLAC__metadata_object_vorbiscomment_append_comment (data, ent, 1);
+                    }
+                    val = next;
+                }
+            }
+        }
+        m = m->next;
+    }
+
     if (!FLAC__metadata_chain_write (chain, 1, 0)) {
         trace ("cflac_write_metadata: FLAC__metadata_chain_write failed\n");
         goto error;
     }
     err = 0;
 error:
+    FLAC__metadata_iterator_delete (iter);
     if (chain) {
         FLAC__metadata_chain_delete (chain);
     }
@@ -891,32 +931,44 @@ error:
 
 static const char *exts[] = { "flac", "oga", NULL };
 
-static const char *filetypes[] = { "FLAC", "OggFLAC", NULL };
-
 // define plugin interface
 static DB_decoder_t plugin = {
-    DB_PLUGIN_SET_API_VERSION
+    .plugin.api_vmajor = 1,
+    .plugin.api_vminor = 0,
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
     .plugin.type = DB_PLUGIN_DECODER,
     .plugin.id = "stdflac",
     .plugin.name = "FLAC decoder",
     .plugin.descr = "FLAC decoder using libFLAC",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = 
+        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
     .plugin.website = "http://deadbeef.sf.net",
     .open = cflac_open,
     .init = cflac_init,
     .free = cflac_free,
     .read = cflac_read,
-//    .read_float32 = cflac_read_float32,
     .seek = cflac_seek,
     .seek_sample = cflac_seek_sample,
     .insert = cflac_insert,
     .read_metadata = cflac_read_metadata,
     .write_metadata = cflac_write_metadata,
     .exts = exts,
-    .filetypes = filetypes
 };
 
 DB_plugin_t *
