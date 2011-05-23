@@ -20,7 +20,10 @@ LOCAL_SRC_FILES +=\
 	ringbuf.c\
 	dsppreset.c\
 	premix.c\
-	ConvertUTF/ConvertUTF.c
+	ConvertUTF/ConvertUTF.c\
+	plmeta.c\
+	pltmeta.c\
+	replaygain.c
 
 
 LOCAL_CFLAGS += -O2 -I$(LOCAL_PATH) -std=c99 -DVERSION=\"0.4.4\"

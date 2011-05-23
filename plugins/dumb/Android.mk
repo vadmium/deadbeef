@@ -76,7 +76,7 @@ dumb-kode54/src/helpers/sampbuf.c\
 dumb-kode54/src/helpers/barray.c\
 cdumb.c
 
-LOCAL_CFLAGS += -I$(LOCAL_PATH)/dumb-kode54/include -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O2
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/dumb-kode54/include -DHAVE_CONFIG_H -I$(LOCAL_PATH)/../.. -O2 -I$(LOCAL_PATH)/../../..
 
 LOCAL_ARM_MODE := arm
 

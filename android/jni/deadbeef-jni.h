@@ -121,14 +121,6 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1for_1idx
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    pl_get_meta
- * Signature: (I)I
- */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1meta
-  (JNIEnv *, jclass, jint);
-
-/*
- * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    meta_get_key
  * Signature: (I)Ljava/lang/String;
  */

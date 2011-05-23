@@ -130,8 +130,7 @@ static DB_output_t jni_out = {
     .plugin.type = DB_PLUGIN_OUTPUT,
     .plugin.name = "Dummy output plugin",
     .plugin.descr = "Allows to run without real output plugin",
-    .plugin.author = "Alexey Yakovenko",
-    .plugin.email = "waker@users.sourceforge.net",
+    .plugin.copyright = "(C) 2011 Alexey Yakovenko, All Rights Reserved",
     .plugin.website = "http://deadbeef.sf.net",
     .init = jni_out_init,
     .free = jni_out_free,
@@ -214,7 +213,7 @@ jnievent_free (void) {
 }
 
 static int
-lastfm_songstarted (DB_event_track_t *e, uintptr_t data) {
+lastfm_songstarted (ddb_event_track_t *e) {
     jni_event_t *ev = malloc (sizeof (jni_event_t));
     memset (ev, 0, sizeof (jni_event_t));
     ev->id = "songstarted";
@@ -239,7 +238,7 @@ lastfm_songstarted (DB_event_track_t *e, uintptr_t data) {
 }
 
 static int
-lastfm_songfinished (DB_event_track_t *e, uintptr_t data) {
+lastfm_songfinished (ddb_event_track_t *e) {
     jni_event_t *ev = malloc (sizeof (jni_event_t));
     memset (ev, 0, sizeof (jni_event_t));
     ev->id = "songfinished";
@@ -257,7 +256,7 @@ lastfm_songfinished (DB_event_track_t *e, uintptr_t data) {
 
 
 static int
-lastfm_paused (DB_event_state_t *e, uintptr_t data) {
+lastfm_paused (ddb_event_state_t *e) {
     jni_event_t *ev = NULL;
 
     if (e->state) { // paused
@@ -300,6 +299,129 @@ lastfm_paused (DB_event_state_t *e, uintptr_t data) {
 int
 scan_dsp_presets (void);
 
+intptr_t mainloop_tid;
+
+static int
+lastfm_songstarted (ddb_event_track_t *e);
+
+static int
+lastfm_songfinished (ddb_event_track_t *e);
+
+static int
+lastfm_paused (ddb_event_state_t *e);
+
+void
+mainloop_thread (void *ctx) {
+    for (;;) {
+        uint32_t msg;
+        uintptr_t ctx;
+        uint32_t p1;
+        uint32_t p2;
+        int term = 0;
+        while (messagepump_pop(&msg, &ctx, &p1, &p2) != -1) {
+            // broadcast to all plugins
+            DB_plugin_t **plugs = plug_get_list ();
+            for (int n = 0; plugs[n]; n++) {
+                if (plugs[n]->message) {
+                    plugs[n]->message (msg, ctx, p1, p2);
+                }
+            }
+            DB_output_t *output = plug_get_output ();
+            switch (msg) {
+            case DB_EV_SONGSTARTED:
+                lastfm_songstarted ((ddb_event_track_t *)ctx);
+                break;
+            case DB_EV_SONGFINISHED:
+                lastfm_songfinished ((ddb_event_track_t *)ctx);
+                break;
+            case DB_EV_PAUSED:
+                lastfm_paused ((ddb_event_state_t *)ctx);
+                break;
+            case DB_EV_REINIT_SOUND:
+                plug_reinit_sound ();
+                streamer_reset (1);
+                conf_save ();
+                break;
+            case DB_EV_TERMINATE:
+                term = 1;
+                break;
+            case DB_EV_PLAY_CURRENT:
+                if (p1) {
+                    output->stop ();
+                    pl_playqueue_clear ();
+                    streamer_set_nextsong (0, 1);
+                }
+                else {
+                    streamer_play_current_track ();
+                }
+                break;
+            case DB_EV_PLAY_NUM:
+                output->stop ();
+                pl_playqueue_clear ();
+                streamer_set_nextsong (p1, 1);
+                if (pl_get_order () == PLAYBACK_ORDER_SHUFFLE_ALBUMS) {
+                    int pl = streamer_get_current_playlist ();
+                    playlist_t *plt = plt_get_for_idx (pl);
+                    plt_init_shuffle_albums (plt, p1);
+                    plt_unref (plt);
+                }
+                break;
+            case DB_EV_STOP:
+                streamer_set_nextsong (-2, 0);
+                break;
+            case DB_EV_NEXT:
+                output->stop ();
+                streamer_move_to_nextsong (1);
+                break;
+            case DB_EV_PREV:
+                output->stop ();
+                streamer_move_to_prevsong ();
+                break;
+            case DB_EV_PAUSE:
+                if (output->state () != OUTPUT_STATE_PAUSED) {
+                    output->pause ();
+                    messagepump_push (DB_EV_PAUSED, 0, 1, 0);
+                }
+                break;
+            case DB_EV_TOGGLE_PAUSE:
+                if (output->state () == OUTPUT_STATE_PAUSED) {
+                    output->unpause ();
+                    messagepump_push (DB_EV_PAUSED, 0, 0, 0);
+                }
+                else {
+                    output->pause ();
+                    messagepump_push (DB_EV_PAUSED, 0, 1, 0);
+                }
+                break;
+            case DB_EV_PLAY_RANDOM:
+                output->stop ();
+                streamer_move_to_randomsong ();
+                break;
+            case DB_EV_PLAYLIST_REFRESH:
+                pl_save_current ();
+                messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+                break;
+            case DB_EV_CONFIGCHANGED:
+                conf_save ();
+                streamer_configchanged ();
+                break;
+            case DB_EV_SEEK:
+                streamer_set_seek (p1 / 1000.f);
+                break;
+            }
+            if (msg >= DB_EV_FIRST && ctx) {
+                messagepump_event_free ((ddb_event_t *)ctx);
+            }
+        }
+        if (term) {
+            return;
+        }
+        messagepump_wait ();
+        //usleep(50000);
+        //plug_trigger_event (DB_EV_FRAMEUPDATE, 0);
+    }
+}
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
@@ -333,8 +455,8 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     messagepump_init ();
     plug_load_all ();
     pl_load_all ();
-    plt_set_curr (conf_get_int ("playlist.current", 0));
-    plug_trigger_event_playlistchanged ();
+    plt_set_curr_idx (conf_get_int ("playlist.current", 0));
+    messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
 
     // setup fake output plugin
     extern DB_output_t *output_plugin;
@@ -345,15 +467,9 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 
     streamer_init ();
 
-    // start song #0 in playlist
-    //streamer_set_nextsong (0, 1);
-
-    // subscribe to frameupdate event
     jnievent_init ();
-    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_SONGSTARTED, DB_CALLBACK (lastfm_songstarted), 0);
-    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_SONGFINISHED, DB_CALLBACK (lastfm_songfinished), 0);
-    deadbeef->ev_subscribe (&jni_out.plugin, DB_EV_PAUSED, DB_CALLBACK (lastfm_paused), 0);
 
+    mainloop_tid = thread_start (mainloop_thread, NULL);
     trace ("ddb_start done");
     return 0;
 }
@@ -361,12 +477,14 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_stop
   (JNIEnv *env, jclass cls)
 {
+    messagepump_push (DB_EV_TERMINATE, 0, 0, 0);
+    thread_join (mainloop_tid);
+    mainloop_tid = 0;
     jnievent_free ();
     pl_save_all ();
     conf_save ();
     streamer_free ();
     plug_unload_all ();
-    plt_free (); // plt_free may access conf_*
     pl_free ();
     conf_free ();
     messagepump_free ();
@@ -429,8 +547,13 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
      if (str == NULL) {
          return -1;
      }
-     int res = pl_add_dir (str, NULL, NULL);
-     pl_save_current ();
+     playlist_t *plt = plt_get_curr ();
+     int res = -1;
+     if (plt) {
+         res = plt_add_dir (plt, str, NULL, NULL);
+         pl_save_current ();
+         plt_unref (plt);
+     }
 
      trace ("added %s; new pl_count: %d\n", str, pl_getcount (PL_MAIN));
 
@@ -468,8 +591,14 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1file (JNIEnv *env, jclass cls, js
 
      int idx = pl_getcount (PL_MAIN);
      trace ("converted to %s...\n", outname);
-     int res = pl_add_file (outname, NULL, NULL);
-     pl_save_current ();
+
+     playlist_t *plt = plt_get_curr ();
+     int res = -1;
+     if (plt) {
+         res = plt_add_file (plt, outname, NULL, NULL);
+         pl_save_current ();
+         plt_unref (plt);
+     }
 
      trace ("added %s; new pl_count: %d\n", outname, pl_getcount (PL_MAIN));
 
@@ -727,7 +856,7 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1for_1idx (JNIEnv *env, jclass cls
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1meta (JNIEnv *env, jclass cls, jint trk) {
-    return (jint)pl_get_metadata ((playItem_t *)trk);
+    return (jint)pl_get_metadata_head ((playItem_t *)trk);
 }
 
 JNIEXPORT jstring JNICALL
@@ -763,8 +892,11 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1item_1duration (JNIEnv *env, jcla
 
 JNIEXPORT jstring JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1filetype (JNIEnv *env, jclass cls, jint trk) {
-    const char *ft = ((playItem_t *)trk)->filetype;
-    return ft ? (*env)->NewStringUTF(env, ft) : NULL;
+    pl_lock ();
+    const char *ft = pl_find_meta (((playItem_t *)trk), ":FILETYPE");
+    jstring res = ft ? (*env)->NewStringUTF(env, ft) : NULL;;
+    pl_unlock ();
+    return res;
 }
 
 JNIEXPORT jint JNICALL
@@ -776,7 +908,12 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir (JNIEnv *env, jclass cls, 
     }
     playItem_t *it = pl_get_for_idx_and_iter (after, PL_MAIN);
     int abort = 0;
-    playItem_t *ret = pl_insert_dir (it, str, &abort, NULL, NULL);
+    playlist_t *p = plt_get_for_idx (plt);
+    playItem_t *ret = NULL;
+    if (p) {
+        playItem_t *ret = plt_insert_dir (p, it, str, &abort, NULL, NULL);
+        plt_unref (p);
+    }
     (*env)->ReleaseStringUTFChars(env, path, str);
     if (it) {
         pl_item_unref (it);
@@ -786,7 +923,11 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir (JNIEnv *env, jclass cls, 
 
 JNIEXPORT jstring JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1path (JNIEnv *env, jclass cls, jint trk) {
-    return (*env)->NewStringUTF(env, ((playItem_t *)trk)->fname);
+    pl_lock ();
+    const char *fname = pl_find_meta ((playItem_t *)trk, ":URI");
+    jstring res = fname ? (*env)->NewStringUTF(env, fname) : NULL;
+    pl_unlock ();
+    return res;
 }
 
 JNIEXPORT jint JNICALL
@@ -822,22 +963,25 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1remove (JNIEnv *env, jclass cls, jint
 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr (JNIEnv *env, jclass cls, jint idx) {
-    plt_set_curr (idx);
+    plt_set_curr_idx (idx);
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1curr (JNIEnv *env, jclass cls) {
-    return plt_get_curr ();
+    return plt_get_curr_idx ();
 }
 
 JNIEXPORT jstring JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1title (JNIEnv *env, jclass cls, jint idx) {
     char buf[1000];
-    int res = plt_get_title (idx, buf, sizeof (buf));
-    if (res < 0) {
-        return NULL;
+    playlist_t *p = plt_get_for_idx (idx);
+    if (p) {
+        plt_get_title (p, buf, sizeof (buf));
+        jstring s = (*env)->NewStringUTF(env, buf);
+        plt_unref (p);
+        return s;
     }
-    return (*env)->NewStringUTF(env, buf);
+    return NULL;
 }
 
 JNIEXPORT jint JNICALL
@@ -846,9 +990,13 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1title (JNIEnv *env, jclass cls, 
      if (str == NULL) {
          return -1;
      }
-     int res = plt_set_title (idx, str);
+     playlist_t *p = plt_get_for_idx (idx);
+     if (p) {
+         plt_set_title (p, str);
+         plt_unref (p);
+     }
      (*env)->ReleaseStringUTFChars(env, title, str);
-     return res;
+     return 0;
 }
 
 JNIEXPORT void JNICALL
@@ -1008,7 +1156,10 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1set_1param (JNIEnv *env, jclass cls, 
 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config (JNIEnv *env, jclass cls) {
-    streamer_save_dsp_config ();
+    char fname[PATH_MAX];
+    snprintf (fname, sizeof (fname), "%s/dspconfig", plug_get_config_dir ());
+    struct ddb_dsp_context_s *dsp_chain = streamer_get_dsp_chain ();
+    streamer_dsp_chain_save (fname, dsp_chain);
 }
 
 #define MAX_DSP_PRESETS 20
