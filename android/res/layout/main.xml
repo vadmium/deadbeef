@@ -124,6 +124,10 @@
         android:layout_toRightOf="@id/ShuffleMode"
         android:layout_toLeftOf="@id/RepeatMode"
         android:layout_weight="1"
+        android:shadowColor="#ff5d5b4e"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="2"
 	    />	
             
 	<TextView android:id="@+id/np_title"
@@ -137,6 +141,10 @@
         android:textColor="#f000"
         android:marqueeRepeatLimit="marquee_forever"
         android:layout_below="@id/ShuffleMode"
+        android:shadowColor="#ff5d5b4e"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="2"
         />
 	<TextView
 		android:layout_height="wrap_content"
@@ -146,6 +154,10 @@
 		android:textSize="12sp"
 	    android:textColor="#f000"
         android:layout_below="@id/np_title"
+        android:shadowColor="#ff5d5b4e"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="2"
 	    />
 
 
@@ -156,6 +168,10 @@
               android:textSize="10sp"
 	    android:textColor="#f000"
         android:layout_below="@id/np_artist_album"
+        android:shadowColor="#ff5d5b4e"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="2"
               />
 
 	<!--TextView android:id="@+id/plstate"
