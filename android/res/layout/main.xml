@@ -187,9 +187,10 @@
 	              android:layout_width="fill_parent" 
 	              android:layout_height="wrap_content"
 	              android:layout_weight="1"
-	              android:paddingLeft="20sp"
-	              android:paddingRight="20sp"
         android:layout_below="@id/status"
+		android:progressDrawable="@drawable/ddb_seekbar"
+		android:thumb="@color/transparent"
+        
 	              />
              
 	</RelativeLayout>
