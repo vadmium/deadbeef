@@ -293,14 +293,15 @@ public class Deadbeef extends Activity {
 	    		TextView tv;
 	    		int track = MusicUtils.sService.getCurrentIdx ();
 	    		
-		    	TextView st = (TextView)findViewById(R.id.plstate);
+		    	TextView st;
 		    	String totaltime_str = getTotalTimeFormatted ();
 
+		    	/*st = (TextView)findViewById(R.id.plstate);
 		    	String plstate = String.format ("%d tracks | %s total playtime", DeadbeefAPI.pl_getcount (0), totaltime_str);
 		    	if (!plstate_prev.equals(plstate)) {
 		    		plstate_prev = plstate;
 		    		st.setText(plstate);
-		    	}
+		    	}*/
 	    		
 	    		if (MusicUtils.sService == null) {
 			    	st = (TextView)findViewById(R.id.status);
@@ -314,10 +315,10 @@ public class Deadbeef extends Activity {
 	    			curr_state = new_state;
 	        		ImageButton button = (ImageButton)findViewById(R.id.play);
 	        		if (!curr_state) {
-	        			button.setImageResource (R.drawable.btn_play_normal);
+	        			button.setImageResource (R.drawable.playbar_play);
 	        		}
 	        		else {
-	        			button.setImageResource (R.drawable.btn_pause_normal);
+	        			button.setImageResource (R.drawable.playbar_pause);
 	        		}
 	    		}
 	    		
@@ -327,13 +328,13 @@ public class Deadbeef extends Activity {
 	    			play_order = new_order;
 	        		ImageButton button = (ImageButton)findViewById(R.id.ShuffleMode);
 	    			if (play_order == 0) {
-	        			button.setImageResource (R.drawable.ic_media_shuffle_off);
+	        			button.setImageResource (-1);
 	    			}
 	    			else if (play_order == 1) {
-	        			button.setImageResource (R.drawable.ic_media_shuffle_tracks);
+	        			button.setImageResource (R.drawable.shuffle);
 	    			}
 	    			else if (play_order == 3) {
-	        			button.setImageResource (R.drawable.ic_media_shuffle_albums);
+	        			button.setImageResource (R.drawable.shuffle_albums);
 	    			}
 	    		}
 	    		
@@ -343,13 +344,13 @@ public class Deadbeef extends Activity {
 	    			play_mode = new_mode;
 	    			ImageButton button = (ImageButton)findViewById(R.id.RepeatMode);
 	    			if (play_mode == 0) {
-	        			button.setImageResource (R.drawable.ic_media_repeat_on);
+	        			button.setImageResource (-1);
 	    			}
 	    			else if (play_mode == 1) {
-	        			button.setImageResource (R.drawable.ic_media_repeat_off);
+	        			button.setImageResource (R.drawable.repeat);
 	    			}
 	    			else if (play_mode == 2) {
-	        			button.setImageResource (R.drawable.ic_media_repeat_track);
+	        			button.setImageResource (R.drawable.repeat_single);
 	    			}
 	    		}
 	    		
