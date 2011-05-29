@@ -137,9 +137,16 @@ public class MediaPlaybackService extends Service {
 	}
 
 	private void handleExternalStorageState (boolean avail, boolean writable) {
-		Log.i("DDB", "handleExternalStorageState " + avail + " " + writable);
-		if (!avail) {
-			DeadbeefAPI.play_stop ();
+		if (null != mPlayer) {
+			if (avail) {
+				// reload config and playlists
+				// FIXME: this doesn't work
+				// DeadbeefAPI.reinit ();
+			}
+			Log.i("DDB", "handleExternalStorageState " + avail + " " + writable);
+			if (!avail) {
+				DeadbeefAPI.play_stop ();
+			}
 		}
 	}
 	

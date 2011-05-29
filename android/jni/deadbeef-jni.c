@@ -454,6 +454,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
     messagepump_init ();
     plug_load_all ();
+    pl_free ();
     pl_load_all ();
     plt_set_curr_idx (conf_get_int ("playlist.current", 0));
     messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
@@ -1301,6 +1302,7 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, jclass c
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_conf_1save (JNIEnv *env, jclass cls) {
+    trace ("conf_save: playlists=%d\n", plt_get_count ());
     return conf_save ();
 }
 
@@ -1366,4 +1368,33 @@ Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1str (JNIEnv *env, jclass cls, j
     conf_set_str (str, valstr);
     (*env)->ReleaseStringUTFChars(env, key, str);
     (*env)->ReleaseStringUTFChars(env, val, valstr);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_conf_1load (JNIEnv *env, jclass cls) {
+    return conf_load ();
+}
+
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_reinit (JNIEnv *env, jclass cls) {
+    int res = conf_load ();
+    if (res) {
+        trace ("conf_load failed\n");
+        return -1;
+    }
+    pl_free ();
+    res = pl_load_all ();
+    if (res) {
+        trace ("pl_load_all failed\n");
+        return -1;
+    }
+    plt_set_curr_idx (conf_get_int ("playlist.current", 0));
+    messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1save_1current (JNIEnv *env, jclass cls) {
+    return pl_save_current ();
 }

@@ -30,6 +30,7 @@ public class DeadbeefAPI
 	public static native int pl_insert_dir (int plt, int after, String path);
 	public static native String pl_get_track_path (int trk);
 	public static native int plt_get_item_bitrate (int trk);
+	public static native int plt_save_current (); 
 	
 	// playlist manager
 	public static native int plt_get_count ();
@@ -103,12 +104,14 @@ public class DeadbeefAPI
 	public static native int dsp_rename_preset (int dsp, int idx, String newname);
 	
 	// config
+	public static native int conf_load ();
 	public static native int conf_save ();
 	public static native int conf_get_int (String key, int def);
 	public static native void conf_set_int (String key, int val);
 	public static native String conf_get_str (String key, String def);
 	public static native void conf_set_str (String key, String val);
 	public static native boolean plugin_exists (String id);
+	public static native int reinit ();
 
 	static {
 		System.loadLibrary("deadbeef");

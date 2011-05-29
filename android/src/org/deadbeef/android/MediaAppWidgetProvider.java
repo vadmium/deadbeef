@@ -125,46 +125,39 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
         CharSequence errorState = null;
         
         // Format title string with track number, or show SD card message
-/* FIXME       String status = Environment.getExternalStorageState();
+       String status = Environment.getExternalStorageState();
         if (status.equals(Environment.MEDIA_SHARED) ||
                 status.equals(Environment.MEDIA_UNMOUNTED)) {
-            if (android.os.Environment.isExternalStorageRemovable()) {
-                errorState = res.getText(R.string.sdcard_busy_title);
-            } else {
-                errorState = res.getText(R.string.sdcard_busy_title_nosdcard);
-            }
+        	errorState = "SDCard is busy";
         } else if (status.equals(Environment.MEDIA_REMOVED)) {
-            if (android.os.Environment.isExternalStorageRemovable()) {
-                errorState = res.getText(R.string.sdcard_missing_title);
-            } else {
-                errorState = res.getText(R.string.sdcard_missing_title_nosdcard);
-            }
+        	errorState = "SDCard not found";
         } else if (titleName == null) {
-            errorState = res.getText(R.string.emptyplaylist);
-        }*/
+            errorState = "Empty playlist";
+        }
         
         if (errorState != null) {
             // Show error state to user
             views.setViewVisibility(R.id.title, View.GONE);
             views.setTextViewText(R.id.artist, errorState);
-            
+            views.setImageViewResource(R.id.control_play, R.drawable.ic_appwidget_music_play);
+	        // Link actions buttons to intents
+	        linkButtons(service, views, false);
         } else {
             // No error, so show normal titles
             views.setViewVisibility(R.id.title, View.VISIBLE);
             views.setTextViewText(R.id.title, titleName);
             views.setTextViewText(R.id.artist, artistName);
+            
+	        // Set correct drawable for pause state
+	        final boolean playing = !service.isPaused();
+	        if (playing) {
+	            views.setImageViewResource(R.id.control_play, R.drawable.ic_appwidget_music_pause);
+	        } else {
+	            views.setImageViewResource(R.id.control_play, R.drawable.ic_appwidget_music_play);
+	        }
+	        // Link actions buttons to intents
+	        linkButtons(service, views, playing);
         }
-        
-        // Set correct drawable for pause state
-        final boolean playing = !service.isPaused();
-        if (playing) {
-            views.setImageViewResource(R.id.control_play, R.drawable.ic_appwidget_music_pause);
-        } else {
-            views.setImageViewResource(R.id.control_play, R.drawable.ic_appwidget_music_play);
-        }
-
-        // Link actions buttons to intents
-        linkButtons(service, views, playing);
         
         pushUpdate(service, appWidgetIds, views);
     }

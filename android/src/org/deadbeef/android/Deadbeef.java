@@ -622,29 +622,13 @@ public class Deadbeef extends Activity {
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
-/*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-	        handler.post(new Runnable() {
-	            public void run() {
-	                setListAdapter(adapter);
-	            }
-	        });*/
+    		DeadbeefAPI.plt_save_current ();
     	}
     	if (requestCode == REQUEST_ADD_FOLDER_AFTER && resultCode == RESULT_OK) {
-/*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-	        handler.post(new Runnable() {
-	            public void run() {
-	                setListAdapter(adapter);
-	            }
-	        });*/
+    		DeadbeefAPI.plt_save_current ();
     	}
     	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
-/*    		DeadbeefAPI.plt_set_curr (resultCode);
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-	        handler.post(new Runnable() {
-	            public void run() {
-	                setListAdapter(adapter);
-	            }
-	        });*/
+    		DeadbeefAPI.conf_save ();
     	}
     }
 

@@ -51,12 +51,6 @@ public class PlaylistViewer extends ListActivity {
 					Log.w("DDB", "received ADD_FILES_END");
     				progressDialog.dismiss();
     				progressDialog = null;
-			        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
-			        handler.post(new Runnable() {
-			            public void run() {
-			                setListAdapter(adapter);
-			            }
-			        });
     			}
 	        }
 	    };
@@ -140,6 +134,7 @@ public class PlaylistViewer extends ListActivity {
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == Deadbeef.REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
+    		DeadbeefAPI.plt_save_current ();
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
@@ -148,6 +143,7 @@ public class PlaylistViewer extends ListActivity {
 	        });
     	}
     	if (requestCode == Deadbeef.REQUEST_ADD_FOLDER_AFTER && resultCode == RESULT_OK) {
+    		DeadbeefAPI.plt_save_current ();
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
@@ -156,6 +152,7 @@ public class PlaylistViewer extends ListActivity {
 	        });
     	}
     	else if (requestCode == Deadbeef.REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
+    		DeadbeefAPI.conf_save ();
     		DeadbeefAPI.plt_set_curr (resultCode);
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
@@ -187,7 +184,7 @@ public class PlaylistViewer extends ListActivity {
 
 	private void AddFolder () {
         Intent i = new Intent (this, FileBrowser.class);
-    	startActivity(i);
+    	startActivityForResult(i, Deadbeef.REQUEST_ADD_FOLDER);
     }
 
 	private OnClickListener mAddListener = new OnClickListener() {
@@ -207,5 +204,4 @@ public class PlaylistViewer extends ListActivity {
 	        });
         }
     };
-
 }

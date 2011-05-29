@@ -209,6 +209,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1bit
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_save_current
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1save_1current
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    plt_get_count
  * Signature: ()I
  */
@@ -657,6 +665,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    conf_load
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1load
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    conf_save
  * Signature: ()I
  */
@@ -702,6 +718,14 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1str
  */
 JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_plugin_1exists
   (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    reinit
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_reinit
+  (JNIEnv *, jclass);
 
 #ifdef __cplusplus
 }

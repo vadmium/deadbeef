@@ -68,14 +68,14 @@
 #define PLAYLIST_MAJOR_VER 1
 #define PLAYLIST_MINOR_VER 2
 
-//extern void android_trace (const char *fmt, ...);
-//#define trace(...) { android_trace(__VA_ARGS__); }
+extern void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 #if (PLAYLIST_MINOR_VER<2)
 #error writing playlists in format <1.2 is not supported
 #endif
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define trace(fmt,...)
 
 #define SKIP_BLANK_CUE_TRACKS 0
 
@@ -2597,7 +2597,7 @@ pl_load_all (void) {
     char path[1024];
     DB_conf_item_t *it = conf_find ("playlist.tab.", NULL);
     if (!it) {
-//        fprintf (stderr, "INFO: loading legacy default playlist\n");
+        trace ("INFO: loading legacy default playlist\n");
         // legacy (0.3.3 and earlier)
         char defpl[1024]; // $HOME/.config/deadbeef/default.dbpl
         if (snprintf (defpl, sizeof (defpl), "%s/default.dbpl", dbconfdir) > sizeof (defpl)) {
@@ -2621,7 +2621,7 @@ pl_load_all (void) {
     trace ("locked\n");
     plt_loading = 1;
     while (it) {
-        fprintf (stderr, "INFO: loading playlist %s\n", it->value);
+        trace ("INFO: loading playlist %s\n", it->value);
         if (!err) {
             if (plt_add (plt_get_count (), it->value) < 0) {
                 return -1;
@@ -2656,7 +2656,7 @@ pl_load_all (void) {
     plt_gen_conf ();
     messagepump_push (DB_EV_PLAYLISTSWITCHED, 0, 0, 0);
     UNLOCK;
-    trace ("pl_load_all finished\n");
+    trace ("pl_load_all finished, total nr: %d\n", plt_get_count ());
     return err;
 }
 
