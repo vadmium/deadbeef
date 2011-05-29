@@ -57,7 +57,9 @@ class Player {
     			// handle 
     			if (DeadbeefAPI.event_is_pending ()) {
     				try {
-    					MusicUtils.sService.handle_ddb_events ();
+    					if (null != MusicUtils.sService) {
+    						MusicUtils.sService.handle_ddb_events ();
+    					}
     				}
     				catch (RemoteException ex) {
     				}

@@ -34,6 +34,8 @@ public class MusicUtils {
     }
 
     public static boolean bindToService(Context context, ServiceConnection callback) {
+		Log.e("DDB", "bindToService");
+    	
         context.startService(new Intent(context, MediaPlaybackService.class));
         ServiceBinder sb = new ServiceBinder(callback);
         sConnectionMap.put(context, sb);
@@ -42,6 +44,7 @@ public class MusicUtils {
     }
     
     public static void unbindFromService(Context context) {
+		Log.e("DDB", "unbindFromService");
         ServiceBinder sb = (ServiceBinder) sConnectionMap.remove(context);
         if (sb == null) {
             Log.e("DDB", "Trying to unbind for unknown Context");

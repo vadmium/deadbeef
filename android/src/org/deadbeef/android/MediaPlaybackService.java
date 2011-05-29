@@ -286,6 +286,8 @@ public class MediaPlaybackService extends Service {
 			String cmd = intent.getStringExtra("command");
 			if (CMDNEXT.equals(cmd) || NEXT_ACTION.equals(action)) {
 				next();
+				notifyChange(META_CHANGED);
+				notifyChange(PLAYSTATE_CHANGED);
 			} else if (CMDPREVIOUS.equals(cmd)
 					|| PREVIOUS_ACTION.equals(action)) {
 				prev();
@@ -297,6 +299,8 @@ public class MediaPlaybackService extends Service {
 				} else {
 					play();
 				}
+				notifyChange(META_CHANGED);
+				notifyChange(PLAYSTATE_CHANGED);
 			} else if (CMDPAUSE.equals(cmd) || PAUSE_ACTION.equals(action)) {
 				pause();
 				mPausedByTransientLossOfFocus = false;
@@ -352,9 +356,37 @@ public class MediaPlaybackService extends Service {
        }
    }
     
+	private void initPlayback () {
+		if (null == mPlayer) {
+			// get all packages matching org.android.deadbeef.*
+			PackageManager pkm = getPackageManager();
+			List<PackageInfo> list = pkm.getInstalledPackages(0);
+			Iterator<PackageInfo> it=list.iterator();
+			
+			String pluginPath = "";
+	
+	        while(it.hasNext())
+	        {
+	        	String nm=(String)it.next().packageName;
+	        	
+	        	if (nm.startsWith ("org.deadbeef.android.")) {
+	        		pluginPath += ":" + nm;
+	        	}
+	        }
+			
+	        File dir = Environment.getExternalStorageDirectory();
+			String filesDir = dir.getAbsolutePath();
+			filesDir += "/.deadbeef";
+
+			DeadbeefAPI.start(filesDir, pluginPath);
+			mPlayer = new Player();
+		}
+	}
+
 
 	@Override
 	public void onCreate() {
+   		Log.e("DDB","mediaPlaybackService onCreate");
 		super.onCreate();
 		mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		if (mRegisterMediaButtonEventReceiver != null) {
@@ -379,29 +411,8 @@ public class MediaPlaybackService extends Service {
 
 		startWatchingExternalStorage ();
 
-		// get all packages matching org.android.deadbeef.*
-		PackageManager pkm = getPackageManager();
-		List<PackageInfo> list = pkm.getInstalledPackages(0);
-		Iterator<PackageInfo> it=list.iterator();
+		initPlayback ();
 		
-		String pluginPath = "";
-
-        while(it.hasNext())
-        {
-        	String nm=(String)it.next().packageName;
-        	
-        	if (nm.startsWith ("org.deadbeef.android.")) {
-        		pluginPath += ":" + nm;
-        	}
-        }
-		
-        File dir = Environment.getExternalStorageDirectory();
-		String filesDir = dir.getAbsolutePath();
-		filesDir += "/.deadbeef";
-		
-		DeadbeefAPI.start(filesDir, pluginPath);
-		mPlayer = new Player();
-
 		IntentFilter commandFilter = new IntentFilter();
 		commandFilter.addAction(SERVICECMD);
 		commandFilter.addAction(TOGGLEPAUSE_ACTION);
@@ -452,11 +463,13 @@ public class MediaPlaybackService extends Service {
 		mWakeLock.release();
 		super.onDestroy();
 	}
-
+	
 	@Override
 	public IBinder onBind(Intent intent) {
 		mDelayedStopHandler.removeCallbacksAndMessages(null);
 		mServiceInUse = true;
+		initPlayback ();
+
 		return mBinder;
 	}
 
@@ -464,6 +477,8 @@ public class MediaPlaybackService extends Service {
 	public void onRebind(Intent intent) {
 		mDelayedStopHandler.removeCallbacksAndMessages(null);
 		mServiceInUse = true;
+
+		initPlayback ();
 	}
 
 	private void handleCommand(Intent intent, int startId) {
@@ -476,6 +491,8 @@ public class MediaPlaybackService extends Service {
 
 			if (CMDNEXT.equals(cmd) || NEXT_ACTION.equals(action)) {
 				next();
+				notifyChange(META_CHANGED);
+				notifyChange(PLAYSTATE_CHANGED);
 			} else if (CMDPREVIOUS.equals(cmd)
 					|| PREVIOUS_ACTION.equals(action)) {
 				if (position() < 2000) {
@@ -492,6 +509,8 @@ public class MediaPlaybackService extends Service {
 				} else {
 					play();
 				}
+				notifyChange(META_CHANGED);
+				notifyChange(PLAYSTATE_CHANGED);
 			} else if (CMDPAUSE.equals(cmd) || PAUSE_ACTION.equals(action)) {
 				pause();
 				mPausedByTransientLossOfFocus = false;
@@ -526,8 +545,8 @@ public class MediaPlaybackService extends Service {
 	public boolean onUnbind(Intent intent) {
 		mServiceInUse = false;
 		return true; // FIXME: mediaservice must be able to stop when not used, but right now it hangs on 2nd connect/reinit
-
-/*		if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
+/*
+		if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
 			return true;
 		}
 
@@ -535,7 +554,7 @@ public class MediaPlaybackService extends Service {
 		stopSelf(mServiceStartId);
 		return true;*/
 	}
-
+	
 	private Handler mDelayedStopHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
@@ -570,10 +589,11 @@ public class MediaPlaybackService extends Service {
 	}
 
 	public void refreshStatus() {
+        notifyChange(META_CHANGED);
+        notifyChange(PLAYSTATE_CHANGED);
 		if (!isPlaying()) {
 			return;
 		}
-        notifyChange(META_CHANGED);
 		// update statusbar
 		RemoteViews views = new RemoteViews(getPackageName(),
 				R.layout.statusbar);
