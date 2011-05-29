@@ -509,6 +509,8 @@ public class Deadbeef extends Activity {
         mCover = (ImageView) findViewById(R.id.cover);
         mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
         mCover.setVisibility(View.VISIBLE);
+        mCover.setOnClickListener(mCoverClickListener);
+        
 //        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
         
 /*        View coverwrap = (View)findViewById(R.id.coverwrap);
@@ -739,6 +741,19 @@ public class Deadbeef extends Activity {
     		Log.e(TAG,"remote exception on PlayPause");
     	}
     }
+
+    private OnClickListener mCoverClickListener = new OnClickListener() {
+        public void onClick(View v) {
+        	int trk = DeadbeefAPI.pl_get_current_idx ();
+        	if (trk != -1) {
+				Intent i = new Intent (Deadbeef.this, TrackPropertiesViewer.class);
+				i.setData(Uri.fromParts(
+						"track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(trk)
+						));
+		    	startActivity(i);
+        	}
+        }
+    };
 
     private OnClickListener mPlayPauseListener = new OnClickListener() {
         public void onClick(View v) {
