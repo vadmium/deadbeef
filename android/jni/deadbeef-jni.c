@@ -1340,3 +1340,30 @@ JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1int (JNIEnv *env, jclas
     conf_set_int (str, val);
     (*env)->ReleaseStringUTFChars(env, key, str);
 }
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_conf_1get_1str (JNIEnv *env, jclass cls, jstring key, jstring def) {
+    jstring retstr = NULL;
+    const jbyte *str, *defstr;
+    str = (*env)->GetStringUTFChars(env, key, NULL);
+    defstr = (*env)->GetStringUTFChars(env, def, NULL);
+    conf_lock ();
+    const char *ret = conf_get_str_fast (str, defstr);
+    if (ret) {
+        retstr = (*env)->NewStringUTF(env, ret);
+    }
+    conf_unlock ();
+    (*env)->ReleaseStringUTFChars(env, key, str);
+    (*env)->ReleaseStringUTFChars(env, def, defstr);
+    return retstr;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1str (JNIEnv *env, jclass cls, jstring key, jstring val) {
+    const jbyte *str, *valstr;
+    str = (*env)->GetStringUTFChars(env, key, NULL);
+    valstr = (*env)->GetStringUTFChars(env, val, NULL);
+    conf_set_str (str, valstr);
+    (*env)->ReleaseStringUTFChars(env, key, str);
+    (*env)->ReleaseStringUTFChars(env, val, valstr);
+}

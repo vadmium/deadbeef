@@ -19,8 +19,8 @@ public class FileBrowser extends ListActivity {
 
         setContentView(R.layout.filelist);
 
-        // FIXME: get default path from savedInstanceState
-        final FileBrowserAdapter adapter = new FileBrowserAdapter(this, Environment.getExternalStorageDirectory().getAbsolutePath());
+        String path = DeadbeefAPI.conf_get_str("android.lastpath", Environment.getExternalStorageDirectory().getAbsolutePath());
+        final FileBrowserAdapter adapter = new FileBrowserAdapter(this, path);
         setListAdapter(adapter);
 
         Button button = (Button)findViewById(R.id.browse_add_folder);
@@ -53,6 +53,8 @@ public class FileBrowser extends ListActivity {
     	catch (RemoteException ex) {
     	}
 		setResult(RESULT_OK);
+		DeadbeefAPI.conf_set_str ("android.lastpath", ((FileBrowserAdapter)getListAdapter()).getPath ());
+		DeadbeefAPI.conf_save ();
         finish ();
     	
     	

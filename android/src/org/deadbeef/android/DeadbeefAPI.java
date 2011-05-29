@@ -106,6 +106,8 @@ public class DeadbeefAPI
 	public static native int conf_save ();
 	public static native int conf_get_int (String key, int def);
 	public static native void conf_set_int (String key, int val);
+	public static native String conf_get_str (String key, String def);
+	public static native void conf_set_str (String key, String val);
 	public static native boolean plugin_exists (String id);
 
 	static {
