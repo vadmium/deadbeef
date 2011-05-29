@@ -143,9 +143,9 @@ public class Deadbeef extends Activity {
 		            t = "-:--";
 		        }
 	
-		        String spaused = MusicUtils.sService.isPaused() ? "Paused | " : "";
+//		        String spaused = MusicUtils.sService.isPaused() ? "Paused | " : "";
 		        String ft = DeadbeefAPI.pl_get_track_filetype (track);
-		        sbtext_new = String.format ("%s%s | %dHz | %d bit | %s | %d:%02d / %s", spaused, ft != null ? ft : "-", samplerate, bitspersample, mode, minpos, secpos, t);
+		        sbtext_new = String.format ("%s | %dHz | %d bit | %s | %d:%02d / %s", ft != null ? ft : "-", samplerate, bitspersample, mode, minpos, secpos, t);
 		    }
 		    if (!sbtext.equals(sbtext_new)) {
 		    	sbtext = sbtext_new;
@@ -181,6 +181,7 @@ public class Deadbeef extends Activity {
     }
 
     private String plstate_prev = "";
+    private String pltitle_prev = "";
     private ProgressDialog progressDialog;
     
     private static final int REFRESH = 1;
@@ -255,12 +256,6 @@ public class Deadbeef extends Activity {
 					Log.w("DDB", "received ADD_FILES_END");
     				progressDialog.dismiss();
     				progressDialog = null;
-			        /*final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
-			        handler.post(new Runnable() {
-			            public void run() {
-			                setListAdapter(adapter);
-			            }
-			        });*/
     			}
 	        }
 	    };
@@ -302,6 +297,13 @@ public class Deadbeef extends Activity {
 		    		plstate_prev = plstate;
 		    		st.setText(plstate);
 		    	}*/
+		    	
+		    	String pltitle = DeadbeefAPI.plt_get_title (DeadbeefAPI.plt_get_curr ());
+		    	if (pltitle != null && !pltitle.equals (pltitle_prev)) {
+		    		st = (TextView)findViewById(R.id.playlist_title);
+		    		st.setText(pltitle);
+		    		pltitle_prev = pltitle;
+		    	}
 	    		
 	    		if (MusicUtils.sService == null) {
 			    	st = (TextView)findViewById(R.id.status);
