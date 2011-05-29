@@ -13,8 +13,8 @@
   <item android:id="@+id/menu_manage_playlists"
    android:icon="@drawable/ic_menu_playlists"
    android:title="Manage Playlists" />
-  <item android:icon="@drawable/ic_menu_eq"
-   android:title="Equalizer" android:id="@+id/menu_equalizer"/>
+  <!--item android:icon="@drawable/ic_menu_eq"
+   android:title="Equalizer" android:id="@+id/menu_equalizer"/-->
   <item android:id="@+id/menu_about"
    android:icon="@drawable/ic_menu_help"
    android:title="About" />
