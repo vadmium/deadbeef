@@ -912,6 +912,9 @@ public class MediaPlaybackService extends Service {
 	    public void handle_ddb_events () {
 	    	mService.get().handle_ddb_events ();
 	    }
+	    public int conf_save () {
+	    	return DeadbeefAPI.conf_save ();
+	    }
 	}
 
 	private final IBinder mBinder = new ServiceStub(this);

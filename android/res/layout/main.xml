@@ -91,7 +91,7 @@
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:singleLine="true"
-              android:textSize="12sp"
+              android:textSize="11sp"
 	    android:textColor="#f000"
         android:layout_below="@id/np_artist_album"
         android:shadowColor="#ff5d5b4e"

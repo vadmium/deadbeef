@@ -29,6 +29,7 @@ public class DeadbeefAPI
 	public static native String pl_get_track_filetype (int trk);
 	public static native int pl_insert_dir (int plt, int after, String path);
 	public static native String pl_get_track_path (int trk);
+	public static native int plt_get_item_bitrate (int trk);
 	
 	// playlist manager
 	public static native int plt_get_count ();
@@ -100,6 +101,9 @@ public class DeadbeefAPI
 	public static native int dsp_load_preset (int dsp, int idx);
 	public static native int dsp_save_preset (int dsp, String name);
 	public static native int dsp_rename_preset (int dsp, int idx, String newname);
+	
+	// config
+	public static native int conf_save ();
 
 	static {
 		System.loadLibrary("deadbeef");

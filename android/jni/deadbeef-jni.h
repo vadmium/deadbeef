@@ -121,6 +121,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1for_1idx
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_get_meta
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1meta
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    meta_get_key
  * Signature: (I)Ljava/lang/String;
  */
@@ -189,6 +197,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1insert_1dir
  * Signature: (I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1get_1track_1path
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_item_bitrate
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1bitrate
   (JNIEnv *, jclass, jint);
 
 /*
@@ -638,6 +654,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset
   (JNIEnv *, jclass, jint, jint, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    conf_save
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1save
+  (JNIEnv *, jclass);
 
 #ifdef __cplusplus
 }

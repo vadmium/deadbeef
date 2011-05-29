@@ -1298,3 +1298,14 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, jclass c
     rename (oldname, newname);
     scan_dsp_presets ();
 }
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_conf_1save (JNIEnv *env, jclass cls) {
+    return conf_save ();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1bitrate (JNIEnv *env, jclass cls, jint trk) {
+    return pl_find_meta_int ((playItem_t *)trk, ":BITRATE", -1);
+}
+

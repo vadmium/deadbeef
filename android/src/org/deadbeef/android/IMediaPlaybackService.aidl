@@ -30,5 +30,6 @@ interface IMediaPlaybackService
     boolean busyAddingFiles ();
     
     void handle_ddb_events ();
+    int conf_save ();
 }
 

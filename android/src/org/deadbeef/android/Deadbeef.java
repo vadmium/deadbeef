@@ -151,7 +151,8 @@ public class Deadbeef extends Activity {
 	
 //		        String spaused = MusicUtils.sService.isPaused() ? "Paused | " : "";
 		        String ft = DeadbeefAPI.pl_get_track_filetype (track);
-		        sbtext_new = String.format ("%s | %dHz | %d bit | %s | %d:%02d / %s", ft != null ? ft : "-", samplerate, bitspersample, mode, minpos, secpos, t);
+		        int br = DeadbeefAPI.plt_get_item_bitrate (track);
+		        sbtext_new = String.format ("%s | %d Kbps | %dHz | %d bit | %s | %d:%02d / %s", ft != null ? ft : "-", br, samplerate, bitspersample, mode, minpos, secpos, t);
 		    }
 		    if (!sbtext.equals(sbtext_new)) {
 		    	sbtext = sbtext_new;
@@ -718,6 +719,7 @@ public class Deadbeef extends Activity {
         public void onClick(View v) {
         	try {
         		MusicUtils.sService.cycleRepeatMode ();
+        		MusicUtils.sService.conf_save ();
         	}
         	catch (RemoteException e) {
         	}
@@ -728,6 +730,7 @@ public class Deadbeef extends Activity {
         public void onClick(View v) {
         	try {
         		MusicUtils.sService.cycleShuffleMode ();
+        		MusicUtils.sService.conf_save ();
         	}
         	catch (RemoteException e) {
         	}
