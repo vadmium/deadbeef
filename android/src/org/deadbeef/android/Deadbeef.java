@@ -40,6 +40,9 @@ import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import com.google.ads.AdRequest;
+import com.google.ads.AdView;
+
 public class Deadbeef extends Activity {
 	String TAG = "DDB";
 	Handler handler = new Handler();
@@ -549,6 +552,10 @@ public class Deadbeef extends Activity {
 //        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 //        setListAdapter(adapter);   
         
+        AdView adView = (AdView)this.findViewById(R.id.adView);
+        AdRequest req = new AdRequest();
+        req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
+        adView.loadAd(req);
     }
     
     @Override

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
     	
     	android:icon="@drawable/icon"
@@ -119,10 +121,10 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/appwidget_info" />
         </receiver>
-
+        
+<activity android:name="com.google.ads.AdActivity"
+              android:configChanges="keyboard|keyboardHidden|orientation"/>
+              
 </application>
-
-
-
 
 </manifest> 

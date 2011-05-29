@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
                android:background="#251e1e"
               >
+    
+<com.google.ads.AdView android:id="@+id/adView"
+                         android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
+                         android:layout_alignParentTop="true"
+                         ads:adUnitId="a14de22b29b03f5"
+                         ads:adSize="BANNER"
+                         ads:loadAdOnCreate="true"
+                         />    
     
 <LinearLayout
 	android:id="@+id/playbar"
@@ -86,6 +96,7 @@
 	<RelativeLayout
 		android:id="@+id/info"
 		android:orientation="vertical"
+	    android:layout_below="@id/adView"
 	    android:layout_above="@id/cover"
 	    android:layout_width="fill_parent"
 	    android:layout_height="fill_parent"
