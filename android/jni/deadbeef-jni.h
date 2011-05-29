@@ -663,6 +663,30 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1save
   (JNIEnv *, jclass);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    conf_get_int
+ * Signature: (Ljava/lang/String;I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1get_1int
+  (JNIEnv *, jclass, jstring, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    conf_set_int
+ * Signature: (Ljava/lang/String;I)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1int
+  (JNIEnv *, jclass, jstring, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plugin_exists
+ * Signature: (Ljava/lang/String;)Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_plugin_1exists
+  (JNIEnv *, jclass, jstring);
+
 #ifdef __cplusplus
 }
 #endif

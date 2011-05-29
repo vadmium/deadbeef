@@ -1309,3 +1309,34 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1bitrate (JNIEnv *env, jcla
     return pl_find_meta_int ((playItem_t *)trk, ":BITRATE", -1);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plugin_1exists (JNIEnv *env, jclass cls, jstring id) {
+    const jbyte *str;
+    str = (*env)->GetStringUTFChars(env, id, NULL);
+    if (str == NULL) {
+        return 0;
+    }
+    if (!plug_get_for_id (str)) {
+        (*env)->ReleaseStringUTFChars(env, id, str);
+        return 0;
+    }
+    (*env)->ReleaseStringUTFChars(env, id, str);
+    return 1;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_conf_1get_1int (JNIEnv *env, jclass cls, jstring key, jint def) {
+    const jbyte *str;
+    str = (*env)->GetStringUTFChars(env, key, NULL);
+    int ret = conf_get_int (str, def);
+    (*env)->ReleaseStringUTFChars(env, key, str);
+    return ret;
+}
+
+JNIEXPORT void
+JNICALL Java_org_deadbeef_android_DeadbeefAPI_conf_1set_1int (JNIEnv *env, jclass cls, jstring key, jint val) {
+    const jbyte *str;
+    str = (*env)->GetStringUTFChars(env, key, NULL);
+    conf_set_int (str, val);
+    (*env)->ReleaseStringUTFChars(env, key, str);
+}

@@ -107,8 +107,7 @@ conf_load (void) {
 
 int
 conf_save (void) {
-    conf_lock ();
-    char dbconfdir[1024]; // $HOME/.config/deadbeef
+    extern char dbconfdir[1024]; // $HOME/.config/deadbeef
     char str[1024];
     snprintf (str, 1024, "%s/config", dbconfdir);
     FILE *fp = fopen (str, "w+t");
@@ -116,6 +115,7 @@ conf_save (void) {
         fprintf (stderr, "failed to open config file for writing\n");
         return -1;
     }
+    conf_lock ();
     for (DB_conf_item_t *it = conf_items; it; it = it->next) {
         fprintf (fp, "%s %s\n", it->key, it->value);
     }

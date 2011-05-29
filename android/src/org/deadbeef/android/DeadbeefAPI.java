@@ -104,6 +104,9 @@ public class DeadbeefAPI
 	
 	// config
 	public static native int conf_save ();
+	public static native int conf_get_int (String key, int def);
+	public static native void conf_set_int (String key, int val);
+	public static native boolean plugin_exists (String id);
 
 	static {
 		System.loadLibrary("deadbeef");

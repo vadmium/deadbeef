@@ -26,7 +26,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.provider.MediaStore;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -34,12 +33,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
-import android.view.animation.Animation;
+import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -500,7 +496,7 @@ public class Deadbeef extends Activity {
     public void onCreate(Bundle savedInstanceState) {
 		Log.e("DDB", "Deadbeef.onCreate");
         super.onCreate(savedInstanceState);
-
+        
         mAlbumArtWorker = new Worker("album art worker");
         mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
         
@@ -548,6 +544,16 @@ public class Deadbeef extends Activity {
 	        	Log.e("DDB", "Deadbeef.onCreate connected");
 	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
 		        startMediaServiceListener ();
+    	        handler.post(new Runnable() {
+				    public void run() {
+				        if (0 == DeadbeefAPI.conf_get_int("android.freeplugins_dont_ask", 0)) {
+					        if (!DeadbeefAPI.plugin_exists("stdmpg")) {
+					        	showDialog (1);
+					        }
+				        }
+				    }
+				});
+
 	        }
 	
 	        public void onServiceDisconnected(ComponentName className) {
@@ -668,18 +674,56 @@ public class Deadbeef extends Activity {
     @Override
     protected Dialog onCreateDialog(int id) {
     	LayoutInflater factory = LayoutInflater.from(this);
-        final View textView = factory.inflate(R.layout.aboutbox, null);
-        return new AlertDialog.Builder(Deadbeef.this)
-            .setIcon(R.drawable.icon)
-            .setTitle("About")
-            .setView(textView)
-            .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int whichButton) {
-
-                    /* User clicked OK so do some stuff */
-                }
-            })
-            .create();
+    	if (id == 0) {
+	        final View textView = factory.inflate(R.layout.aboutbox, null);
+	        return new AlertDialog.Builder(Deadbeef.this)
+	            .setIcon(R.drawable.icon)
+	            .setTitle("About")
+	            .setView(textView)
+	            .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
+	                public void onClick(DialogInterface dialog, int whichButton) {
+	
+	                    /* User clicked OK so do some stuff */
+	                }
+	            })
+	            .create();
+    	}
+    	else if (id == 1) {
+	        final View textView = factory.inflate(R.layout.install_freeplugins, null);
+	        return new AlertDialog.Builder(Deadbeef.this)
+	            .setIcon(R.drawable.icon)
+	            .setTitle("Install Free Plugins")
+	            .setView(textView)
+	            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+	                public void onClick(DialogInterface dialog, int whichButton) {
+	                	CheckBox b = (CheckBox)textView.findViewById(R.id.nomore);
+	                	if (b.isChecked ()) {
+	                		DeadbeefAPI.conf_set_int ("android.freeplugins_dont_ask", 1);
+	                	}
+	                	else {
+	                		DeadbeefAPI.conf_set_int ("android.freeplugins_dont_ask", 0);
+	                	}
+	                	DeadbeefAPI.conf_save ();
+						Intent i = new Intent(Intent.ACTION_VIEW,
+								Uri.parse("market://search?q=pname:org.deadbeef.android.freeplugins"));
+						startActivity(i);
+	                }
+	            })
+	            .setNegativeButton("No", new DialogInterface.OnClickListener() {
+	                public void onClick(DialogInterface dialog, int whichButton) {
+	                	CheckBox b = (CheckBox)textView.findViewById(R.id.nomore);
+	                	if (b.isChecked ()) {
+	                		DeadbeefAPI.conf_set_int ("android.freeplugins_dont_ask", 1);
+	                	}
+	                	else {
+	                		DeadbeefAPI.conf_set_int ("android.freeplugins_dont_ask", 0);
+	                	}
+	                	DeadbeefAPI.conf_save ();
+	                }
+	            })
+	            .create();
+    	}
+    	return null;
     }
     
     private void PlayPause () {
