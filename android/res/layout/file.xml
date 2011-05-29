@@ -7,5 +7,11 @@
   <TextView android:id="@+id/file"
       android:textAppearance="?android:attr/textAppearanceLarge"
       android:layout_width="wrap_content"
-      android:layout_height="wrap_content"/>
+      android:layout_height="wrap_content"
+      android:textColor="#f000"
+      android:shadowColor="#ff5d5b4e"
+      android:shadowDx="2"
+      android:shadowDy="2"
+      android:shadowRadius="2"
+      />
 </LinearLayout>
