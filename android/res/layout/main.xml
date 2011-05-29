@@ -1,105 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+              android:id="@+id/mainview"
+ xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
               android:layout_width="fill_parent" 
               android:layout_height="fill_parent" 
               android:orientation="vertical"
-               android:background="#251e1e"
+              android:background="#251e1e"
               >
-    
-<com.google.ads.AdView android:id="@+id/adView"
-                         android:layout_width="wrap_content"
-                         android:layout_height="wrap_content"
-                         android:layout_alignParentTop="true"
-                         ads:adUnitId="a14de22b29b03f5"
-                         ads:adSize="BANNER"
-                         ads:loadAdOnCreate="true"
-                         />    
-    
-<LinearLayout
-	android:id="@+id/playbar"
-    android:layout_width="fill_parent"
-    android:layout_height="65px"
-    android:orientation="horizontal"
-	android:layout_centerHorizontal="true"
-	android:layout_alignParentBottom="true"
-	    android:layout_marginTop="3dip"
-	    android:layout_marginBottom="3dip"
-	    android:layout_marginLeft="3dip"
-	    android:layout_marginRight="3dip"
-    >
-
-    <ImageButton
-        android:id="@+id/playlist"
-        android:layout_width="0dip"
-        android:layout_weight="1"
-        android:layout_height="fill_parent"
-        android:src="@drawable/playbar_list"
-        android:background="@drawable/playbar1w"
-        android:scaleType="fitCenter"
-        android:padding="10dip"
-        />    
-    <ImageButton
-        android:id="@+id/prev"
-        android:layout_width="0dip"
-        android:layout_weight="1"
-        android:layout_height="fill_parent"
-        android:src="@drawable/playbar_prev"
-        android:background="@drawable/playbar2w"
-        android:scaleType="fitCenter"
-        android:padding="10dip"
-        />    
-    <ImageButton
-        android:id="@+id/play"
-        android:layout_width="0dip"
-        android:layout_weight="1"
-        android:layout_height="fill_parent"
-        android:src="@drawable/playbar_play"
-        android:background="@drawable/playbar3w"
-        android:scaleType="fitCenter"
-        android:padding="10dip"
-       />    
-    <ImageButton
-        android:id="@+id/next"
-        android:layout_width="0dip"
-        android:layout_weight="1"
-        android:layout_height="fill_parent"
-        android:src="@drawable/playbar_next"
-        android:background="@drawable/playbar4w"
-        android:scaleType="fitCenter"
-        android:padding="10dip"
-        />    
-    <ImageButton
-        android:id="@+id/add"
-        android:layout_width="0dip"
-        android:layout_weight="1"
-        android:layout_height="fill_parent"
-        android:src="@drawable/playbar_add"
-        android:background="@drawable/playbar5w"
-        android:scaleType="fitCenter"
-        android:padding="10dip"
-        />    
-    </LinearLayout>
-
-	<ImageView
-		android:id="@+id/cover"
-              android:layout_width="fill_parent"
-               android:layout_height="wrap_content"
-              android:layout_above="@id/playbar"
-              android:background="@drawable/album_border_large"
-              android:padding="10dip"
-	           >
-	</ImageView>
-	
-
+              
 	<RelativeLayout
 		android:id="@+id/info"
 		android:orientation="vertical"
-	    android:layout_below="@id/adView"
-	    android:layout_above="@id/cover"
 	    android:layout_width="fill_parent"
-	    android:layout_height="fill_parent"
+	    android:layout_height="130dip"
 	    android:layout_marginTop="3dip"
 	    android:layout_marginBottom="3dip"
 	    android:layout_marginLeft="3dip"
@@ -207,4 +122,95 @@
 	</RelativeLayout>
     
 
-</RelativeLayout>
+	<RelativeLayout
+		android:id="@+id/coverwrap"
+		android:orientation="vertical"
+	    android:layout_width="fill_parent"
+	    android:layout_height="fill_parent"
+               android:layout_weight="1"
+	>
+	<ImageView
+		android:id="@+id/cover"
+              android:layout_width="fill_parent"
+               android:layout_height="fill_parent"
+              android:padding="10dip"
+	android:layout_centerHorizontal="true"
+	           >
+	</ImageView>
+	<com.google.ads.AdView android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        ads:adUnitId="a14de22b29b03f5"
+        ads:adSize="BANNER"
+        ads:loadAdOnCreate="true"
+        />    
+	</RelativeLayout>
+	
+<LinearLayout
+	android:id="@+id/playbar"
+    android:layout_width="fill_parent"
+    android:layout_height="65px"
+    android:orientation="horizontal"
+	android:layout_centerHorizontal="true"
+	    android:layout_marginTop="3dip"
+	    android:layout_marginBottom="3dip"
+	    android:layout_marginLeft="3dip"
+	    android:layout_marginRight="3dip"
+        android:layout_alignParentBottom="true"
+    >
+
+    <ImageButton
+        android:id="@+id/playlist"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/playbar_list"
+        android:background="@drawable/playbar1w"
+        android:scaleType="fitCenter"
+        android:padding="10dip"
+        />    
+    <ImageButton
+        android:id="@+id/prev"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/playbar_prev"
+        android:background="@drawable/playbar2w"
+        android:scaleType="fitCenter"
+        android:padding="10dip"
+        />    
+    <ImageButton
+        android:id="@+id/play"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/playbar_play"
+        android:background="@drawable/playbar3w"
+        android:scaleType="fitCenter"
+        android:padding="10dip"
+       />    
+    <ImageButton
+        android:id="@+id/next"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/playbar_next"
+        android:background="@drawable/playbar4w"
+        android:scaleType="fitCenter"
+        android:padding="10dip"
+        />    
+    <ImageButton
+        android:id="@+id/add"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/playbar_add"
+        android:background="@drawable/playbar5w"
+        android:scaleType="fitCenter"
+        android:padding="10dip"
+        />    
+    </LinearLayout>
+    
+
+</LinearLayout>

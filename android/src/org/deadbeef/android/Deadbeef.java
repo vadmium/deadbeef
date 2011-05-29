@@ -34,9 +34,12 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
+import android.view.animation.Animation;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -503,17 +506,26 @@ public class Deadbeef extends Activity {
         setContentView(R.layout.main);
         
         // set album art widget to square size
-        DisplayMetrics dm = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(dm);
+//        DisplayMetrics dm = new DisplayMetrics();
+//        getWindowManager().getDefaultDisplay().getMetrics(dm);
         
         mCover = (ImageView) findViewById(R.id.cover);
-        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
         mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
         mCover.setVisibility(View.VISIBLE);
+//        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
         
-        LayoutParams p = mCover.getLayoutParams();
-        p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = dm.widthPixels;
-        mCover.setLayoutParams(p);
+/*        View coverwrap = (View)findViewById(R.id.coverwrap);
+        coverwrap.setVisibility(View.VISIBLE);
+        
+        LinearLayout ll = (LinearLayout)findViewById (R.id.mainview);
+        
+        LayoutParams p = coverwrap.getLayoutParams();
+        int min = p.height;
+        if (p.width < min) {
+        	min = p.width;
+        }
+        p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = min;
+        coverwrap.setLayoutParams(p);*/
         
         ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
         ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);
@@ -534,12 +546,6 @@ public class Deadbeef extends Activity {
 	        public void onServiceConnected(ComponentName className, IBinder obj) {
 	        	Log.e("DDB", "Deadbeef.onCreate connected");
 	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
-		        /*final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
-		        handler.post(new Runnable() {
-		            public void run() {
-		                setListAdapter(adapter);
-		            }
-		        });*/
 		        startMediaServiceListener ();
 	        }
 	
@@ -548,10 +554,7 @@ public class Deadbeef extends Activity {
 	        	MusicUtils.sService = null;
 	        }
 	    });
-
-//        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-//        setListAdapter(adapter);   
-        
+     
         AdView adView = (AdView)this.findViewById(R.id.adView);
         AdRequest req = new AdRequest();
         req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
