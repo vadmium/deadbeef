@@ -525,14 +525,15 @@ public class MediaPlaybackService extends Service {
 	@Override
 	public boolean onUnbind(Intent intent) {
 		mServiceInUse = false;
+		return true; // FIXME: mediaservice must be able to stop when not used, but right now it hangs on 2nd connect/reinit
 
-		if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
+/*		if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
 			return true;
 		}
 
 		// No active playlist, OK to stop the service right now
 		stopSelf(mServiceStartId);
-		return true;
+		return true;*/
 	}
 
 	private Handler mDelayedStopHandler = new Handler() {

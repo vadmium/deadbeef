@@ -21,12 +21,30 @@
                android:layout_weight="1"
                android:choiceMode="singleChoice"
                android:fastScrollEnabled="true"
-               android:scrollbarStyle="insideOverlay"
+               android:scrollbarStyle="outsideInset"
                android:cacheColorHint="#0000"
                android:divider="#f000"
                android:dividerHeight="1sp"
                android:background="@drawable/infopanel"
                >
     </ListView>
+    
+    <LinearLayout
+    	android:layout_width="wrap_content"
+    	android:layout_height="wrap_content"
+    	android:orientation="horizontal">
+	<Button
+			android:text="Add Folders"
+			android:id="@+id/add"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content">
+	</Button>
+	<Button
+			android:text="Clear"
+			android:id="@+id/clear"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content">
+	</Button>
+	</LinearLayout>
 	  
 </LinearLayout>

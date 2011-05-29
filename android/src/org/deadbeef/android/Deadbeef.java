@@ -559,6 +559,7 @@ public class Deadbeef extends Activity {
 	        }
 	
 	        public void onServiceDisconnected(ComponentName className) {
+	        	Log.e("DDB", "service disconnected");
 		        stopMediaServiceListener ();
 	        	MusicUtils.sService = null;
 	        }
@@ -651,7 +652,7 @@ public class Deadbeef extends Activity {
     public boolean onOptionsItemSelected (MenuItem item) {
         int id = item.getItemId ();
         if (id == R.id.menu_clear_playlist) {
-        	DeadbeefAPI.pl_clear (); // FIXME
+        	DeadbeefAPI.pl_clear (); // FIXME: should be called through mediaservice, only when connected
 /*	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {

@@ -1,8 +1,5 @@
 package org.deadbeef.android;
 
-import com.google.ads.AdRequest;
-import com.google.ads.AdView;
-
 import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
@@ -20,8 +17,13 @@ import android.util.Log;
 import android.view.ContextMenu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.widget.Button;
 import android.widget.ListView;
+
+import com.google.ads.AdRequest;
+import com.google.ads.AdView;
 
 public class PlaylistViewer extends ListActivity {
     private ProgressDialog progressDialog;
@@ -94,6 +96,11 @@ public class PlaylistViewer extends ListActivity {
 
         startMediaServiceListener ();
         registerForContextMenu(findViewById(android.R.id.list));
+        
+        ((Button)findViewById(R.id.add)).setOnClickListener(mAddListener);
+        ((Button)findViewById(R.id.clear)).setOnClickListener(mClearListener);
+        
+        
         AdView adView = (AdView)this.findViewById(R.id.adView);
         AdRequest req = new AdRequest();
         req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
@@ -177,4 +184,28 @@ public class PlaylistViewer extends ListActivity {
 		}
 		return false;
 	}
+
+	private void AddFolder () {
+        Intent i = new Intent (this, FileBrowser.class);
+    	startActivity(i);
+    }
+
+	private OnClickListener mAddListener = new OnClickListener() {
+        public void onClick(View v) {
+        	AddFolder ();
+        }
+    };
+
+    private OnClickListener mClearListener = new OnClickListener() {
+        public void onClick(View v) {
+        	DeadbeefAPI.pl_clear (); // FIXME: should be called through mediaservice, only when connected
+	        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
+	        handler.post(new Runnable() {
+	            public void run() {
+	                setListAdapter(adapter);
+	            }
+	        });
+        }
+    };
+
 }
