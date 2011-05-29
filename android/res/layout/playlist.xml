@@ -4,7 +4,8 @@
   xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"
-  android:orientation="vertical">
+  android:orientation="vertical"
+  >
 	<com.google.ads.AdView android:id="@+id/adView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -22,9 +23,9 @@
                android:fastScrollEnabled="true"
                android:scrollbarStyle="insideOverlay"
                android:cacheColorHint="#0000"
-               android:divider="#f999"
+               android:divider="#f000"
                android:dividerHeight="1sp"
-               android:background="#f666"
+               android:background="@drawable/infopanel"
                >
     </ListView>
 	  

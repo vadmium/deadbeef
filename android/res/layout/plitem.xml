@@ -23,7 +23,12 @@
       android:text="0:00"
       android:layout_marginLeft="6dip"
       android:singleLine="true"
-      android:textColor="#ff91fb80"/>
+      android:textColor="#f000"
+      android:shadowColor="#ff5d5b4e"
+      android:shadowDx="2"
+      android:shadowDy="2"
+      android:shadowRadius="2"
+      />
 
   <TextView android:id="@+id/title"
       android:textAppearance="?android:attr/textAppearanceMedium"
@@ -32,6 +37,11 @@
       android:text="Song Title"
       android:singleLine="true"
       android:layout_toLeftOf="@id/duration"
+      android:textColor="#f000"
+      android:shadowColor="#ff5d5b4e"
+      android:shadowDx="2"
+      android:shadowDy="2"
+      android:shadowRadius="2"
       />
 
   <TextView android:id="@+id/artist"
@@ -40,7 +50,13 @@
       android:layout_height="wrap_content"
       android:layout_below="@id/title"
       android:text="Song Artist"
-      android:singleLine="true"/>
+      android:singleLine="true"
+      android:textColor="#f000"
+      android:shadowColor="#ff5d5b4e"
+      android:shadowDx="2"
+      android:shadowDy="2"
+      android:shadowRadius="2"
+      />
 
       
 </RelativeLayout>
