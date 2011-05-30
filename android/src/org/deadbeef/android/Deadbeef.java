@@ -628,6 +628,7 @@ public class Deadbeef extends Activity {
     		DeadbeefAPI.plt_save_current ();
     	}
     	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
+    		DeadbeefAPI.plt_set_curr_idx (resultCode);
     		DeadbeefAPI.conf_save ();
     	}
     }

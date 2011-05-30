@@ -37,7 +37,7 @@ public class DeadbeefAPI
     public static native int plt_get_sel_count (int plt);
     public static native int plt_add (int before, String title);
     public static native void plt_remove (int plt);
-    public static native void plt_set_curr (int plt);
+    public static native void plt_set_curr_idx (int plt);
     public static native int plt_get_curr ();
     public static native String plt_get_title (int plt);
     public static native int plt_set_title (int plt, String title);

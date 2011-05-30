@@ -152,8 +152,8 @@ public class PlaylistViewer extends ListActivity {
 	        });
     	}
     	else if (requestCode == Deadbeef.REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
+    		DeadbeefAPI.plt_set_curr_idx (resultCode);
     		DeadbeefAPI.conf_save ();
-    		DeadbeefAPI.plt_set_curr (resultCode);
 	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {

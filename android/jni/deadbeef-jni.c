@@ -963,7 +963,7 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1remove (JNIEnv *env, jclass cls, jint
 }
 
 JNIEXPORT void JNICALL
-Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr (JNIEnv *env, jclass cls, jint idx) {
+Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr_1idx (JNIEnv *env, jclass cls, jint idx) {
     plt_set_curr_idx (idx);
 }
 

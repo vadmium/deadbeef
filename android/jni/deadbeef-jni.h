@@ -249,10 +249,10 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1remove
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    plt_set_curr
+ * Method:    plt_set_curr_idx
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1set_1curr_1idx
   (JNIEnv *, jclass, jint);
 
 /*
