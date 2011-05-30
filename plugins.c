@@ -744,6 +744,9 @@ plug_load_all (void) {
 
     const char *dirname = deadbeef->get_plugin_dir ();
 
+    // remember how many plugins to skip if called Nth time
+    plugin_t *prev_plugins_tail = plugins_tail;
+
 #ifndef ANDROID
     char *xdg_local_home = getenv ("XDG_LOCAL_HOME");
     char xdg_plugin_dir[1024];
@@ -810,9 +813,10 @@ plug_load_all (void) {
     }
 #endif
 
-
+#ifndef ANRDOID
     // load gui plugin
     load_gui_plugin (plugins_dirs);
+#endif
 
 // load all compiled-in modules
 #define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
@@ -877,7 +881,9 @@ plug_load_all (void) {
     }
     // start plugins
     plugin_t *prev = NULL;
-    for (plug = plugins; plug;) {
+    plugin_t *head = prev_plugins_tail ? prev_plugins_tail->next : plugins;
+    for (plug = head; plug;) {
+        trace ("starting plugin %s\n", plug->plugin->name);
         if (plug->plugin->start) {
             if (plug->plugin->start () < 0) {
                 fprintf (stderr, "plugin %s failed to start, deactivated.\n", plug->plugin->name);
