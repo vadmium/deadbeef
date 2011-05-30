@@ -56,8 +56,7 @@ public class FileBrowser extends ListActivity {
 		DeadbeefAPI.conf_set_str ("android.lastpath", ((FileBrowserAdapter)getListAdapter()).getPath ());
 		DeadbeefAPI.conf_save ();
         finish ();
-    	
-    	
+
 /*    public void AddFolder () {
         // add folder to playlist
         DeadbeefAPI.pl_add_folder (currentPath);

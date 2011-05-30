@@ -30,15 +30,17 @@ public class FileBrowserAdapter extends BaseAdapter {
     	files.clear ();
     	files.add ("..");
     	File list[] = currentDir.listFiles ();
-    	for (File f : list) {
-    		if (f.isDirectory ()) {
-    			files.add ("<DIR> " + f.getName ());
-    		}
-    		else {
-    			files.add (f.getName ());
-    		}
+    	if (list != null) {
+	    	for (File f : list) {
+	    		if (f.isDirectory ()) {
+	    			files.add ("<DIR> " + f.getName ());
+	    		}
+	    		else {
+	    			files.add (f.getName ());
+	    		}
+	    	}
     	}
-	   notifyDataSetChanged ();
+    	notifyDataSetChanged ();
     }
 
     
