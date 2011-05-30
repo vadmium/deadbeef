@@ -112,6 +112,7 @@ public class DeadbeefAPI
 	public static native void conf_set_str (String key, String val);
 	public static native boolean plugin_exists (String id);
 	public static native int reinit ();
+	public static native int plug_load_all ();
 
 	static {
 		System.loadLibrary("deadbeef");

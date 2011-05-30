@@ -116,6 +116,10 @@
         </activity>
 
 		<service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/app_name" android:enabled="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.PACKAGE_ADDED" />
+                <action android:name="android.appwidget.action.PACKAGE_CHANGED" />
+            </intent-filter>
 		</service>
 
         <receiver android:name="org.deadbeef.android.MediaAppWidgetProvider">

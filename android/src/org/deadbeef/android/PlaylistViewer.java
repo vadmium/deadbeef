@@ -43,6 +43,7 @@ public class PlaylistViewer extends ListActivity {
 	        public void onReceive(Context context, Intent intent) {
 	        	if (null == progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
 					Log.w("DDB", "received ADD_FILES_START");
+					setListAdapter(null);
     				progressDialog = ProgressDialog.show(PlaylistViewer.this,      
     					"Please wait",
     					"Adding files to playlist...", true);
@@ -51,6 +52,9 @@ public class PlaylistViewer extends ListActivity {
 					Log.w("DDB", "received ADD_FILES_END");
     				progressDialog.dismiss();
     				progressDialog = null;
+		    		DeadbeefAPI.plt_save_current ();
+			        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
+	                setListAdapter(adapter);
     			}
 	        }
 	    };
@@ -134,11 +138,8 @@ public class PlaylistViewer extends ListActivity {
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == Deadbeef.REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
-    		DeadbeefAPI.plt_save_current ();
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
 	        handler.post(new Runnable() {
 	            public void run() {
-	                setListAdapter(adapter);
 	            }
 	        });
     	}
@@ -189,6 +190,7 @@ public class PlaylistViewer extends ListActivity {
 
 	private OnClickListener mAddListener = new OnClickListener() {
         public void onClick(View v) {
+        	// this works in background thread, need to disable android listadapter nonsense
         	AddFolder ();
         }
     };
@@ -196,12 +198,9 @@ public class PlaylistViewer extends ListActivity {
     private OnClickListener mClearListener = new OnClickListener() {
         public void onClick(View v) {
         	DeadbeefAPI.pl_clear (); // FIXME: should be called through mediaservice, only when connected
+    		DeadbeefAPI.plt_save_current ();
 	        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
-	        handler.post(new Runnable() {
-	            public void run() {
-	                setListAdapter(adapter);
-	            }
-	        });
+            setListAdapter(adapter);
         }
     };
 }

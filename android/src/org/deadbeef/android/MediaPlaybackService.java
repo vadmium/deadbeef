@@ -151,6 +151,7 @@ public class MediaPlaybackService extends Service {
 	}
 	
     BroadcastReceiver mExternalStorageReceiver;
+    BroadcastReceiver mPackageUpdateReceiver;
 	boolean mExternalStorageAvailable = false;
 	boolean mExternalStorageWriteable = false;
 	
@@ -172,7 +173,7 @@ public class MediaPlaybackService extends Service {
 	    mExternalStorageReceiver = new BroadcastReceiver() {
 	        @Override
 	        public void onReceive(Context context, Intent intent) {
-	            Log.i("test", "Storage: " + intent.getData());
+	            Log.i("DDB", "Storage: " + intent.getData());
 	            updateExternalStorageState();
 	        }
 	    };
@@ -191,6 +192,26 @@ public class MediaPlaybackService extends Service {
 	    unregisterReceiver(mExternalStorageReceiver);
 	}
 
+	void startWatchingPackageUpdate () {
+		mPackageUpdateReceiver = new BroadcastReceiver () {
+	        @Override
+	        public void onReceive(Context context, Intent intent) {
+	            Log.i("DDB", "package update: " + intent.getData());
+	            if (intent.getData() != null && intent.getData().toString().equals ("package:org.deadbeef.android.freeplugins")) {
+	            	DeadbeefAPI.plug_load_all ();
+	            }
+	        }
+		};
+	    IntentFilter filter = new IntentFilter();
+	    filter.addAction(Intent.ACTION_PACKAGE_ADDED);
+	    filter.addAction(Intent.ACTION_PACKAGE_CHANGED);
+	    filter.addDataScheme("package");
+	    registerReceiver(mPackageUpdateReceiver, filter);
+	}
+	
+	void stopWatchingPackageUpdate () {
+		unregisterReceiver(mPackageUpdateReceiver);
+	}
 	
 	private PhoneStateListener mPhoneStateListener = new PhoneStateListener() {
 		@Override
@@ -420,10 +441,10 @@ public class MediaPlaybackService extends Service {
 			mStartForeground = mStopForeground = null;
 		}
 
-		startWatchingExternalStorage ();
-
 		initPlayback ();
-		
+		startWatchingExternalStorage ();
+		startWatchingPackageUpdate ();
+
 		IntentFilter commandFilter = new IntentFilter();
 		commandFilter.addAction(SERVICECMD);
 		commandFilter.addAction(TOGGLEPAUSE_ACTION);
@@ -457,10 +478,11 @@ public class MediaPlaybackService extends Service {
 		// release all MediaPlayer resources, including the native player and
 		// wakelocks
    		Log.e("DDB","mediaPlaybackService onDestroy");
+		stopWatchingExternalStorage ();
+		stopWatchingPackageUpdate ();
 		mPlayer.stop();
 		mPlayer = null;
 		DeadbeefAPI.stop();
-		stopWatchingExternalStorage ();
 
 		// make sure there aren't any other messages coming
 		mDelayedStopHandler.removeCallbacksAndMessages(null);

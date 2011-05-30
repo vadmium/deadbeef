@@ -1398,3 +1398,8 @@ JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plt_1save_1current (JNIEnv *env, jclass cls) {
     return pl_save_current ();
 }
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all (JNIEnv *env, jclass cls) {
+    return plug_load_all ();
+}

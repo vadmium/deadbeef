@@ -727,6 +727,14 @@ JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_plugin_1exists
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_reinit
   (JNIEnv *, jclass);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plug_load_all
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif
