@@ -61,7 +61,6 @@ public class MediaPlaybackService extends Service {
 	private static final int FADEIN = 4;
 
 	public Player mPlayer;
-	private BroadcastReceiver mUnmountReceiver = null;
 	private WakeLock mWakeLock;
 	private int mServiceStartId = -1;
 	private boolean mServiceInUse = false;
@@ -135,19 +134,20 @@ public class MediaPlaybackService extends Service {
 		mNM.cancel(id);
 		setForeground(false);
 	}
+	
+	private boolean was_avail = false;
 
 	private void handleExternalStorageState (boolean avail, boolean writable) {
+		Log.i("DDB", "handleExternalStorageState " + avail + " " + writable);
 		if (null != mPlayer) {
-			if (avail) {
-				// reload config and playlists
-				// FIXME: this doesn't work
-				// DeadbeefAPI.reinit ();
+			if (avail && !was_avail) {
+				DeadbeefAPI.reinit ();
 			}
-			Log.i("DDB", "handleExternalStorageState " + avail + " " + writable);
 			if (!avail) {
 				DeadbeefAPI.play_stop ();
 			}
 		}
+		was_avail = avail;
 	}
 	
     BroadcastReceiver mExternalStorageReceiver;
@@ -179,6 +179,10 @@ public class MediaPlaybackService extends Service {
 	    IntentFilter filter = new IntentFilter();
 	    filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
 	    filter.addAction(Intent.ACTION_MEDIA_REMOVED);
+	    filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+	    filter.addAction(Intent.ACTION_MEDIA_SHARED);
+	    filter.addAction(Intent.ACTION_MEDIA_EJECT);
+	    filter.addDataScheme("file");
 	    registerReceiver(mExternalStorageReceiver, filter);
 	    updateExternalStorageState();
 	}
@@ -462,11 +466,6 @@ public class MediaPlaybackService extends Service {
 		mDelayedStopHandler.removeCallbacksAndMessages(null);
 		mMediaplayerHandler.removeCallbacksAndMessages(null);
 
-		unregisterReceiver(mIntentReceiver);
-		if (mUnmountReceiver != null) {
-			unregisterReceiver(mUnmountReceiver);
-			mUnmountReceiver = null;
-		}
 		mWakeLock.release();
 		super.onDestroy();
 	}
