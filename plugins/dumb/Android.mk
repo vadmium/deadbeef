@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := dumb
+LOCAL_MODULE := ddb_dumb
 
 LOCAL_SRC_FILES +=\
 dumb-kode54/src/it/readam.c\

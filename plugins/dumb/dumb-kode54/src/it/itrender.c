@@ -3559,13 +3559,13 @@ static void process_playing(DUMB_IT_SIGRENDERER *sigrenderer, IT_PLAYING *playin
 }
 
 #if !defined(__linux__) || defined(ANDROID)
-static inline float log2(float x) {return (float)log(x)/(float)log(2.0f);}
+static inline float log2f(float x) {return (float)log(x)/(float)log(2.0f);}
 #endif
 
 static int delta_to_note(float delta, int base)
 {
 	float note;
-	note = log2(delta * 65536.f / (float)base)*12.0f+60.5f;
+	note = log2f(delta * 65536.f / (float)base)*12.0f+60.5f;
 	if (note > 119) note = 119;
 	else if (note < 0) note = 0;
 	return (int)note;

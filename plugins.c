@@ -582,7 +582,7 @@ load_plugin (const char *plugdir, char *d_name, int l) {
     DB_plugin_t *(*plug_load)(DB_functions_t *api) = dlsym (handle, d_name+3);
 #endif
     if (!plug_load) {
-        trace ("dlsym error: %s\n", dlerror ());
+        trace ("dlsym error: %s (%s)\n", dlerror (), d_name + 3);
         dlclose (handle);
         return -1;
     }
