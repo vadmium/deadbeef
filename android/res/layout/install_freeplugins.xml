@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent"
+  android:orientation="vertical">
+
+	<ScrollView android:id="@+id/ScrollView01" android:layout_width="wrap_content" android:layout_height="wrap_content">
+	
+	<TextView android:text="It seems you don't have extra free plugins package installed, which you need to get extra features, like MP3, APE, SID and other formats. Do you want to install it now?" android:id="@+id/TextView01" android:layout_width="wrap_content" android:layout_height="wrap_content">
+	</TextView>
+	</ScrollView>
+	<CheckBox
+		android:id="@+id/nomore"
+		android:text="Don't ask again"	
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content">
+	</CheckBox>
+</LinearLayout>
