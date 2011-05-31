@@ -52,6 +52,7 @@
 #include "conf.h"
 #include "volume.h"
 #include "plugins.h"
+#include "equalizer.h"
 
 #define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(fmt,...)
@@ -76,6 +77,11 @@ char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 
 // fake output plugin
 static int jni_out_state = OUTPUT_STATE_STOPPED;
+
+// dsp params
+float eq_bands[11]; // nr.0 is preamp
+int eq_on = 0;
+float eq_changed = 0;
 
 static int jni_out_init(void)
 {
@@ -466,6 +472,22 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     // prepare dsp presets
     scan_dsp_presets ();
 
+    // load eq settings
+    eq_on = conf_get_int ("android.eq_enabled", 0);
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/eqconfig", dbconfdir);
+    FILE *fp = fopen (f, "rt");
+    if (fp) {
+        int n = 0;
+        float p;
+        while (1 == fscanf (fp, "%f\n", &p) && n < 11) {
+            eq_bands[n] = p;
+            n++;
+        }
+        fclose (fp);
+    }
+    eq_changed = 1;
+
     streamer_init ();
 
     jnievent_init ();
@@ -505,6 +527,13 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
     }
     else {
         memset (b, 0, sizeof (b));
+    }
+    if (eq_changed) {
+        init_iir (eq_on, eq_bands[0], &eq_bands[1]);
+        eq_changed = 0;
+    }
+    if (eq_on) {
+        iir (b, size*2);
     }
     (*env)->SetShortArrayRegion(env, buffer, 0, size, (short *)b);
     return bytesread;
@@ -1245,7 +1274,7 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1load_1preset (JNIEnv *env, jclass cls
     ddb_dsp_context_t *ctx = (ddb_dsp_context_t *)dsp;
     int n = 0;
     char s[1000];
-    while (1 == fscanf (fp, "%1000s\n", s)) {
+    while (1 == fscanf (fp, "%1000s\n", s) && n < 19) {
         ctx->plugin->set_param (ctx, n, s);
         n++;
     }
@@ -1272,11 +1301,13 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset (JNIEnv *env, jclass cls
 
     ddb_dsp_context_t *ctx = (ddb_dsp_context_t *)dsp;
 
-    int n = ctx->plugin->num_params ();
+//    int n = ctx->plugin->num_params ();
+    int n = 11;
     for (int i = 0; i < n; i++) {
         char s[1000];
-        ctx->plugin->get_param (ctx, i, s, sizeof (s));
-        fprintf (fp, "%s\n", s);
+//        ctx->plugin->get_param (ctx, i, s, sizeof (s));
+//        fprintf (fp, "%s\n", s);
+        fprintf (fp, "%f\n", eq_bands[i]);
     }
 
     fclose (fp);
@@ -1402,4 +1433,139 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1save_1current (JNIEnv *env, jclass cl
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all (JNIEnv *env, jclass cls) {
     return plug_load_all ();
+}
+
+// eq
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1enable (JNIEnv *env, jclass cls, jboolean enable) {
+    eq_on = enable;
+    eq_changed = 1;
+    conf_set_int ("android.eq_enabled", eq_on);
+    conf_save ();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1is_1enabled (JNIEnv *env, jclass cls) {
+    return eq_on;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1get_1param (JNIEnv *env, jclass cls, jint p) {
+    return (eq_bands[p] + 12) / 24.f * 100.f;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1set_1param (JNIEnv *env, jclass cls, jint p, jfloat v) {
+    // convert from 0..100 range
+    eq_bands[p] = v / 100.f * 24.f - 12.f;
+    eq_changed = 1;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1preset (JNIEnv *env, jclass cls, jstring name) {
+    char f[PATH_MAX];
+    const char *str = (*env)->GetStringUTFChars(env, name, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, str);
+    (*env)->ReleaseStringUTFChars(env, name, str);
+
+    FILE *fp = fopen (f, "w+t");
+    if (!fp) {
+        return -1;
+    }
+
+    int n = 11;
+    for (int i = 0; i < n; i++) {
+        fprintf (fp, "%f\n", eq_bands[i]);
+    }
+
+    fclose (fp);
+    scan_dsp_presets ();
+    return 0;
+}
+
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1load_1preset (JNIEnv *env, jclass cls, jint idx) {
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
+    FILE *fp = fopen (f, "rt");
+    if (!fp) {
+        return -1;
+    }
+
+    int n = 0;
+    float p;
+    while (1 == fscanf (fp, "%f\n", &p) && n < 11) {
+        eq_bands[n] = p;
+        n++;
+    }
+
+    fclose (fp);
+
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1rename_1preset (JNIEnv *env, jclass cls, jint idx, jstring name) {
+    char newname[PATH_MAX];
+    char oldname[PATH_MAX];
+    const char *str = (*env)->GetStringUTFChars(env, name, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    snprintf (newname, sizeof (newname), "%s/presets/dsp/eq/%s.txt", dbconfdir, str);
+    (*env)->ReleaseStringUTFChars(env, name, str);
+
+    snprintf (oldname, sizeof (oldname), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
+
+    rename (oldname, newname);
+    scan_dsp_presets ();
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1preset_1name (JNIEnv *env, jclass cls, jint idx) {
+    return (*env)->NewStringUTF(env, dsp_preset_names[idx]);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1num_1presets (JNIEnv *env, jclass cls) {
+    return num_dsp_presets;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1delete_1preset (JNIEnv *env, jclass cls, jint idx) {
+    if (idx >= num_dsp_presets) {
+        return -1;
+    }
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s", dbconfdir, dsp_preset_names[idx]);
+    unlink (f);
+    if (idx < num_dsp_presets-1) {
+        memmove (&dsp_preset_names[idx], &dsp_preset_names[idx+1], MAX_DSP_FNAME * (num_dsp_presets-idx-1));
+    }
+    num_dsp_presets--;
+    return 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1config (JNIEnv *env, jclass cls) {
+    char f[PATH_MAX];
+    snprintf (f, sizeof (f), "%s/eqconfig", dbconfdir);
+    unlink (f);
+    FILE *fp = fopen (f, "w+t");
+    if (!fp) {
+        return -1;
+    }
+
+    int n = 11;
+    for (int i = 0; i < n; i++) {
+        fprintf (fp, "%f\n", eq_bands[i]);
+    }
+
+    fclose (fp);
+    return 0;
 }

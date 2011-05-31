@@ -37,7 +37,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="55 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="60 Hz"></TextView>
 	<SeekBar android:id="@+id/band0" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band0"></TextView>
 </LinearLayout>
@@ -45,7 +45,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="77 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="170 Hz"></TextView>
 	<SeekBar android:id="@+id/band1" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band1"></TextView>
 </LinearLayout>
@@ -53,7 +53,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="110 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="310 Hz"></TextView>
 	<SeekBar android:id="@+id/band2" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band2"></TextView>
 </LinearLayout>
@@ -61,7 +61,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="156 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="600 Hz"></TextView>
 	<SeekBar android:id="@+id/band3" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band3"></TextView>
 </LinearLayout>
@@ -69,7 +69,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="220 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="1 kHz"></TextView>
 	<SeekBar android:id="@+id/band4" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band4"></TextView>
 </LinearLayout>
@@ -77,7 +77,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="311 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="3 kHz"></TextView>
 	<SeekBar android:id="@+id/band5" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band5"></TextView>
 </LinearLayout>
@@ -85,7 +85,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="440 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="6 kHz"></TextView>
 	<SeekBar android:id="@+id/band6" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band6"></TextView>
 </LinearLayout>
@@ -93,7 +93,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="622 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="12 kHz"></TextView>
 	<SeekBar android:id="@+id/band7" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band7"></TextView>
 </LinearLayout>
@@ -101,7 +101,7 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="880 Hz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="14 kHz"></TextView>
 	<SeekBar android:id="@+id/band8" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band8"></TextView>
 </LinearLayout>
@@ -109,73 +109,9 @@
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="1.2 kHz"></TextView>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="16 kHz"></TextView>
 	<SeekBar android:id="@+id/band9" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
 	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band9"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="1.8 kHz"></TextView>
-	<SeekBar android:id="@+id/band10" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band10"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="2.5 kHz"></TextView>
-	<SeekBar android:id="@+id/band11" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band11"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="3.5 kHz"></TextView>
-	<SeekBar android:id="@+id/band12" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band12"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="5 kHz"></TextView>
-	<SeekBar android:id="@+id/band13" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band13"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="7 kHz"></TextView>
-	<SeekBar android:id="@+id/band14" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band14"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="10 kHz"></TextView>
-	<SeekBar android:id="@+id/band15" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band15"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="14 kHz"></TextView>
-	<SeekBar android:id="@+id/band16" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band16"></TextView>
-</LinearLayout>
-
-<LinearLayout android:orientation="horizontal"
-  android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="20 kHz"></TextView>
-	<SeekBar android:id="@+id/band17" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band17"></TextView>
 </LinearLayout>
 
 </LinearLayout>

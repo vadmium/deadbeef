@@ -46,7 +46,7 @@
     	 android:launchMode="standard">
 	</activity>
     <activity android:name="EQ"
-    	 android:label="@string/title_supereq"
+    	 android:label="@string/title_eq"
     	 android:launchMode="standard">
 	</activity>
     <activity android:name="SelectEqPreset"

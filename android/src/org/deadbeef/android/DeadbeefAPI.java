@@ -90,18 +90,30 @@ public class DeadbeefAPI
 	public static native int event_get_int (int idx);
 	
 	// dsp
-	public static native int dsp_find (String name);
-	public static native void dsp_enable (int dsp, boolean enable);
-	public static native boolean dsp_is_enabled (int dsp);
-	public static native String dsp_get_param (int dsp, int p);
-	public static native void dsp_set_param (int dsp, int p, String val);
-	public static native void dsp_save_config ();
-	public static native int dsp_num_presets (int dsp);
-	public static native String dsp_preset_name (int dsp, int idx);
-	public static native int dsp_delete_preset (int dsp, int idx);
-	public static native int dsp_load_preset (int dsp, int idx);
-	public static native int dsp_save_preset (int dsp, String name);
-	public static native int dsp_rename_preset (int dsp, int idx, String newname);
+//	public static native int dsp_find (String name);
+//	public static native void dsp_enable (int dsp, boolean enable);
+//	public static native boolean dsp_is_enabled (int dsp);
+//	public static native String dsp_get_param (int dsp, int p);
+//	public static native void dsp_set_param (int dsp, int p, String val);
+//	public static native void dsp_save_config ();
+//	public static native int dsp_num_presets (int dsp);
+//	public static native String dsp_preset_name (int dsp, int idx);
+//	public static native int dsp_delete_preset (int dsp, int idx);
+//	public static native int dsp_load_preset (int dsp, int idx);
+//	public static native int dsp_save_preset (int dsp, String name);
+//	public static native int dsp_rename_preset (int dsp, int idx, String newname);
+	
+	public static native void eq_enable (boolean enable);
+	public static native boolean eq_is_enabled ();
+	public static native float eq_get_param (int p);
+	public static native void eq_set_param (int p, float val);
+	public static native int eq_save_preset (String name);	
+	public static native int eq_load_preset (int idx);	
+	public static native int eq_rename_preset (int idx, String newname);
+	public static native String eq_preset_name (int idx);
+	public static native int eq_num_presets ();
+	public static native int eq_delete_preset (int idx);
+	public static native int eq_save_config ();
 	
 	// config
 	public static native int conf_load ();

@@ -652,10 +652,10 @@ public class Deadbeef extends Activity {
         else if (id == R.id.menu_about) {
         	showDialog (0);
         }
-        /*else if (id == R.id.menu_equalizer) {
+        else if (id == R.id.menu_equalizer) {
         	Intent i = new Intent (this, EQ.class);
 	    	startActivity(i);
-        }*/
+        }
         return true;
     };
     

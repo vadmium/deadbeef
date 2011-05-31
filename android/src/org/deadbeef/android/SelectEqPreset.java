@@ -28,13 +28,10 @@ public class SelectEqPreset extends ListActivity {
         
        	adapter.add("Save as new preset");
        	
-        int dsp = DeadbeefAPI.dsp_find ("supereq");
-        if (dsp != 0) {
-	        int n = DeadbeefAPI.dsp_num_presets(dsp);
-	        for (int i = 0; i < n ; i++) {
-	        	String nm = DeadbeefAPI.dsp_preset_name(dsp, i);
-	        	adapter.add(nm);
-	        }
+        int n = DeadbeefAPI.eq_num_presets();
+        for (int i = 0; i < n ; i++) {
+        	String nm = DeadbeefAPI.eq_preset_name(i);
+        	adapter.add(nm);
         }
         
         setListAdapter(adapter);
@@ -50,7 +47,6 @@ public class SelectEqPreset extends ListActivity {
 	
 	@Override
     protected Dialog onCreateDialog(int id) {
-        final int dsp = DeadbeefAPI.dsp_find ("supereq");
 		switch (id) {
 		case ACT_CREATE: {
             LayoutInflater factory = LayoutInflater.from(this);
@@ -63,7 +59,7 @@ public class SelectEqPreset extends ListActivity {
                     public void onClick(DialogInterface dialog, int whichButton) {
                     	// ...save here...
                     	String title = ((TextView)textEntryView.findViewById(R.id.title)).getText().toString();
-                    	DeadbeefAPI.dsp_save_preset(dsp, title);
+                    	DeadbeefAPI.eq_save_preset(title);
                     	fillList ();
                     }
                 })
@@ -85,7 +81,7 @@ public class SelectEqPreset extends ListActivity {
                 .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
                     	String title = ((TextView)textEntryView.findViewById(R.id.title)).getText().toString();
-                    	DeadbeefAPI.dsp_rename_preset (dsp, mSelected, title);
+                    	DeadbeefAPI.eq_rename_preset (mSelected, title);
                     	fillList ();
                     }
                 })
@@ -102,7 +98,7 @@ public class SelectEqPreset extends ListActivity {
                 .setTitle(R.string.delete_playlist_confirm)
                 .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
-                    	DeadbeefAPI.dsp_delete_preset (dsp, mSelected);
+                    	DeadbeefAPI.eq_delete_preset (mSelected);
                     	fillList ();
                     }
                 })

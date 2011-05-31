@@ -26,14 +26,6 @@ public class EQ extends Activity {
 		R.id.band7,
 		R.id.band8,
 		R.id.band9,
-		R.id.band10,
-		R.id.band11,
-		R.id.band12,
-		R.id.band13,
-		R.id.band14,
-		R.id.band15,
-		R.id.band16,
-		R.id.band17
 	};
 	
 	private static final int values[] = {
@@ -48,23 +40,15 @@ public class EQ extends Activity {
 		R.id.db_band7,
 		R.id.db_band8,
 		R.id.db_band9,
-		R.id.db_band10,
-		R.id.db_band11,
-		R.id.db_band12,
-		R.id.db_band13,
-		R.id.db_band14,
-		R.id.db_band15,
-		R.id.db_band16,
-		R.id.db_band17
 	};
 	
-	private void initParam (int dsp, int i) {
+	private void initParam (int i) {
 	    SeekBar sb = (SeekBar)findViewById(sliders[i]);
-		String val = DeadbeefAPI.dsp_get_param (dsp, i);
-		float fv = Float.valueOf(val);
-		sb.setProgress((int)(((fv / 40.0f) + 0.5) * 100));
+		float fv = DeadbeefAPI.eq_get_param (i);
+		sb.setProgress((int)fv);
 		TextView tv = (TextView)findViewById(values[i]);
-		int dB = (int)fv;
+		int dB = (int)fv * 24 / 100 - 12;
+		String val;
 		if (dB >= 0) {
 			val = "+" + dB + " dB";
 		}
@@ -74,9 +58,9 @@ public class EQ extends Activity {
 		tv.setText (val);
 	}
 	
-	private void initGui (int dsp) {
-        for (int i = 0; i < 19; i++) {
-        	initParam (dsp, i);
+	private void initGui () {
+        for (int i = 0; i <= 10; i++) {
+        	initParam (i);
         }
 	}
 	
@@ -86,64 +70,57 @@ public class EQ extends Activity {
 
         setContentView(R.layout.eq);
         
-        final int dsp = DeadbeefAPI.dsp_find("supereq");
-        if (0 != dsp) {
-        	boolean enabled = DeadbeefAPI.dsp_is_enabled(dsp);
-        	ToggleButton tb = (ToggleButton)findViewById (R.id.eq_onoff); 
-        	tb.setChecked(enabled);
-        	tb.setOnCheckedChangeListener(new OnCheckedChangeListener () {
-        		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        			DeadbeefAPI.dsp_enable(dsp, isChecked);
-        			DeadbeefAPI.dsp_save_config();
-        		}
-        	});
-        
-	        for (int i = 0; i < 19; i++) {
-	        	initParam (dsp, i);
-	        	SeekBar sb = (SeekBar)findViewById(sliders[i]);
-	        	sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { 
-					public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-						int dB = (int)(((float)progress/100.0f - 0.5f) * 40);
-						for (int i = 0; i < 19; i++) {
-							if (seekBar.getId () == sliders[i]) {
-								String val;
-								if (dB >= 0) {
-									val = "+" + dB + " dB";
-								}
-								else {
-									val = dB + " dB";
-								}
-								TextView tv = (TextView)findViewById(values[i]);
-								tv.setText (val);
-								DeadbeefAPI.dsp_set_param (dsp, i, String.valueOf(val));
-								DeadbeefAPI.dsp_save_config();
+    	boolean enabled = DeadbeefAPI.eq_is_enabled();
+    	ToggleButton tb = (ToggleButton)findViewById (R.id.eq_onoff); 
+    	tb.setChecked(enabled);
+    	tb.setOnCheckedChangeListener(new OnCheckedChangeListener () {
+    		public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+    			DeadbeefAPI.eq_enable(isChecked);
+    			DeadbeefAPI.eq_save_config();
+    		}
+    	});
+    
+        for (int i = 0; i <= 10; i++) {
+        	initParam (i);
+        	SeekBar sb = (SeekBar)findViewById(sliders[i]);
+        	sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() { 
+				public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+					for (int i = 0; i <= 10; i++) {
+						if (seekBar.getId () == sliders[i]) {
+							String val;
+							float dB = progress * 24 / 100 - 12;
+							if (dB >= 0) {
+								val = "+" + dB + " dB";
 							}
+							else {
+								val = dB + " dB";
+							}
+							TextView tv = (TextView)findViewById(values[i]);
+							tv.setText (val);
+							DeadbeefAPI.eq_set_param (i, (float)progress);
+							DeadbeefAPI.eq_save_config();
 						}
 					}
-					public void onStartTrackingTouch(SeekBar seekBar) {
-					}
-					public void onStopTrackingTouch(SeekBar seekBar) {
-					}
-				});
-	        }
-            ((Button)findViewById(R.id.preset)).setOnClickListener(new OnClickListener() {
-		        public void onClick(View v) {
-			        Intent i = new Intent (EQ.this, SelectEqPreset.class);
-			    	startActivityForResult(i, 0);
-		        }
-            });
-
+				}
+				public void onStartTrackingTouch(SeekBar seekBar) {
+				}
+				public void onStopTrackingTouch(SeekBar seekBar) {
+				}
+			});
         }
+        ((Button)findViewById(R.id.preset)).setOnClickListener(new OnClickListener() {
+	        public void onClick(View v) {
+		        Intent i = new Intent (EQ.this, SelectEqPreset.class);
+		    	startActivityForResult(i, 0);
+	        }
+        });
 	}
 	
 	@Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
     	if (requestCode == 0) {
-    		final int dsp = DeadbeefAPI.dsp_find("supereq");
-    		if (0 != dsp) {
-    			DeadbeefAPI.dsp_load_preset (dsp, resultCode);
-    			initGui (dsp);
-    		}    		
+   			DeadbeefAPI.eq_load_preset (resultCode);
+   			initGui ();
     	}
     }
 	

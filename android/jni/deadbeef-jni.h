@@ -569,99 +569,91 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_event_1get_1int
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_find
- * Signature: (Ljava/lang/String;)I
+ * Method:    eq_enable
+ * Signature: (Z)V
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1find
-  (JNIEnv *, jclass, jstring);
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1enable
+  (JNIEnv *, jclass, jboolean);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_enable
- * Signature: (IZ)V
+ * Method:    eq_is_enabled
+ * Signature: ()Z
  */
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1enable
-  (JNIEnv *, jclass, jint, jboolean);
-
-/*
- * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_is_enabled
- * Signature: (I)Z
- */
-JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1is_1enabled
-  (JNIEnv *, jclass, jint);
-
-/*
- * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_get_param
- * Signature: (II)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1get_1param
-  (JNIEnv *, jclass, jint, jint);
-
-/*
- * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_set_param
- * Signature: (IILjava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1set_1param
-  (JNIEnv *, jclass, jint, jint, jstring);
-
-/*
- * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_save_config
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1is_1enabled
   (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_num_presets
- * Signature: (I)I
+ * Method:    eq_get_param
+ * Signature: (I)F
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1num_1presets
+JNIEXPORT jfloat JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1get_1param
   (JNIEnv *, jclass, jint);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_preset_name
- * Signature: (II)Ljava/lang/String;
+ * Method:    eq_set_param
+ * Signature: (IF)V
  */
-JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1preset_1name
-  (JNIEnv *, jclass, jint, jint);
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1set_1param
+  (JNIEnv *, jclass, jint, jfloat);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_delete_preset
- * Signature: (II)I
+ * Method:    eq_save_preset
+ * Signature: (Ljava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1delete_1preset
-  (JNIEnv *, jclass, jint, jint);
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1preset
+  (JNIEnv *, jclass, jstring);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_load_preset
- * Signature: (II)I
+ * Method:    eq_load_preset
+ * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1load_1preset
-  (JNIEnv *, jclass, jint, jint);
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1load_1preset
+  (JNIEnv *, jclass, jint);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_save_preset
+ * Method:    eq_rename_preset
  * Signature: (ILjava/lang/String;)I
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1rename_1preset
   (JNIEnv *, jclass, jint, jstring);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
- * Method:    dsp_rename_preset
- * Signature: (IILjava/lang/String;)I
+ * Method:    eq_preset_name
+ * Signature: (I)Ljava/lang/String;
  */
-JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset
-  (JNIEnv *, jclass, jint, jint, jstring);
+JNIEXPORT jstring JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1preset_1name
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    eq_num_presets
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1num_1presets
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    eq_delete_preset
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1delete_1preset
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    eq_save_config
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1config
+  (JNIEnv *, jclass);
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
