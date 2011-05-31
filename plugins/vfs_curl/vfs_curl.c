@@ -956,7 +956,8 @@ http_abort (DB_FILE *fp) {
 static int
 http_need_abort (DB_FILE *fp) {
     deadbeef->mutex_lock (biglock);
-    for (int i = 0; i < num_abort_files; i++) {
+    int i;
+    for (i = 0; i < num_abort_files; i++) {
         if (abort_files[i] == fp) {
             trace ("need to abort: %p\n", fp);
             deadbeef->mutex_unlock (biglock);
@@ -970,7 +971,8 @@ http_need_abort (DB_FILE *fp) {
 static void
 http_cancel_abort (DB_FILE *fp) {
     deadbeef->mutex_lock (biglock);
-    for (int i = 0; i < num_abort_files; i++) {
+    int i;
+    for (i = 0; i < num_abort_files; i++) {
         if (abort_files[i] == fp) {
             if (i != num_abort_files-1) {
                 abort_files[i] = abort_files[num_abort_files-1];
@@ -985,7 +987,8 @@ http_cancel_abort (DB_FILE *fp) {
 static void
 http_reg_open_file (DB_FILE *fp) {
     deadbeef->mutex_lock (biglock);
-    for (int i = 0; i < num_open_files; i++) {
+    int i;
+    for (i = 0; i < num_open_files; i++) {
         if (open_files[i] == fp) {
             deadbeef->mutex_unlock (biglock);
             return;
