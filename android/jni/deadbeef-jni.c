@@ -581,7 +581,6 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1folder
      int res = -1;
      if (plt) {
          res = plt_add_dir (plt, str, NULL, NULL);
-         plt_add_file (plt, "http://173.192.48.97:8479", NULL, NULL);
          pl_save_current ();
          plt_unref (plt);
      }

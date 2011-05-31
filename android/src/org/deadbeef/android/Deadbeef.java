@@ -652,6 +652,9 @@ public class Deadbeef extends Activity {
         else if (id == R.id.menu_about) {
         	showDialog (0);
         }
+        else if (id == R.id.menu_add_location) {
+        	showDialog (2);
+        }
         else if (id == R.id.menu_equalizer) {
         	Intent i = new Intent (this, EQ.class);
 	    	startActivity(i);
@@ -711,7 +714,28 @@ public class Deadbeef extends Activity {
 	            })
 	            .create();
     	}
-    	return null;
+    	else {
+    		return AddLocation ();
+    	}
+    }
+    
+    private Dialog AddLocation () {
+        LayoutInflater factory = LayoutInflater.from(this);
+        final View textEntryView = factory.inflate(R.layout.addlocation, null);
+        return new AlertDialog.Builder(Deadbeef.this)
+            .setIcon(R.drawable.icon)
+            .setTitle(R.string.add_location)
+            .setView(textEntryView)
+            .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                	DeadbeefAPI.pl_add_file(((TextView)textEntryView.findViewById(R.id.title)).getText().toString());
+                }
+            })
+            .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                }
+            })
+            .create();
     }
     
     private void PlayPause () {

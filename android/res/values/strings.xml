@@ -41,4 +41,5 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 <string name="delete_eq_preset_confirm">Sure?</string>
 <string name="rename_eq_preset">Rename EQ preset</string>
 <string name="select_eq_preset">EQ Presets</string>
+<string name="add_location">Add location</string>
 </resources>
