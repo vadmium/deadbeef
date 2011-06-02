@@ -76,6 +76,8 @@
 		android:layout_height="wrap_content"
 		android:layout_width="fill_parent"
 		android:id="@+id/np_artist_album"
+        android:singleLine="true"
+        android:ellipsize="marquee"
 		android:gravity="left"
 		android:textSize="14sp"
 	    android:textColor="#f000"
