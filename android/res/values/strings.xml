@@ -42,4 +42,271 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 <string name="rename_eq_preset">Rename EQ preset</string>
 <string name="select_eq_preset">EQ Presets</string>
 <string name="add_location">Add location</string>
+<string name="osslicenses_button">Open source licenses</string>
+<string name="osslicenses_text">
+<b>libcurl</b>\n
+COPYRIGHT AND PERMISSION NOTICE\n
+\n
+Copyright (c) 1996 - 2010, Daniel Stenberg, &lt;daniel@haxx.se&gt;.\n
+\n
+All rights reserved.\n
+\n
+Permission to use, copy, modify, and distribute this software for any purpose\n
+with or without fee is hereby granted, provided that the above copyright\n
+notice and this permission notice appear in all copies.\n
+\n
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN\n
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,\n
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR\n
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE\n
+OR OTHER DEALINGS IN THE SOFTWARE.\n
+\n
+Except as contained in this notice, the name of a copyright holder shall not\n
+be used in advertising or otherwise to promote the sale, use or other dealings\n
+in this Software without prior written authorization of the copyright holder.\n
+\n
+<b>DUMB</b>\n
+Dynamic Universal Music Bibliotheque, Version 0.9.3\n
+\n
+Copyright (C) 2001-2005 Ben Davis, Robert J Ohannessian and Julien Cugniere\n
+\n
+This software is provided \'as-is\', without any express or implied warranty.\n
+In no event shall the authors be held liable for any damages arising from the\n
+use of this software.\n
+\n
+Permission is granted to anyone to use this software for any purpose,\n
+including commercial applications, and to alter it and redistribute it\n
+freely, subject to the following restrictions:\n
+\n
+1. The origin of this software must not be misrepresented; you must not claim\n
+   that you wrote the original software. If you use this software in a\n
+   product, you are requested to acknowledge its use in the product\n
+   documentation, along with details on where to get an unmodified version of\n
+   this software, but this is not a strict requirement.\n
+\n
+   [Note that the above point asks for a link to DUMB, not just a mention.\n
+   Googling for DUMB doesn\'t help much! The URL is "http://dumb.sf.net/".]\n
+\n
+   [The link was originally strictly required. This was changed for two\n
+   reasons. Firstly, if many projects request an acknowledgement, the list of\n
+   acknowledgements can become quite unmanageable. Secondly, DUMB was placing\n
+   a restriction on the code using it, preventing people from using the GNU\n
+   General Public Licence which disallows any such restrictions. See\n
+   http://www.gnu.org/philosophy/bsd.html for more information on this\n
+   subject. However, if DUMB plays a significant part in your project, we do\n
+   urge you to acknowledge its use.]\n
+\n
+2. Altered source versions must be plainly marked as such, and must not be\n
+   misrepresented as being the original software.\n
+\n
+3. This notice may not be removed from or altered in any source distribution.\n
+\n
+4. If you are using the Program in someone else\'s bedroom on any Monday at\n
+   3:05 pm, you are not allowed to modify the Program for ten minutes. [This\n
+   clause provided by Inphernic; every licence should contain at least one\n
+   clause, the reasoning behind which is far from obvious.]\n
+\n
+5. Users who wish to use DUMB for the specific purpose of playing music are\n
+   required to feed their dog on every full moon (if deemed appropriate).\n
+   [This clause provided by Allefant, who couldn\'t remember what Inphernic\'s\n
+   clause was.]\n
+\n
+6. No clause in this licence shall prevent this software from being depended\n
+   upon by a product licensed under the GNU General Public Licence. If such a\n
+   clause is deemed to exist, Debian, then it shall be respected in spirit as\n
+   far as possible and all other clauses shall continue to apply in full\n
+   force.\n
+\n
+We regret that we cannot provide any warranty, not even the implied warranty\n
+of merchantability or fitness for a particular purpose.\n
+\n
+Some files generated or copied by automake, autoconf and friends are\n
+available in an extra download. These fall under separate licences but are\n
+all free to distribute. Please check their licences as necessary.\n
+\n
+<b>FLAC</b>\n
+Copyright (C) 2000,2001,2002,2003,2004,2005,2006,2007  Josh Coalson\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions\n
+are met:\n
+\n
+- Redistributions of source code must retain the above copyright\n
+notice, this list of conditions and the following disclaimer.\n
+\n
+- Redistributions in binary form must reproduce the above copyright\n
+notice, this list of conditions and the following disclaimer in the\n
+documentation and/or other materials provided with the distribution.\n
+\n
+- Neither the name of the Xiph.org Foundation nor the names of its\n
+contributors may be used to endorse or promote products derived from\n
+this software without specific prior written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n
+``AS IS\'\' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n
+A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR\n
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\n
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\n
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\n
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\n
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING\n
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\n
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+\n
+<b>libogg, libvorbis, libvorbisfile</b>\n
+Copyright (c) 2002, Xiph.org Foundation\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions\n
+are met:\n
+\n
+- Redistributions of source code must retain the above copyright\n
+notice, this list of conditions and the following disclaimer.\n
+\n
+- Redistributions in binary form must reproduce the above copyright\n
+notice, this list of conditions and the following disclaimer in the\n
+documentation and/or other materials provided with the distribution.\n
+\n
+- Neither the name of the Xiph.org Foundation nor the names of its\n
+contributors may be used to endorse or promote products derived from\n
+this software without specific prior written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n
+``AS IS\'\' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n
+A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION\n
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\n
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+\n
+<b>wavpack</b>\n
+\n
+               Copyright (c) 1998 - 2009 Conifer Software\n
+                          All rights reserved.\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions are met:\n
+\n
+    * Redistributions of source code must retain the above copyright notice,\n
+      this list of conditions and the following disclaimer.\n
+    * Redistributions in binary form must reproduce the above copyright notice,\n
+      this list of conditions and the following disclaimer in the\n
+      documentation and/or other materials provided with the distribution.\n
+    * Neither the name of Conifer Software nor the names of its contributors\n
+      may be used to endorse or promote products derived from this software\n
+      without specific prior written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\n
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE\n
+ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR\n
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\n
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\n
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\n
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\n
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+\n
+<b>libzip</b>\n
+Copyright (C) 1999-2008 Dieter Baron and Thomas Klausner\n
+The authors can be contacted at &lt;libzip@nih.at&gt;\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions\n
+are met:\n
+1. Redistributions of source code must retain the above copyright\n
+   notice, this list of conditions and the following disclaimer.\n
+2. Redistributions in binary form must reproduce the above copyright\n
+   notice, this list of conditions and the following disclaimer in\n
+   the documentation and/or other materials provided with the\n
+   distribution.\n
+3. The names of the authors may not be used to endorse or promote\n
+   products derived from this software without specific prior\n
+   written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS\'\' AND ANY EXPRESS\n
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\n
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE\n
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY\n
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\n
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE\n
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS\n
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER\n
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR\n
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN\n
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+\n
+<b>musepack</b>\n
+Copyright (c) 2005-2009, The Musepack Development Team\n
+All rights reserved.\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions are\n
+met:\n
+\n
+* Redistributions of source code must retain the above copyright\n
+notice, this list of conditions and the following disclaimer.\n
+\n
+* Redistributions in binary form must reproduce the above\n
+copyright notice, this list of conditions and the following\n
+disclaimer in the documentation and/or other materials provided\n
+with the distribution.\n
+\n
+* Neither the name of the The Musepack Development Team nor the\n
+names of its contributors may be used to endorse or promote\n
+products derived from this software without specific prior\n
+written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\n
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\n
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+\n
+<b>tta</b>\n
+\n
+Copyright (c) 2004 True Audio Software. All rights reserved.\n
+\n
+\n
+\n
+\n
+Redistribution and use in source and binary forms, with or without\n
+modification, are permitted provided that the following conditions\n
+are met:\n
+\n
+1. Redistributions of source code must retain the above copyright\n
+   notice, this list of conditions and the following disclaimer.\n
+2. Redistributions in binary form must reproduce the above copyright\n
+   notice, this list of conditions and the following disclaimer in the\n
+   documentation and/or other materials provided with the distribution.\n
+3. Neither the name of the True Audio Software nor the names of its\n
+   contributors may be used to endorse or promote products derived\n
+   from this software without specific prior written permission.\n
+\n
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\n
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\n
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT\n
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,\n
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT\n
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\n
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\n
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
+
+</string>
 </resources>

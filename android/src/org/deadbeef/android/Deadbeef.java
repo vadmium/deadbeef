@@ -695,10 +695,9 @@ public class Deadbeef extends Activity {
 	            .setIcon(R.drawable.icon)
 	            .setTitle("About")
 	            .setView(textView)
-	            .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
+	            .setNeutralButton(R.string.osslicenses_button, new DialogInterface.OnClickListener() {
 	                public void onClick(DialogInterface dialog, int whichButton) {
-	
-	                    /* User clicked OK so do some stuff */
+	                	showDialog (3);
 	                }
 	            })
 	            .create();
@@ -738,9 +737,18 @@ public class Deadbeef extends Activity {
 	            })
 	            .create();
     	}
-    	else {
+    	else if (id == 2) {
     		return AddLocation ();
     	}
+    	else if (id == 3) {
+	        final View textView = factory.inflate(R.layout.osslicenses, null);
+	        return new AlertDialog.Builder(Deadbeef.this)
+	            .setIcon(R.drawable.icon)
+	            .setTitle("Open source licenses")
+	            .setView(textView)
+	            .create();
+    	}
+    	return null;
     }
     
     private Dialog AddLocation () {
