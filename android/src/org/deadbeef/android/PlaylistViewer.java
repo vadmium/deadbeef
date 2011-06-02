@@ -36,33 +36,49 @@ public class PlaylistViewer extends ListActivity {
     public static final int MENU_ACT_REMOVE = 2;
     public static final int MENU_ACT_MOVE_TO_PLAYLIST = 3;
     public static final int MENU_ACT_PROPERTIES = 4;
-
+    public int progressDepth = 0; 
+    
+    private void showProgress (boolean show) {
+    	synchronized (this) {
+	    	if (show) {
+	    		progressDepth++;
+	    	}
+	    	else {
+	    	  	progressDepth--;
+	    	}
+    	}
+        handler.post(new Runnable() {
+            public void run() {
+            	if (progressDepth > 0 && null == progressDialog) {
+					Log.w("DDB", "show progress");
+					progressDialog = ProgressDialog.show(PlaylistViewer.this,      
+						"Please wait",
+						"Adding files to playlist...", true);
+            	}
+            	else if (progressDepth == 0 && null != progressDialog) {
+					Log.w("DDB", "hide progress");
+		        	progressDialog.dismiss();
+		        	progressDialog = null;
+            	}
+            }
+        });
+    }
+    
     void startMediaServiceListener() {
 	    mMediaServiceReceiver = new BroadcastReceiver() {
 	        @Override
 	        public void onReceive(Context context, Intent intent) {
 		        if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
-			        handler.post(new Runnable() {
-			            public void run() {
-				        	if (null == progressDialog) {
-								Log.w("DDB", "received ADD_FILES_START");
-								setListAdapter(null);
-			    				progressDialog = ProgressDialog.show(PlaylistViewer.this,      
-			    					"Please wait",
-			    					"Adding files to playlist...", true);
-				        	}
-			            }
-			        });
+					Log.w("DDB", "playlist received ADD_FILES_START");
+					setListAdapter(null);
+					showProgress (true);
 		        }
 	        	else if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
-					Log.w("DDB", "received ADD_FILES_END");
-	                if (null != progressDialog) {
-			    		DeadbeefAPI.plt_save_current ();
-				        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
-		                setListAdapter(adapter);
-	                	progressDialog.dismiss();
-	                	progressDialog = null;
-	                }
+					Log.w("DDB", "playlist received ADD_FILES_END");
+		    		DeadbeefAPI.plt_save_current ();
+			        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
+	                setListAdapter(adapter);
+					showProgress (false);
     			}
 	        }
 	    };
@@ -100,7 +116,6 @@ public class PlaylistViewer extends ListActivity {
 	        }
 	    });
 
-        startMediaServiceListener ();
         registerForContextMenu(findViewById(android.R.id.list));
         
         ((Button)findViewById(R.id.add)).setOnClickListener(mAddListener);
@@ -114,7 +129,6 @@ public class PlaylistViewer extends ListActivity {
     }
     @Override
     public void onDestroy () {
-    	stopMediaServiceListener ();
     	super.onDestroy();
     }
 

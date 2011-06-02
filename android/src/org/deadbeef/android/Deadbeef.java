@@ -250,13 +250,13 @@ public class Deadbeef extends Activity {
 	        @Override
 	        public void onReceive(Context context, Intent intent) {
 	        	if (null == progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
-					Log.w("DDB", "received ADD_FILES_START");
+					Log.w("DDB", "main received ADD_FILES_START");
     				progressDialog = ProgressDialog.show(Deadbeef.this,      
     					"Please wait",
     					"Adding files to playlist...", true);
     			}
 	        	else if (null != progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
-					Log.w("DDB", "received ADD_FILES_END");
+					Log.w("DDB", "main received ADD_FILES_END");
     				progressDialog.dismiss();
     				progressDialog = null;
     			}

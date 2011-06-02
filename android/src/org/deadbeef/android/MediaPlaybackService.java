@@ -754,13 +754,13 @@ public class MediaPlaybackService extends Service {
 				return;
 			}
 			m_bAddingFiles = true;
-			Log.w("DDB", "ADD_DIR_START");
+			Log.w("DDB", "pl_add_dir sending ADD_DIR_START");
 			sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_START"));
 			new Thread () {
 				public void run () {
 					DeadbeefAPI.pl_add_folder (dir);
 					m_bAddingFiles = false;
-					Log.w("DDB", "ADD_DIR_END");
+					Log.w("DDB", "pl_add_dir sending ADD_DIR_END");
 					sendBroadcast (new Intent ().setAction ("org.deadbeef.android.ADD_FILES_FINISH"));
 				}
 			}.start ();

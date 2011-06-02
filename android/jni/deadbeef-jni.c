@@ -431,6 +431,15 @@ mainloop_thread (void *ctx) {
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
+
+    trace ("off_t %d\n", sizeof (off_t));
+    trace ("loff_t %d\n", sizeof (loff_t));
+    trace ("long long %d\n", sizeof (long long));
+    trace ("off64_t %d\n", sizeof (off64_t));
+    trace ("size_t %d\n", sizeof (size_t));
+    trace ("ssize_t %d\n", sizeof (ssize_t));
+    trace ("wchar_t %d\n", sizeof (wchar_t));
+
     // initialize ddb
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C");

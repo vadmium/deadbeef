@@ -22,4 +22,4 @@
                 android:excludeFromRecents="true" >
         </activity>
     </application>
-</manifest> 
+</manifest>
