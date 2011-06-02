@@ -148,7 +148,7 @@ public class Deadbeef extends Activity {
 //		        String spaused = MusicUtils.sService.isPaused() ? "Paused | " : "";
 		        String ft = DeadbeefAPI.pl_get_track_filetype (track);
 		        int br = DeadbeefAPI.plt_get_item_bitrate (track);
-		        sbtext_new = String.format ("%s | %d Kbps | %dHz | %d bit | %s | %d:%02d / %s", ft != null ? ft : "-", br, samplerate, bitspersample, mode, minpos, secpos, t);
+		        sbtext_new = String.format ("%s | %s %dHz | %d bit | %s | %d:%02d / %s", ft != null ? ft : "-", br == -1 ? "" : br + " Kbps |", samplerate, bitspersample, mode, minpos, secpos, t);
 		    }
 		    if (!sbtext.equals(sbtext_new)) {
 		    	sbtext = sbtext_new;
