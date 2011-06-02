@@ -186,6 +186,33 @@ public class Deadbeef extends Activity {
     private String plstate_prev = "";
     private String pltitle_prev = "";
     private ProgressDialog progressDialog;
+    public int progressDepth = 0; 
+    
+    private void showProgress (boolean show) {
+    	synchronized (this) {
+	    	if (show) {
+	    		progressDepth++;
+	    	}
+	    	else {
+	    	  	progressDepth--;
+	    	}
+    	}
+        handler.post(new Runnable() {
+            public void run() {
+            	if (progressDepth > 0 && null == progressDialog) {
+					Log.w("DDB", "show progress");
+					progressDialog = ProgressDialog.show(Deadbeef.this,      
+						"Please wait",
+						"Adding files to playlist...", true);
+            	}
+            	else if (progressDepth == 0 && null != progressDialog) {
+					Log.w("DDB", "hide progress");
+		        	progressDialog.dismiss();
+		        	progressDialog = null;
+            	}
+            }
+        });
+    }
     
     private static final int REFRESH = 1;
     private static final int QUIT = 2;
@@ -249,16 +276,13 @@ public class Deadbeef extends Activity {
 	    mMediaServiceReceiver = new BroadcastReceiver() {
 	        @Override
 	        public void onReceive(Context context, Intent intent) {
-	        	if (null == progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
+	        	if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
 					Log.w("DDB", "main received ADD_FILES_START");
-    				progressDialog = ProgressDialog.show(Deadbeef.this,      
-    					"Please wait",
-    					"Adding files to playlist...", true);
+					showProgress (true);
     			}
-	        	else if (null != progressDialog && intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
+	        	else if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
 					Log.w("DDB", "main received ADD_FILES_END");
-    				progressDialog.dismiss();
-    				progressDialog = null;
+					showProgress (false);
     			}
 	        }
 	    };
