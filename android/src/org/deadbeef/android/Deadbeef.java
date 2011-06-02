@@ -729,6 +729,7 @@ public class Deadbeef extends Activity {
             .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int whichButton) {
                 	DeadbeefAPI.pl_add_file(((TextView)textEntryView.findViewById(R.id.title)).getText().toString());
+                	DeadbeefAPI.plt_save_current ();
                 }
             })
             .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
