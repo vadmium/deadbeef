@@ -26,6 +26,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.provider.MediaStore;
+import android.provider.Settings.Secure;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -38,7 +39,12 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.android.vending.licensing.AESObfuscator;
+import com.android.vending.licensing.LicenseChecker;
+import com.android.vending.licensing.LicenseCheckerCallback;
+import com.android.vending.licensing.ServerManagedPolicy;
 import com.google.ads.AdRequest;
 import com.google.ads.AdView;
 
@@ -73,6 +79,146 @@ public class Deadbeef extends Activity {
     private AlbumArtHandler mAlbumArtHandler;
     private ImageView mCover;
     private final static int IDCOLIDX = 0;
+    private static final String BASE64_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkImQu4KYIG7zDP/yrHhHr3bEh+WN+H1g6oQtwoq1L7KWmpD7b5x2a2w0Y3Y60vFb+73694ICZahSdADHlV36DmbmGX7CJFQAF/FYm+DP8hMUEPvUEyHCDZ+mwR6wnh7B4L4ywiHIByxmtAUK07gCRgCF4Y528DQhjlyga3O6r9QpCOPr6Y2cEAZkeDjIEowHcxyG/hFKeSn0fwTfPfc7Pj/W3qfZ9/7ksMquFQUB6DoXKMMMKd4BV7bEeB4bvhUJ/8M9NviBM9wLJjMqcEY8LrBZ49RBNXeW+zwSb6f8f7ZbLkRFoZMPdBwtiFStu8TUlPPUbSt0OBo1QxwiFlCLvQIDAQAB";
+    
+    private LicenseCheckerCallback mLicenseCheckerCallback;
+    private LicenseChecker mChecker;
+    private static final byte[] SALT = new byte[] {
+    	91, 117, 85, -103, 0, -16, 118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56
+    };
+    
+    public static final boolean freeversion = true;
+
+    /** Called when the activity is first created. */
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+		Log.e("DDB", "Deadbeef.onCreate");
+        super.onCreate(savedInstanceState);
+        
+        mAlbumArtWorker = new Worker("album art worker");
+        mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
+        
+        setContentView(R.layout.main);
+        
+        // set album art widget to square size
+//        DisplayMetrics dm = new DisplayMetrics();
+//        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        
+        mCover = (ImageView) findViewById(R.id.cover);
+        mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
+        mCover.setVisibility(View.VISIBLE);
+        mCover.setOnClickListener(mCoverClickListener);
+        
+//        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
+        
+/*        View coverwrap = (View)findViewById(R.id.coverwrap);
+        coverwrap.setVisibility(View.VISIBLE);
+        
+        LinearLayout ll = (LinearLayout)findViewById (R.id.mainview);
+        
+        LayoutParams p = coverwrap.getLayoutParams();
+        int min = p.height;
+        if (p.width < min) {
+        	min = p.width;
+        }
+        p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = min;
+        coverwrap.setLayoutParams(p);*/
+        
+        ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
+        ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);
+        ((ImageButton)findViewById(R.id.play)).setOnClickListener(mPlayPauseListener);
+        ((ImageButton)findViewById(R.id.next)).setOnClickListener(mNextListener);
+        ((ImageButton)findViewById(R.id.add)).setOnClickListener(mAddListener);
+        ((ImageButton)findViewById(R.id.ShuffleMode)).setOnClickListener(mShuffleModeListener);
+        ((ImageButton)findViewById(R.id.RepeatMode)).setOnClickListener(mRepeatModeListener);
+
+        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
+        sb.setMax(100);
+        sb.setOnSeekBarChangeListener(sbChangeListener);
+
+        seekbar = (SeekBar)findViewById(R.id.seekbar);
+
+		Log.e("DDB", "Deadbeef.onCreate bind");
+        MusicUtils.bindToService(this, new ServiceConnection() {
+	        public void onServiceConnected(ComponentName className, IBinder obj) {
+	        	Log.e("DDB", "Deadbeef.onCreate connected");
+	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
+		        startMediaServiceListener ();
+    	        handler.post(new Runnable() {
+				    public void run() {
+				        if (0 == DeadbeefAPI.conf_get_int("android.freeplugins_dont_ask", 0)) {
+					        if (!DeadbeefAPI.plugin_exists("stdmpg")) {
+					        	showDialog (1);
+					        }
+				        }
+				    }
+				});
+
+	        }
+	
+	        public void onServiceDisconnected(ComponentName className) {
+	        	Log.e("DDB", "service disconnected");
+		        stopMediaServiceListener ();
+	        	MusicUtils.sService = null;
+	        }
+	    });
+     
+		// Construct the LicenseCheckerCallback. The library calls this when done.
+        mLicenseCheckerCallback = new MyLicenseCheckerCallback();
+
+        // Construct the LicenseChecker with a Policy.
+        String deviceId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+        mChecker = new LicenseChecker(
+            this, new ServerManagedPolicy(this,
+                new AESObfuscator(SALT, getPackageName(), deviceId)),
+                BASE64_PUBLIC_KEY
+            );      
+        
+        mChecker.checkAccess(mLicenseCheckerCallback);
+}
+    
+    @Override
+    public void onDestroy() {
+    	mChecker.onDestroy();
+        mAlbumArtWorker.quit();
+    	if (null != mTimer) {
+	    	mTimerTask.cancel ();
+	    	mTimer.cancel ();
+	    	mTimerTask = null;
+	    	mTimer = null;
+    	}
+    	MusicUtils.unbindFromService (this);
+        super.onDestroy();
+    }
+
+    
+    private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
+        public void allow() {
+            if (isFinishing()) {
+                // Don't update UI if Activity is finishing.
+                return;
+            }
+            // Should allow user access.
+            Toast toast = Toast.makeText(Deadbeef.this, "Access Allowed", Toast.LENGTH_SHORT);
+            toast.show();
+        }
+
+        public void dontAllow() {
+            if (isFinishing()) {
+                // Don't update UI if Activity is finishing.
+                return;
+            }
+            Toast toast = Toast.makeText(Deadbeef.this, "Access Denied", Toast.LENGTH_SHORT);
+            toast.show();
+
+        }
+
+		@Override
+		public void applicationError(ApplicationErrorCode errorCode) {
+			// TODO Auto-generated method stub
+			
+		}
+    }
 
     private class ProgressTask extends TimerTask {
     	public void run () {
@@ -513,99 +659,6 @@ public class Deadbeef extends Activity {
     @Override
     public void onNewIntent(Intent intent) {
         setIntent(intent);
-    }
-
-    /** Called when the activity is first created. */
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-		Log.e("DDB", "Deadbeef.onCreate");
-        super.onCreate(savedInstanceState);
-        
-        mAlbumArtWorker = new Worker("album art worker");
-        mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
-        
-        setContentView(R.layout.main);
-        
-        // set album art widget to square size
-//        DisplayMetrics dm = new DisplayMetrics();
-//        getWindowManager().getDefaultDisplay().getMetrics(dm);
-        
-        mCover = (ImageView) findViewById(R.id.cover);
-        mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
-        mCover.setVisibility(View.VISIBLE);
-        mCover.setOnClickListener(mCoverClickListener);
-        
-//        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
-        
-/*        View coverwrap = (View)findViewById(R.id.coverwrap);
-        coverwrap.setVisibility(View.VISIBLE);
-        
-        LinearLayout ll = (LinearLayout)findViewById (R.id.mainview);
-        
-        LayoutParams p = coverwrap.getLayoutParams();
-        int min = p.height;
-        if (p.width < min) {
-        	min = p.width;
-        }
-        p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = min;
-        coverwrap.setLayoutParams(p);*/
-        
-        ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
-        ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);
-        ((ImageButton)findViewById(R.id.play)).setOnClickListener(mPlayPauseListener);
-        ((ImageButton)findViewById(R.id.next)).setOnClickListener(mNextListener);
-        ((ImageButton)findViewById(R.id.add)).setOnClickListener(mAddListener);
-        ((ImageButton)findViewById(R.id.ShuffleMode)).setOnClickListener(mShuffleModeListener);
-        ((ImageButton)findViewById(R.id.RepeatMode)).setOnClickListener(mRepeatModeListener);
-
-        SeekBar sb = (SeekBar)findViewById(R.id.seekbar);
-        sb.setMax(100);
-        sb.setOnSeekBarChangeListener(sbChangeListener);
-
-        seekbar = (SeekBar)findViewById(R.id.seekbar);
-
-		Log.e("DDB", "Deadbeef.onCreate bind");
-        MusicUtils.bindToService(this, new ServiceConnection() {
-	        public void onServiceConnected(ComponentName className, IBinder obj) {
-	        	Log.e("DDB", "Deadbeef.onCreate connected");
-	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
-		        startMediaServiceListener ();
-    	        handler.post(new Runnable() {
-				    public void run() {
-				        if (0 == DeadbeefAPI.conf_get_int("android.freeplugins_dont_ask", 0)) {
-					        if (!DeadbeefAPI.plugin_exists("stdmpg")) {
-					        	showDialog (1);
-					        }
-				        }
-				    }
-				});
-
-	        }
-	
-	        public void onServiceDisconnected(ComponentName className) {
-	        	Log.e("DDB", "service disconnected");
-		        stopMediaServiceListener ();
-	        	MusicUtils.sService = null;
-	        }
-	    });
-     
-        AdView adView = (AdView)this.findViewById(R.id.adView);
-        AdRequest req = new AdRequest();
-        req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
-        adView.loadAd(req);
-    }
-    
-    @Override
-    public void onDestroy() {
-        mAlbumArtWorker.quit();
-    	if (null != mTimer) {
-	    	mTimerTask.cancel ();
-	    	mTimer.cancel ();
-	    	mTimerTask = null;
-	    	mTimer = null;
-    	}
-    	MusicUtils.unbindFromService (this);
-        super.onDestroy();
     }
 
     

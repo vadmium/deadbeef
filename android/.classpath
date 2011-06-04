@@ -4,5 +4,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="lib" path="/home/waker/android/admob/GoogleAdMobAdsSdkAndroid-4.1.0/GoogleAdMobAdsSdk-4.1.0.jar"/>
+	<classpathentry kind="src" path="com_android_vending_licensing_src"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
