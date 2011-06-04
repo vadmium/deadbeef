@@ -1,5 +1,5 @@
 // based on source of google's official Music app 
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import java.io.File;
 import java.io.IOException;

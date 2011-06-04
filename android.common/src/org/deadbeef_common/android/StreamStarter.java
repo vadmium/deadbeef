@@ -1,4 +1,4 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import android.app.Activity;
 import android.app.ProgressDialog;

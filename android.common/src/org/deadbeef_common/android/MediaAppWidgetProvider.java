@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;

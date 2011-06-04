@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>deadbeef</name>
+	<name>deadbeef.common</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -35,11 +35,6 @@
 			<name>com_android_vending_licensing_src</name>
 			<type>2</type>
 			<locationURI>_android_com_android_vending_licensing_82f7090e/src</locationURI>
-		</link>
-		<link>
-			<name>deadbeef.common_src</name>
-			<type>2</type>
-			<locationURI>_android_deadbeef_common_b1ba811/src</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

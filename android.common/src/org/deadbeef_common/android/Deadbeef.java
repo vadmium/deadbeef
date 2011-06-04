@@ -1,4 +1,4 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -45,8 +45,6 @@ import com.android.vending.licensing.AESObfuscator;
 import com.android.vending.licensing.LicenseChecker;
 import com.android.vending.licensing.LicenseCheckerCallback;
 import com.android.vending.licensing.ServerManagedPolicy;
-import com.google.ads.AdRequest;
-import com.google.ads.AdView;
 
 public class Deadbeef extends Activity {
 	String TAG = "DDB";

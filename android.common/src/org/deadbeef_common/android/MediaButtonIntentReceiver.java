@@ -1,6 +1,6 @@
 // based on source of google's official Music app
 
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

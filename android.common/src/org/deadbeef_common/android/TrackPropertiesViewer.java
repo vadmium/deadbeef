@@ -1,4 +1,4 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import android.app.ListActivity;
 import android.content.Intent;

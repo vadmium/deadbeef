@@ -1,10 +1,12 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+
+import org.deadbeef_common.android.IMediaPlaybackService;
 
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -21,7 +23,6 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
-import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.util.Log;
 

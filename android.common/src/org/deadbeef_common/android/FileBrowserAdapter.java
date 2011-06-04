@@ -1,4 +1,4 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import java.io.File;
 import java.util.ArrayList;

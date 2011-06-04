@@ -1,4 +1,4 @@
-package org.deadbeef.android;
+package org.deadbeef_common.android;
 
 import android.content.Context;
 import android.view.LayoutInflater;
