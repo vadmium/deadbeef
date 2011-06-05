@@ -81,14 +81,18 @@
     	 android:launchMode="standard">
 	</activity>
 
-    <activity android:name="org.deadbeef_common.android.TrackPropertiesViewer">
+    <activity
+    	android:name="org.deadbeef_common.android.TrackPropertiesViewer"
+    	android:label="Track properties">
      <intent-filter>
          <action android:name="org.deadbeef.android.TRACK_PROPERTIES_VIEWER" />
          <category android:name="android.intent.category.DEFAULT" />
      </intent-filter>
     </activity>
 
-    <activity android:name="org.deadbeef_common.android.SelectPlaylist">
+    <activity
+    	android:name="org.deadbeef_common.android.SelectPlaylist"
+    	android:label="Playlists">
      <intent-filter>
          <action android:name="org.deadbeef.android.PLAYLIST_MANAGER" />
          <category android:name="android.intent.category.DEFAULT" />

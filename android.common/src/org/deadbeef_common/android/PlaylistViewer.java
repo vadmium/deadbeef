@@ -117,6 +117,7 @@ public class PlaylistViewer extends ListActivity {
         
         ((Button)findViewById(R.id.add)).setOnClickListener(mAddListener);
         ((Button)findViewById(R.id.clear)).setOnClickListener(mClearListener);
+        setTitle(DeadbeefAPI.plt_get_title(DeadbeefAPI.plt_get_curr()));
     }
     @Override
     public void onDestroy () {

@@ -36,13 +36,5 @@ public class TrackPropertiesViewer extends ListActivity {
         	DeadbeefAPI.pl_item_unref (trk);
         }
         setListAdapter(adapter);
-
-        ((Button)findViewById(R.id.close)).setOnClickListener(mCloseListener);
     }
-
-    private OnClickListener mCloseListener = new OnClickListener() {
-        public void onClick(View v) {
-            finish ();
-        }
-    };
 }

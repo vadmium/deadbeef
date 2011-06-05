@@ -79,7 +79,9 @@
             </intent-filter>
         </activity>
         
-        <activity android:name="TrackPropertiesViewer">
+        <activity
+        	android:name="TrackPropertiesViewer"
+        	android:label="Track properties">
 	        <intent-filter>
 	            <action android:name="org.deadbeef.android.TRACK_PROPERTIES_VIEWER" />
 	            <category android:name="android.intent.category.DEFAULT" />
