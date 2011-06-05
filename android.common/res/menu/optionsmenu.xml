@@ -17,6 +17,8 @@
    android:title="AddLocation" />
   <item android:icon="@drawable/ic_menu_eq"
    android:title="Equalizer" android:id="@+id/menu_equalizer"/>
+  <item android:id="@+id/menu_settings"
+   android:title="Settings" />
   <item android:id="@+id/menu_about"
    android:icon="@drawable/ic_menu_help"
    android:title="About" />

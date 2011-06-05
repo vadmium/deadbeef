@@ -57,6 +57,11 @@
     	 android:label="@string/select_eq_preset"
     	 android:launchMode="standard">
 	</activity>
+    <activity android:name="Settings"
+    	 android:label="Settings"
+    	 android:launchMode="standard">
+	</activity>
+	
 <receiver android:name="MediaButtonIntentReceiver">
        <intent-filter>
            <action android:name="android.intent.action.MEDIA_BUTTON" />

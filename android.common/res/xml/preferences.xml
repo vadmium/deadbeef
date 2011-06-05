@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+        <PreferenceCategory
+                android:title="Last.fm scrobbler">
+                <CheckBoxPreference
+                        android:title="Enable scrobbling"
+                        android:defaultValue="false"
+                        android:summary="Requires last.fm app"
+                        android:key="enable_lastfm" />
+        </PreferenceCategory>
+        <PreferenceCategory
+                android:title="Replay gain">
+                <ListPreference
+                        android:title="Mode"
+                        android:summary="Select Disabled, Track or Album replaygain mode"
+                        android:key="rg_mode"
+                        android:defaultValue="Disable"
+                        android:entries="@array/rgModesArray"
+                        android:entryValues="@array/listValues" />
+                <CheckBoxPreference
+                        android:title="Enable peak scale"
+                        android:defaultValue="true"
+                        android:key="rg_peakscale" />
+        </PreferenceCategory>
+        <PreferenceCategory
+                android:title="General">
+                <CheckBoxPreference
+                        android:title="Disable archive support"
+                        android:summary="This option will ignore zip archives when adding folders"
+                        android:defaultValue="false"
+                        android:key="disable_archives" />
+        <EditTextPreference
+                android:summary="This affects where files are going when started from Downloads, etc"
+                android:defaultValue="Default"
+                android:name="Default"
+                android:title="Default playlist"
+                android:key="default_playlist" />
+        </PreferenceCategory>
+</PreferenceScreen>
+
+        <!-- EditTextPreference
+                android:name="EditText Preference"
+                android:summary="This allows you to enter a string"
+                android:defaultValue="Nothing"
+                android:title="Edit This Text"
+                android:key="editTextPref" />
+        <RingtonePreference
+                android:name="Ringtone Preference"
+                android:summary="Select a ringtone"
+                android:title="Ringtones"
+                android:key="ringtonePref" />
+        <PreferenceScreen
+                android:key="SecondPrefScreen"
+                android:title="Second PreferenceScreen"
+                android:summary="This is a second PreferenceScreen">
+                <EditTextPreference
+                        android:name="An other EditText Preference"
+                        android:summary="This is a preference in the second PreferenceScreen"
+                        android:title="Edit text"
+                        android:key="SecondEditTextPref" />
+        </PreferenceScreen>
+        <Preference
+                android:title="Custom Preference"
+                android:summary="This works almost like a button"
+                android:key="customPref" />
+                
+                <ListPreference
+                        android:title="List Preference"
+                        android:summary="This preference allows to select an item in a array"
+                        android:key="listPref"
+                        android:defaultValue="digiGreen"
+                        android:entries="@array/listArray"
+                        android:entryValues="@array/listValues" /-->
+                

@@ -98,6 +98,10 @@
          <category android:name="android.intent.category.DEFAULT" />
      </intent-filter>
     </activity>
+    <activity android:name="org.deadbeef_common.android.Settings"
+    	 android:label="Settings"
+    	 android:launchMode="standard">
+	</activity>
 		
         <!-- activity
         		android:icon="@drawable/icon"

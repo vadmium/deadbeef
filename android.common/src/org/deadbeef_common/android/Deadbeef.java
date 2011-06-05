@@ -734,6 +734,10 @@ public class Deadbeef extends Activity {
         	Intent i = new Intent (this, EQ.class);
 	    	startActivity(i);
         }
+        else if (id == R.id.menu_settings) {
+        	Intent i = new Intent (this, Settings.class);
+	    	startActivity(i);
+        }
         return true;
     };
     

@@ -791,45 +791,47 @@ public class MediaPlaybackService extends Service {
     	while (DeadbeefAPI.event_is_pending ()) {
 			String id = DeadbeefAPI.event_get_type ();
 			
-			if (id.equals("songstarted")) {
-				String artist = DeadbeefAPI.event_get_string(0);
-				String album = DeadbeefAPI.event_get_string(1);
-				String title = DeadbeefAPI.event_get_string(2);
-				int dur = DeadbeefAPI.event_get_int(0);
-				if (title != null && artist != null && dur > 0) {
-					Intent i = new Intent("fm.last.android.metachanged");
-					i.putExtra("artist", artist);
-					if (album != null) {
-						i.putExtra("album", album);
+			if (!Deadbeef.freeversion && 0 != DeadbeefAPI.conf_get_int("android.enable_lastfm", 0)) {
+				if (id.equals("songstarted")) {
+					String artist = DeadbeefAPI.event_get_string(0);
+					String album = DeadbeefAPI.event_get_string(1);
+					String title = DeadbeefAPI.event_get_string(2);
+					int dur = DeadbeefAPI.event_get_int(0);
+					if (title != null && artist != null && dur > 0) {
+						Intent i = new Intent("fm.last.android.metachanged");
+						i.putExtra("artist", artist);
+						if (album != null) {
+							i.putExtra("album", album);
+						}
+						i.putExtra("track", title);
+						i.putExtra("duration", dur);
+						sendBroadcast(i);
 					}
-					i.putExtra("track", title);
-					i.putExtra("duration", dur);
+				}
+				else if (id.equals ("paused")) {
+					Intent i = new Intent("fm.last.android.playbackpaused");
 					sendBroadcast(i);
 				}
-			}
-			else if (id.equals ("paused")) {
-				Intent i = new Intent("fm.last.android.playbackpaused");
-				sendBroadcast(i);
-			}
-			else if (id.equals ("resumed")) {
-				String artist = DeadbeefAPI.event_get_string(0);
-				String album = DeadbeefAPI.event_get_string(1);
-				String title = DeadbeefAPI.event_get_string(2);
-				int dur = DeadbeefAPI.event_get_int(0);
-				int pos = DeadbeefAPI.event_get_int(1);
-				if (title != null && artist != null && dur > 0 && pos >= 0) {
-					Intent i = new Intent("fm.last.android.metachanged");
-					i.putExtra("artist", artist);
-					if (album != null) {
-						i.putExtra("album", album);
+				else if (id.equals ("resumed")) {
+					String artist = DeadbeefAPI.event_get_string(0);
+					String album = DeadbeefAPI.event_get_string(1);
+					String title = DeadbeefAPI.event_get_string(2);
+					int dur = DeadbeefAPI.event_get_int(0);
+					int pos = DeadbeefAPI.event_get_int(1);
+					if (title != null && artist != null && dur > 0 && pos >= 0) {
+						Intent i = new Intent("fm.last.android.metachanged");
+						i.putExtra("artist", artist);
+						if (album != null) {
+							i.putExtra("album", album);
+						}
+						i.putExtra("track", title);
+						i.putExtra("duration", dur);
+						i.putExtra("position", pos);
+						sendBroadcast(i);
 					}
-					i.putExtra("track", title);
-					i.putExtra("duration", dur);
-					i.putExtra("position", pos);
-					sendBroadcast(i);
+				}    				
+				else if (id.equals("songfinished")) {
 				}
-			}    				
-			else if (id.equals("songfinished")) {
 			}
 			
 			DeadbeefAPI.event_dispatch ();
