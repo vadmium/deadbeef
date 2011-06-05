@@ -14,6 +14,7 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class EQ extends Activity {
@@ -139,12 +140,7 @@ public class EQ extends Activity {
     protected Dialog onCreateDialog(int id) {
     	LayoutInflater factory = LayoutInflater.from(this);
     	if (id == 0) {
-	        final View textView = factory.inflate(R.layout.buyfull, null);
-	        return new AlertDialog.Builder(EQ.this)
-	            .setIcon(R.drawable.icon)
-	            .setTitle("Buy full version")
-	            .setView(textView)
-	            .create();
+            Toast.makeText(EQ.this, "This feature is not available in free version", Toast.LENGTH_SHORT).show();
     	}
     	return null;
     }	

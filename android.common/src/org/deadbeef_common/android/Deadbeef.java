@@ -85,7 +85,7 @@ public class Deadbeef extends Activity {
     	91, 117, 85, -103, 0, -16, 118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56
     };
     
-    public static final boolean freeversion = true;
+    public static final boolean freeversion = false;
 
     /** Called when the activity is first created. */
     @Override
