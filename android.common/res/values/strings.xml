@@ -309,4 +309,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n
 
 </string>
+
+<string name="buyfull_text">Please buy full version to get access to this feature</string>
+<string name="remove_track_confirm">Are you sure?</string>
 </resources>

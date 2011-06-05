@@ -1580,3 +1580,15 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_eq_1save_1config (JNIEnv *env, jcl
     fclose (fp);
     return 0;
 }
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1remove_1item (JNIEnv *env, jclass cls, jint plt, jint it) {
+    playlist_t *p = plt_get_for_idx (plt);
+    if (p) {
+        playItem_t *i = plt_get_item_for_idx (p, it, PL_MAIN);
+        if (i) {
+            plt_remove_item (p, i);
+        }
+        plt_unref (p);
+    }
+}

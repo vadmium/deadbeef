@@ -289,6 +289,14 @@ JNIEXPORT void JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1move
 
 /*
  * Class:     org_deadbeef_common_android_DeadbeefAPI
+ * Method:    plt_remove_item
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1remove_1item
+  (JNIEnv *, jclass, jint, jint);
+
+/*
+ * Class:     org_deadbeef_common_android_DeadbeefAPI
  * Method:    play_prev
  * Signature: ()V
  */

@@ -1,10 +1,13 @@
 package org.deadbeef_common.android;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -15,6 +18,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -26,7 +30,7 @@ public class PlaylistViewer extends ListActivity {
     private ProgressDialog progressDialog;
     private BroadcastReceiver mMediaServiceReceiver;
    	Handler handler = new Handler();
-    private int mSelected; // track selected for ctx menu
+    private int mSelected = -1; // track selected for ctx menu
     
     public static final int MENU_ACT_ADD_FILES = 0;
     public static final int MENU_ACT_ADD_FOLDER = 1;
@@ -34,6 +38,8 @@ public class PlaylistViewer extends ListActivity {
     public static final int MENU_ACT_MOVE_TO_PLAYLIST = 3;
     public static final int MENU_ACT_PROPERTIES = 4;
     public int progressDepth = 0; 
+    
+    public static final int DLG_CONFIRM_REMOVE = 0;
     
     private void showProgress (boolean show) {
     	synchronized (this) {
@@ -140,7 +146,7 @@ public class PlaylistViewer extends ListActivity {
 		Log.e("DDB","onCreateContextMenu");
 //		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
 		menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
-//		menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
+		menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
 //		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
 		
 		Intent i = new Intent (this, TrackPropertiesViewer.class);
@@ -190,6 +196,7 @@ public class PlaylistViewer extends ListActivity {
 	    	startActivityForResult(i, Deadbeef.REQUEST_ADD_FOLDER_AFTER);
 			break;
 		case MENU_ACT_REMOVE:
+			showDialog (DLG_CONFIRM_REMOVE);
 			break;
 		case MENU_ACT_MOVE_TO_PLAYLIST:
 			break;
@@ -217,4 +224,27 @@ public class PlaylistViewer extends ListActivity {
             setListAdapter(adapter);
         }
     };
+
+    @Override
+    protected Dialog onCreateDialog(int id) {
+    	LayoutInflater factory = LayoutInflater.from(this);
+    	if (id == DLG_CONFIRM_REMOVE) {
+            return new AlertDialog.Builder(PlaylistViewer.this)
+                .setIcon(R.drawable.icon)
+                .setTitle(R.string.remove_track_confirm)
+                .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                    	DeadbeefAPI.plt_remove_item(DeadbeefAPI.plt_get_curr(), mSelected);
+				        final FileListAdapter adapter = new FileListAdapter(PlaylistViewer.this, R.layout.plitem, R.id.title); 
+			            setListAdapter(adapter);
+                    }
+                })
+                .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                    }
+                })
+                .create();
+    	}
+    	return null;
+    }
 }

@@ -1,8 +1,12 @@
 package org.deadbeef_common.android;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -108,10 +112,16 @@ public class EQ extends Activity {
 				}
 			});
         }
+        
         ((Button)findViewById(R.id.preset)).setOnClickListener(new OnClickListener() {
 	        public void onClick(View v) {
-		        Intent i = new Intent (EQ.this, SelectEqPreset.class);
-		    	startActivityForResult(i, 0);
+		        if (Deadbeef.freeversion) {
+		        	showDialog (0);
+		        }
+		        else {
+		        	Intent i = new Intent (EQ.this, SelectEqPreset.class);
+		        	startActivityForResult(i, 0);
+		        }
 	        }
         });
 	}
@@ -124,4 +134,18 @@ public class EQ extends Activity {
     	}
     }
 	
+    
+    @Override
+    protected Dialog onCreateDialog(int id) {
+    	LayoutInflater factory = LayoutInflater.from(this);
+    	if (id == 0) {
+	        final View textView = factory.inflate(R.layout.buyfull, null);
+	        return new AlertDialog.Builder(EQ.this)
+	            .setIcon(R.drawable.icon)
+	            .setTitle("Buy full version")
+	            .setView(textView)
+	            .create();
+    	}
+    	return null;
+    }	
 }
