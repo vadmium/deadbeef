@@ -22,9 +22,6 @@ import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.Button;
 import android.widget.ListView;
 
-import com.google.ads.AdRequest;
-import com.google.ads.AdView;
-
 public class PlaylistViewer extends ListActivity {
     private ProgressDialog progressDialog;
     private BroadcastReceiver mMediaServiceReceiver;
@@ -120,12 +117,6 @@ public class PlaylistViewer extends ListActivity {
         
         ((Button)findViewById(R.id.add)).setOnClickListener(mAddListener);
         ((Button)findViewById(R.id.clear)).setOnClickListener(mClearListener);
-        
-        
-        AdView adView = (AdView)this.findViewById(R.id.adView);
-        AdRequest req = new AdRequest();
-        req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
-        adView.loadAd(req);
     }
     @Override
     public void onDestroy () {

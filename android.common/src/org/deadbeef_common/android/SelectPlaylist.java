@@ -15,9 +15,6 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.google.ads.AdRequest;
-import com.google.ads.AdView;
-
 public class SelectPlaylist extends ListActivity {
 	
 	private static final int ACT_CREATE = 0;
@@ -45,10 +42,6 @@ public class SelectPlaylist extends ListActivity {
         setContentView(R.layout.playlists);
         fillList ();
         registerForContextMenu(findViewById(android.R.id.list));
-        AdView adView = (AdView)this.findViewById(R.id.adView);
-        AdRequest req = new AdRequest();
-        req.addTestDevice("047F1C49C21BD737CFA3DD834B2BC416");
-        adView.loadAd(req);
 	}
 	
 	@Override
