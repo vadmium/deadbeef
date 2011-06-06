@@ -791,7 +791,7 @@ public class MediaPlaybackService extends Service {
     	while (DeadbeefAPI.event_is_pending ()) {
 			String id = DeadbeefAPI.event_get_type ();
 			
-			if (!Deadbeef.freeversion && 0 != DeadbeefAPI.conf_get_int("android.enable_lastfm", 0)) {
+			if (0 != DeadbeefAPI.conf_get_int("android.enable_lastfm", 0)) {
 				if (id.equals("songstarted")) {
 					String artist = DeadbeefAPI.event_get_string(0);
 					String album = DeadbeefAPI.event_get_string(1);

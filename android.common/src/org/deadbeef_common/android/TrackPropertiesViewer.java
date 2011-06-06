@@ -21,7 +21,13 @@ public class TrackPropertiesViewer extends ListActivity {
 
         final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,R.layout.trackproperty,R.id.property);
         
-        int trk = DeadbeefAPI.pl_get_for_idx (idx);
+        int trk;
+        if (idx == -1) {
+        	trk = DeadbeefAPI.streamer_get_playing_track();
+        }
+        else {
+        	trk = DeadbeefAPI.pl_get_for_idx (idx);
+        }
         if (0 != trk) {
         	int meta = DeadbeefAPI.pl_get_meta (trk);
         	while (0 != meta) {

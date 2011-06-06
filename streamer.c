@@ -1909,6 +1909,7 @@ streamer_read (char *bytes, int size) {
     printf ("streamer_read took %d ms\n", ms);
 #endif
 
+#ifndef ANDROID
     if (!output->has_volume) {
         char *stream = bytes;
         int bytesread = sz;
@@ -1955,6 +1956,7 @@ streamer_read (char *bytes, int size) {
             }
         }
     }
+#endif
 
     return sz;
 }

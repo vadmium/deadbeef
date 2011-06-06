@@ -116,10 +116,11 @@ public class EQ extends Activity {
         
         ((Button)findViewById(R.id.preset)).setOnClickListener(new OnClickListener() {
 	        public void onClick(View v) {
-		        if (Deadbeef.freeversion) {
-		        	showDialog (0);
+/*		        if (Deadbeef.freeversion) {
+					Toast.makeText(Settings.this, "This feature is not available in free version", Toast.LENGTH_SHORT).show();
+
 		        }
-		        else {
+		        else */{
 		        	Intent i = new Intent (EQ.this, SelectEqPreset.class);
 		        	startActivityForResult(i, 0);
 		        }
@@ -133,15 +134,5 @@ public class EQ extends Activity {
    			DeadbeefAPI.eq_load_preset (resultCode);
    			initGui ();
     	}
-    }
-	
-    
-    @Override
-    protected Dialog onCreateDialog(int id) {
-    	LayoutInflater factory = LayoutInflater.from(this);
-    	if (id == 0) {
-            Toast.makeText(EQ.this, "This feature is not available in free version", Toast.LENGTH_SHORT).show();
-    	}
-    	return null;
-    }	
+    }    
 }

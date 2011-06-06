@@ -12,12 +12,14 @@
    android:title="Clear playlist" />
   <item android:id="@+id/menu_manage_playlists"
    android:icon="@drawable/ic_menu_playlists"
-   android:title="Manage Playlists" />
+   android:title="Manage playlists" />
   <item android:id="@+id/menu_add_location"
-   android:title="AddLocation" />
+   android:icon="@drawable/ic_menu_add"
+   android:title="Add location" />
   <item android:icon="@drawable/ic_menu_eq"
    android:title="Equalizer" android:id="@+id/menu_equalizer"/>
   <item android:id="@+id/menu_settings"
+   android:icon="@drawable/ic_menu_settings"
    android:title="Settings" />
   <item android:id="@+id/menu_about"
    android:icon="@drawable/ic_menu_help"

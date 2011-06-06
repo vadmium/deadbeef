@@ -85,7 +85,7 @@ public class Deadbeef extends Activity {
     	91, 117, 85, -103, 0, -16, 118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56
     };
     
-    public static final boolean freeversion = false;
+    public static final boolean freeversion = true;
 
     /** Called when the activity is first created. */
     @Override
@@ -161,18 +161,20 @@ public class Deadbeef extends Activity {
 	        }
 	    });
      
-		// Construct the LicenseCheckerCallback. The library calls this when done.
-        mLicenseCheckerCallback = new MyLicenseCheckerCallback();
-
-        // Construct the LicenseChecker with a Policy.
-        String deviceId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
-        mChecker = new LicenseChecker(
-            this, new ServerManagedPolicy(this,
-                new AESObfuscator(SALT, getPackageName(), deviceId)),
-                BASE64_PUBLIC_KEY
-            );      
-        
-        mChecker.checkAccess(mLicenseCheckerCallback);
+        if (!freeversion) {
+			// Construct the LicenseCheckerCallback. The library calls this when done.
+	        mLicenseCheckerCallback = new MyLicenseCheckerCallback();
+	
+	        // Construct the LicenseChecker with a Policy.
+	        String deviceId = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+	        mChecker = new LicenseChecker(
+	            this, new ServerManagedPolicy(this,
+	                new AESObfuscator(SALT, getPackageName(), deviceId)),
+	                BASE64_PUBLIC_KEY
+	            );      
+	        
+	        mChecker.checkAccess(mLicenseCheckerCallback);
+        }
 }
     
     @Override
@@ -197,8 +199,8 @@ public class Deadbeef extends Activity {
                 return;
             }
             // Should allow user access.
-            Toast toast = Toast.makeText(Deadbeef.this, "Access Allowed", Toast.LENGTH_SHORT);
-            toast.show();
+//            Toast toast = Toast.makeText(Deadbeef.this, "Access Allowed", Toast.LENGTH_SHORT);
+//            toast.show();
         }
 
         public void dontAllow() {
@@ -206,8 +208,9 @@ public class Deadbeef extends Activity {
                 // Don't update UI if Activity is finishing.
                 return;
             }
-            Toast toast = Toast.makeText(Deadbeef.this, "Access Denied", Toast.LENGTH_SHORT);
+            Toast toast = Toast.makeText(Deadbeef.this, "Deadbeef license check failed, exiting", Toast.LENGTH_LONG);
             toast.show();
+            Deadbeef.this.finish ();
 
         }
 
@@ -842,14 +845,14 @@ public class Deadbeef extends Activity {
 
     private OnClickListener mCoverClickListener = new OnClickListener() {
         public void onClick(View v) {
-        	int trk = DeadbeefAPI.pl_get_current_idx ();
-        	if (trk != -1) {
+//        	int trk = DeadbeefAPI.streamer_get_playing_track ();
+//        	if (trk != 0) {
 				Intent i = new Intent (Deadbeef.this, TrackPropertiesViewer.class);
 				i.setData(Uri.fromParts(
-						"track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(trk)
+						"track", String.valueOf(-1), String.valueOf(-1)/*String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(trk)*/
 						));
 		    	startActivity(i);
-        	}
+//        	}
         }
     };
 
