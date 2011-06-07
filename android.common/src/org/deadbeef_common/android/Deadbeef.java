@@ -526,10 +526,10 @@ public class Deadbeef extends Activity {
 	    			play_mode = new_mode;
 	    			ImageButton button = (ImageButton)findViewById(R.id.RepeatMode);
 	    			if (play_mode == 0) {
-	        			button.setImageResource (-1);
+	        			button.setImageResource (R.drawable.repeat);
 	    			}
 	    			else if (play_mode == 1) {
-	        			button.setImageResource (R.drawable.repeat);
+	        			button.setImageResource (-1);
 	    			}
 	    			else if (play_mode == 2) {
 	        			button.setImageResource (R.drawable.repeat_single);
