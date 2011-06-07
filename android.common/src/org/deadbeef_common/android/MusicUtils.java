@@ -321,9 +321,13 @@ public class MusicUtils {
                     bm = BitmapFactory.decodeFileDescriptor(fd);
                 }
             }
-        } catch (FileNotFoundException ex) {
-            //
         }
+        catch (FileNotFoundException ex) {
+        	return null;
+        }
+    	catch (java.lang.IllegalStateException ex) {
+    		return null;
+    	}
         if (bm != null) {
             mCachedBit = bm;
         }
