@@ -19,11 +19,11 @@ public class Settings extends PreferenceActivity {
         // lastfm
         findPreference("enable_lastfm").setOnPreferenceClickListener(new OnPreferenceClickListener() {
             public boolean onPreferenceClick(Preference preference) {
-            	if (Deadbeef.freeversion) {
+            	/*if (Deadbeef.freeversion) {
             		((CheckBoxPreference)preference).setChecked(false);
                     Toast.makeText(Settings.this, "This feature is not available in free version", Toast.LENGTH_SHORT).show();
             	}
-            	else {
+            	else*/ {
             		DeadbeefAPI.conf_set_int("android.enable_lastfm", ((CheckBoxPreference)preference).isChecked() ? 1 : 0);
             	}
             	return true;                    	

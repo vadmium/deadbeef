@@ -189,6 +189,7 @@ public class Deadbeef extends Activity {
 	    	mTimerTask = null;
 	    	mTimer = null;
     	}
+    	stopMediaServiceListener ();
     	MusicUtils.unbindFromService (this);
         super.onDestroy();
     }
@@ -420,7 +421,7 @@ public class Deadbeef extends Activity {
         }
     };
     
-    BroadcastReceiver mMediaServiceReceiver;
+    private BroadcastReceiver mMediaServiceReceiver = null;
     void startMediaServiceListener() {
 	    mMediaServiceReceiver = new BroadcastReceiver() {
 	        @Override
@@ -442,7 +443,10 @@ public class Deadbeef extends Activity {
     }
     
     void stopMediaServiceListener () {
-    	unregisterReceiver(mMediaServiceReceiver);
+    	if (null != mMediaServiceReceiver) {
+    		unregisterReceiver(mMediaServiceReceiver);
+    		mMediaServiceReceiver = null;
+    	}
     }
 
     private static class AlbumSongIdWrapper {

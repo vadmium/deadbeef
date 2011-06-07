@@ -133,11 +133,11 @@
 	>
 	<ImageView
 		android:id="@+id/cover"
-              android:layout_width="fill_parent"
-               android:layout_height="fill_parent"
-              android:padding="10dip"
-	android:layout_centerHorizontal="true"
-	           >
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:padding="10dip"
+		android:layout_centerHorizontal="true"
+	>
 	</ImageView>
 	<com.google.ads.AdView android:id="@+id/adView"
         android:layout_width="wrap_content"

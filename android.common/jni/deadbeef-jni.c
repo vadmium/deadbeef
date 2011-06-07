@@ -216,6 +216,8 @@ jnievent_free (void) {
         mutex_free (jnievent_mutex);
         jnievent_mutex = 0;
     }
+    events = NULL;
+    events_tail = NULL;
 }
 
 static int
@@ -441,9 +443,11 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, js
     trace ("wchar_t %d\n", sizeof (wchar_t));
 
     // initialize ddb
+    trace ("setlocale\n");
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C");
     srand (time (NULL));
+    trace ("set dbconfdir\n");
     const jbyte *str;
     str = (*env)->GetStringUTFChars(env, android_config_dir, NULL);
     if (str == NULL) {
@@ -458,20 +462,30 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, js
     strcpy (dbinstalldir, "");
     strcpy (dbplugindir, "/data/data/org.deadbeef.android/lib");
 
+    trace ("pl_init\n");
+    pl_init ();
+
+    trace ("conf_load\n");
+    conf_load (); // required by some plugins at startup
+
     str = (*env)->GetStringUTFChars(env, plugins_path, NULL);
     conf_set_str ("android.plugin_path", str);
-
     (*env)->ReleaseStringUTFChars(env, android_config_dir, str);
 
+//    volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
 
-    pl_init ();
-    conf_load (); // required by some plugins at startup
-    volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
+    trace ("messagepump_init\n");
     messagepump_init ();
+    trace ("plug_load_all\n");
     plug_load_all ();
+
+    trace ("pl_free\n");
     pl_free ();
+
+    trace ("pl_load_all\n");
     pl_load_all ();
     plt_set_curr_idx (conf_get_int ("playlist.current", 0));
+
     messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
 
     // setup fake output plugin
@@ -497,6 +511,7 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, js
     }
     eq_changed = 1;
 
+    trace ("streamer_init\n");
     streamer_init ();
 
     jnievent_init ();
@@ -509,17 +524,33 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, js
 JNIEXPORT jint JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_stop
   (JNIEnv *env, jclass cls)
 {
+    trace ("DeadbeefAPI.stop called\n");
+    if (!mainloop_tid) {
+        return -1;
+    }
+    trace ("order mainloop to terminate\n");
     messagepump_push (DB_EV_TERMINATE, 0, 0, 0);
+    trace ("wait for mainloop to finish\n");
     thread_join (mainloop_tid);
+    trace ("mainloop finished\n");
     mainloop_tid = 0;
+    trace ("jnievent_free\n");
     jnievent_free ();
+    trace ("pl_save_all\n");
     pl_save_all ();
+    trace ("conf_save\n");
     conf_save ();
+    trace ("streamer_free\n");
     streamer_free ();
+    trace ("plug_unload_all\n");
     plug_unload_all ();
+    trace ("pl_free\n");
     pl_free ();
+    trace ("conf_free\n");
     conf_free ();
+    trace ("messagepump_free\n");
     messagepump_free ();
+    trace ("plug_cleanup\n");
     plug_cleanup ();
     return 0;
 }
