@@ -16,6 +16,12 @@
 
 package org.deadbeef_common.android;
 
+import org.deadbeef_common.android.R;
+import org.deadbeef_common.android.R.drawable;
+import org.deadbeef_common.android.R.id;
+import org.deadbeef_common.android.R.layout;
+import org.deadbeef_common.android.R.string;
+
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;

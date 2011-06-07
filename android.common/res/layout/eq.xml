@@ -13,8 +13,7 @@
         ads:adUnitId="a14de22b29b03f5"
         ads:adSize="BANNER"
         ads:loadAdOnCreate="true"
-        />    
-
+        />
 
 <LinearLayout
  android:layout_width="fill_parent"

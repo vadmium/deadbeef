@@ -3,7 +3,7 @@
       xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.deadbeef.android.freeplugins"
       android:versionCode="2"
-      android:versionName="1.0alpha3">
+      android:versionName="1.0.0">
       <uses-sdk android:minSdkVersion="4" />
     <application
     	android:testOnly="false"

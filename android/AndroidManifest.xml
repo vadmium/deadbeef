@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest package="org.deadbeef.android"
-      android:versionCode="3"
-      android:versionName="1.0alpha3" xmlns:android="http://schemas.android.com/apk/res/android">
+      android:versionCode="4"
+      android:versionName="1.0.1" xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="com.android.vending.CHECK_LICENSE"/>
     
     <application
     	android:icon="@drawable/icon"
@@ -36,7 +35,7 @@
             </intent-filter>
         </activity>
         
-	    <activity android:name="StreamStarter">
+	    <activity android:name="org.deadbeef_common.android.StreamStarter">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -101,100 +100,7 @@
 	           <action android:name="android.intent.action.MEDIA_BUTTON" />
 	           <action android:name="android.media.AUDIO_BECOMING_NOISY" />
 	       </intent-filter>
-	</receiver>
-
-        <receiver android:name="org.deadbeef_common.android.MediaAppWidgetProvider">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/appwidget_info" />
-        </receiver>
-
-        <!-- activity
-        		android:icon="@drawable/icon"
-        		android:name="Deadbeef"
-                android:theme="@android:style/Theme.NoTitleBar"
-                android:label="@string/app_name"
-                android:taskAffinity=""
-                android:launchMode="singleTask"
-                android:clearTaskOnLaunch="true"
-                >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="org.deadbeef.android.PLAYBACK_VIEWER" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        
-
-    <activity android:name="FileBrowser"
-    	 android:label="@string/title_file_browser"
-    	 android:launchMode="standard">
-	</activity>
-    <activity android:name="PlaylistViewer"
-    	 android:label="@string/title_playlist_viewer"
-    	 android:launchMode="standard">
-	</activity>
-    <activity android:name="EQ"
-    	 android:label="@string/title_eq"
-    	 android:launchMode="standard">
-	</activity>
-    <activity android:name="SelectEqPreset"
-    	 android:label="@string/select_eq_preset"
-    	 android:launchMode="standard">
-	</activity>
-<receiver android:name="MediaButtonIntentReceiver">
-       <intent-filter>
-           <action android:name="android.intent.action.MEDIA_BUTTON" />
-           <action android:name="android.media.AUDIO_BECOMING_NOISY" />
-       </intent-filter>
-</receiver>
-        
-    <activity android:name="StreamStarter">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content"/>
-                <data android:scheme="file"/>
-                <data android:mimeType="audio/*"/>
-                <data android:mimeType="application/zip"/>
-                <data android:mimeType="multipart/x-zip"/>
-                <data android:mimeType="application/x-zip"/>
-                <data android:mimeType="application/x-zip-compressed"/>
-            </intent-filter>
-        </activity>
-        
-        <activity android:name="TrackPropertiesViewer">
-	        <intent-filter>
-	            <action android:name="org.deadbeef.android.TRACK_PROPERTIES_VIEWER" />
-	            <category android:name="android.intent.category.DEFAULT" />
-	        </intent-filter>
-        </activity>
-	
-        <activity android:name="SelectPlaylist">
-	        <intent-filter>
-	            <action android:name="org.deadbeef.android.PLAYLIST_MANAGER" />
-	            <category android:name="android.intent.category.DEFAULT" />
-	        </intent-filter>
-        </activity>
-
-		<service android:name="MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/app_name" android:enabled="true">
-		</service>
-
-        <receiver android:name="org.deadbeef.android.MediaAppWidgetProvider">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/appwidget_info" />
-        </receiver>
-        
-		<activity android:name="com.google.ads.AdActivity"
-              android:configChanges="keyboard|keyboardHidden|orientation"/-->
-              
+	</receiver>              
 </application>
 
 </manifest> 

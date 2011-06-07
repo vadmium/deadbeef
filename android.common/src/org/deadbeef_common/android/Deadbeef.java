@@ -179,7 +179,9 @@ public class Deadbeef extends Activity {
     
     @Override
     public void onDestroy() {
-    	mChecker.onDestroy();
+        if (!freeversion) {
+        	mChecker.onDestroy();
+        }
         mAlbumArtWorker.quit();
     	if (null != mTimer) {
 	    	mTimerTask.cancel ();
