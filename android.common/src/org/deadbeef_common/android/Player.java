@@ -43,7 +43,7 @@ class Player {
     }
 
     private class PlayRunnable implements Runnable {
-	    private int curr_track = -1;
+	    private int curr_track = 0; // pointer to streamer_playing_track
 	    private boolean curr_state = false; // false=stopped/paused
 	    private boolean playback_state = false;
 
@@ -91,15 +91,18 @@ class Player {
     			if (null != MusicUtils.sService) {
 	    			try {
 		    			boolean state = MusicUtils.sService.isPlaying ();
-		    			int track = MusicUtils.sService.getCurrentIdx ();
+		    			int track = DeadbeefAPI.streamer_get_playing_track();
 			    		if (track != curr_track || (playback_state != state && state)) {
+			    			if (0 != curr_track) {
+			    				DeadbeefAPI.pl_item_unref(track);
+			    			}
 			    			curr_track = track;
 			    			playback_state = state;
 			    			
-			    			if (curr_track >= 0) {
+			    			if (curr_track != 0) {
 								MusicUtils.sService.refreshStatus();
 			    			}
-			    		}    			
+			    		}
 					}
 					catch (RemoteException ex) {
 					}
@@ -124,6 +127,11 @@ class Player {
     			audio.stop();
     			audio = null;
     		}
+	   		if (0 != curr_track) {
+	   			DeadbeefAPI.pl_item_unref(curr_track);
+	   			curr_track = 0;
+	   		}
+
     		Log.e("DDB","PlayerRunnable.run audio stop");
     		DeadbeefAPI.stop();
     		Log.e("DDB","PlayerRunnable.run stoped");
@@ -132,7 +140,6 @@ class Player {
     
     public void stop () {
    		Log.e("DDB","Player.stop");
-
     	playing = false;
     	try {
     		playThread.join();

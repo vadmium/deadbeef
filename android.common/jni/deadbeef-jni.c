@@ -726,17 +726,12 @@ JNIEXPORT jstring JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1get_
 }
 
 JNIEXPORT jstring JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1get_1duration_1formatted
-  (JNIEnv *env, jclass cls, jint idx)
+  (JNIEnv *env, jclass cls, jint trk)
 {
-    playItem_t *it = pl_get_for_idx_and_iter (idx, PL_MAIN);
-    if (it) {
-        float dur = pl_get_item_duration (it);
-        pl_item_unref (it);
-        char s[50];
-        pl_format_time (dur, s, sizeof (s));
-        return (*env)->NewStringUTF(env, s);
-    }
-    return (*env)->NewStringUTF(env, "-:--");
+    float dur = pl_get_item_duration ((playItem_t *)trk);
+    char s[50];
+    pl_format_time (dur, s, sizeof (s));
+    return (*env)->NewStringUTF(env, s);
 }
 
 JNIEXPORT void JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_play_1prev
@@ -894,7 +889,6 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_is_1streamer_1active (JNIEnv *env,
         pl_item_unref (it);
     }
     int res = (it ? 1 : 0) || !streamer_ok_to_read (-1);
-    trace ("streamer_active: %d\n", res);
     return res;
 }
 
@@ -1375,7 +1369,6 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, 
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_1common_android_DeadbeefAPI_conf_1save (JNIEnv *env, jclass cls) {
-    trace ("conf_save: playlists=%d\n", plt_get_count ());
     return conf_save ();
 }
 
@@ -1622,4 +1615,13 @@ Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1remove_1item (JNIEnv *env, jc
         }
         plt_unref (p);
     }
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1format_1title (JNIEnv *env, jclass cls, jint trk, jint idx, jint id, jstring fmt) {
+    char buffer[1000];
+    const char *str = (*env)->GetStringUTFChars(env, fmt, NULL);
+    pl_format_title ((playItem_t *)trk, idx, buffer, sizeof (buffer), id, str);
+    (*env)->ReleaseStringUTFChars(env, fmt, str);
+    return (*env)->NewStringUTF(env, buffer);
 }

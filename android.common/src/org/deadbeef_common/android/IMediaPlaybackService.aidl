@@ -21,7 +21,7 @@ interface IMediaPlaybackService
     void cycleRepeatMode();
     void cycleShuffleMode();
     void startFile(String fname);
-    int getCurrentIdx();
+//    int getCurrentIdx();
     int getPlayOrder();
     int getPlayMode();
     

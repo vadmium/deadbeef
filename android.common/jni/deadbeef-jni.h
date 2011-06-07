@@ -89,22 +89,6 @@ JNIEXPORT void JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1clear
 
 /*
  * Class:     org_deadbeef_common_android_DeadbeefAPI
- * Method:    pl_get_current_idx
- * Signature: ()I
- */
-JNIEXPORT jint JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1get_1current_1idx
-  (JNIEnv *, jclass);
-
-/*
- * Class:     org_deadbeef_common_android_DeadbeefAPI
- * Method:    pl_get_metadata
- * Signature: (ILjava/lang/String;)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1get_1metadata
-  (JNIEnv *, jclass, jint, jstring);
-
-/*
- * Class:     org_deadbeef_common_android_DeadbeefAPI
  * Method:    pl_get_duration_formatted
  * Signature: (I)Ljava/lang/String;
  */
@@ -214,6 +198,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1get_1i
  */
 JNIEXPORT jint JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_plt_1save_1current
   (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_common_android_DeadbeefAPI
+ * Method:    pl_format_title
+ * Signature: (IIILjava/lang/String;)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_deadbeef_1common_android_DeadbeefAPI_pl_1format_1title
+  (JNIEnv *, jclass, jint, jint, jint, jstring);
 
 /*
  * Class:     org_deadbeef_common_android_DeadbeefAPI

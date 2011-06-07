@@ -38,17 +38,15 @@ public class FileListAdapter extends BaseAdapter
 	            LayoutInflater vi = (LayoutInflater)myContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 	            v = vi.inflate(R.layout.plitem, null);
 	        }
-	        String title = DeadbeefAPI.pl_get_metadata (position, "title");
-	        String artist = DeadbeefAPI.pl_get_metadata (position, "artist");
-	        String dur = DeadbeefAPI.pl_get_duration_formatted (position);
-	        if (title == null) {
-	        	title = "No Title";
-	        }
-	        if (artist == null) {
-	        	artist = "Unknown Artist";
-	        }
-	        if (dur == null) {
-	        	dur = "--:-";
+	        String title = "No title";
+	        String artist = "";
+	        String dur = "";
+	        int trk = DeadbeefAPI.pl_get_for_idx (position);
+	        if (trk != 0) {
+		        title = DeadbeefAPI.pl_format_title (trk, position, -1, "%t");
+		        artist = DeadbeefAPI.pl_format_title (trk, position, -1, "%a");
+		        dur = DeadbeefAPI.pl_get_duration_formatted (trk);
+		        DeadbeefAPI.pl_item_unref (trk);
 	        }
 
 	        if (v != null) {                                

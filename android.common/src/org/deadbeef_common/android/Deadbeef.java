@@ -231,7 +231,6 @@ public class Deadbeef extends Activity {
     }
     
     public void onWindowFocusChanged (boolean hasFocus) {
-		Log.e(TAG, "hasFocus="+hasFocus);
     	isVisible = hasFocus;
     	
     	if (isVisible && null == mTimer) {
@@ -350,13 +349,13 @@ public class Deadbeef extends Activity {
         handler.post(new Runnable() {
             public void run() {
             	if (progressDepth > 0 && null == progressDialog) {
-					Log.w("DDB", "show progress");
+//					Log.w("DDB", "show progress");
 					progressDialog = ProgressDialog.show(Deadbeef.this,      
 						"Please wait",
 						"Adding files to playlist...", true);
             	}
             	else if (progressDepth == 0 && null != progressDialog) {
-					Log.w("DDB", "hide progress");
+//					Log.w("DDB", "hide progress");
 		        	progressDialog.dismiss();
 		        	progressDialog = null;
             	}
@@ -427,11 +426,11 @@ public class Deadbeef extends Activity {
 	        @Override
 	        public void onReceive(Context context, Intent intent) {
 	        	if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
-					Log.w("DDB", "main received ADD_FILES_START");
+//					Log.w("DDB", "main received ADD_FILES_START");
 					showProgress (true);
     			}
 	        	else if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
-					Log.w("DDB", "main received ADD_FILES_END");
+//					Log.w("DDB", "main received ADD_FILES_END");
 					showProgress (false);
     			}
 	        }
@@ -466,8 +465,6 @@ public class Deadbeef extends Activity {
     		try {
 
 	    		TextView tv;
-	    		int track = MusicUtils.sService.getCurrentIdx ();
-	    		
 		    	TextView st;
 		    	String totaltime_str = getTotalTimeFormatted ();
 
@@ -537,6 +534,8 @@ public class Deadbeef extends Activity {
 	    		}
 	    		
 	    		boolean state = MusicUtils.sService.isPlaying ();
+	    		int track = DeadbeefAPI.streamer_get_playing_track();
+
 	    		if (track != curr_track || (playback_state != state && state)) {
 	    			curr_track = track;
 	    			playback_state = state;

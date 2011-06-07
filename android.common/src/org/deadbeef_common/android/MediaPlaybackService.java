@@ -717,30 +717,43 @@ public class MediaPlaybackService extends Service {
 
 	String getAlbumName() {
 		synchronized (this) {
-			int track = DeadbeefAPI.pl_get_current_idx();
-			String album = DeadbeefAPI.pl_get_metadata(track, "album");
-			if (album == "" || album == null) {
-				album = "Unknown Album";
+			String val = "";
+			int track = DeadbeefAPI.streamer_get_playing_track ();
+			if (0 != track) {
+				val = DeadbeefAPI.pl_format_title (track, -1, -1, "%b");
+				DeadbeefAPI.pl_item_unref (track);
 			}
-			return album;
+			if (val == "" || val == null) {
+				val = "Unknown Album";
+			}
+			return val;
 		}
 	}
 
 	String getArtistName() {
 		synchronized (this) {
-			int track = DeadbeefAPI.pl_get_current_idx();
-			String artist = DeadbeefAPI.pl_get_metadata(track, "artist");
-			if (artist == "" || artist == null) {
-				artist = "Unknown Artist";
+			String val = "";
+			int track = DeadbeefAPI.streamer_get_playing_track ();
+			if (0 != track) {
+				val = DeadbeefAPI.pl_format_title (track, -1, -1, "%a");
+				DeadbeefAPI.pl_item_unref (track);
 			}
-			return artist;
+			if (val == "" || val == null) {
+				val = "Unknown Artist";
+			}
+			return val;
 		}
 	}
 
 	String getTrackName() {
 		synchronized (this) {
-			int track = DeadbeefAPI.pl_get_current_idx();
-			return DeadbeefAPI.pl_get_metadata(track, "title");
+			String val = "";
+			int track = DeadbeefAPI.streamer_get_playing_track ();
+			if (0 != track) {
+				val = DeadbeefAPI.pl_format_title (track, -1, -1, "%t");
+				DeadbeefAPI.pl_item_unref (track);
+			}
+			return val;
 		}
 	}
 	
@@ -943,9 +956,9 @@ public class MediaPlaybackService extends Service {
 				DeadbeefAPI.play_idx(idx);
 			}
 		}
-		public int getCurrentIdx() {
-			return DeadbeefAPI.pl_get_current_idx ();
-		}
+//		public int getCurrentIdx() {
+//			return DeadbeefAPI.pl_get_current_idx ();
+//		}
 		public int getPlayOrder() {
 			return DeadbeefAPI.get_play_order ();
 		}

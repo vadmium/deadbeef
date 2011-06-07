@@ -15,9 +15,9 @@ public class DeadbeefAPI
 	public static native int pl_add_folder (String path);
 	public static native int pl_add_file (String path);
 	public static native void pl_clear ();
-	public static native int pl_get_current_idx ();
-	public static native String pl_get_metadata (int idx, String key);
-	public static native String pl_get_duration_formatted (int idx);
+//	public static native int pl_get_current_idx ();
+//	public static native String pl_get_metadata (int trk, String key);
+	public static native String pl_get_duration_formatted (int trk);
 	public static native int pl_get_for_idx (int idx);
 	public static native int pl_get_meta (int trk);
 	public static native String meta_get_key (int meta);
@@ -30,7 +30,8 @@ public class DeadbeefAPI
 	public static native int pl_insert_dir (int plt, int after, String path);
 	public static native String pl_get_track_path (int trk);
 	public static native int plt_get_item_bitrate (int trk);
-	public static native int plt_save_current (); 
+	public static native int plt_save_current ();
+	public static native String pl_format_title (int trk, int idx, int id, String fmt);
 	
 	// playlist manager
 	public static native int plt_get_count ();

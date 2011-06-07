@@ -54,7 +54,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-		Log.i("DDB", "Widget.onUpdate");
         defaultAppWidget(context, appWidgetIds);
         
         // Send broadcast intent to any running MediaPlaybackService so it can
@@ -72,7 +71,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
      * and hide actions if service not running.
      */
     private void defaultAppWidget(Context context, int[] appWidgetIds) {
-		Log.i("DDB", "defaultAppWidget");
         final Resources res = context.getResources();
         final RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.album_appwidget);
         
@@ -84,7 +82,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
     }
     
     private void pushUpdate(Context context, int[] appWidgetIds, RemoteViews views) {
-		Log.i("DDB", "pushUpdate");
         // Update specific list of appWidgetIds if given, otherwise default to all
         final AppWidgetManager gm = AppWidgetManager.getInstance(context);
         if (appWidgetIds != null) {
@@ -98,7 +95,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
      * Check against {@link AppWidgetManager} if there are any instances of this widget.
      */
     private boolean hasInstances(Context context) {
-		Log.i("DDB", "hasInstances");
         AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
         int[] appWidgetIds = appWidgetManager.getAppWidgetIds(
                 new ComponentName(context, this.getClass()));
@@ -109,7 +105,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
      * Handle a change notification coming over from {@link MediaPlaybackService}
      */
     void notifyChange(MediaPlaybackService service, String what) {
-		Log.i("DDB", "notifyChange");
         if (hasInstances(service)) {
             if (MediaPlaybackService.META_CHANGED.equals(what) ||
                     MediaPlaybackService.PLAYSTATE_CHANGED.equals(what)) {
@@ -122,7 +117,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
      * Update all active widget instances by pushing changes 
      */
     void performUpdate(MediaPlaybackService service, int[] appWidgetIds) {
-		Log.i("DDB", "performUpdate");
         final Resources res = service.getResources();
         final RemoteViews views = new RemoteViews(service.getPackageName(), R.layout.album_appwidget);
         
@@ -176,7 +170,6 @@ public class MediaAppWidgetProvider extends AppWidgetProvider {
      *            otherwise we launch {@link MusicBrowserActivity}.
      */
     private void linkButtons(Context context, RemoteViews views, boolean playerActive) {
-		Log.i("DDB", "linkButtons");
         // Connect up various buttons and touch events
         Intent intent;
         PendingIntent pendingIntent;
