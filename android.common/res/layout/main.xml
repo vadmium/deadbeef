@@ -10,6 +10,14 @@
               android:background="#251e1e"
               >
               
+	<com.google.ads.AdView android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        ads:adUnitId="a14de22b29b03f5"
+        ads:adSize="BANNER"
+        ads:loadAdOnCreate="true"
+        />    
 	<RelativeLayout
 		android:id="@+id/info"
 		android:orientation="vertical"
@@ -135,18 +143,9 @@
 		android:id="@+id/cover"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        android:padding="10dip"
 		android:layout_centerHorizontal="true"
 	>
 	</ImageView>
-	<com.google.ads.AdView android:id="@+id/adView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        ads:adUnitId="a14de22b29b03f5"
-        ads:adSize="BANNER"
-        ads:loadAdOnCreate="true"
-        />    
 	</RelativeLayout>
 	
 <LinearLayout

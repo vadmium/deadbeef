@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest package="org.deadbeef.android"
-      android:versionCode="5"
-      android:versionName="1.0.2" xmlns:android="http://schemas.android.com/apk/res/android">
+      android:versionCode="6"
+      android:versionName="1.0.3" xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -25,6 +25,7 @@
                 android:taskAffinity=""
                 android:launchMode="singleTask"
                 android:clearTaskOnLaunch="true"
+                android:screenOrientation="portrait"
                 >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
