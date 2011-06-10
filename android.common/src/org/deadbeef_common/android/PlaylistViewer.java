@@ -158,19 +158,8 @@ public class PlaylistViewer extends ListActivity {
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
         // add folder to playlist
     	if (requestCode == Deadbeef.REQUEST_ADD_FOLDER && resultCode == RESULT_OK) {
-	        handler.post(new Runnable() {
-	            public void run() {
-	            }
-	        });
     	}
     	if (requestCode == Deadbeef.REQUEST_ADD_FOLDER_AFTER && resultCode == RESULT_OK) {
-    		DeadbeefAPI.plt_save_current ();
-	        final FileListAdapter adapter = new FileListAdapter(this, R.layout.plitem, R.id.title); 
-	        handler.post(new Runnable() {
-	            public void run() {
-	                setListAdapter(adapter);
-	            }
-	        });
     	}
     	else if (requestCode == Deadbeef.REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
     		DeadbeefAPI.plt_set_curr_idx (resultCode);

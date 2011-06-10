@@ -34,9 +34,12 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -73,9 +76,16 @@ public class Deadbeef extends Activity {
     public static final int REQUEST_SELECT_PLAYLIST = 2;
     public static final int REQUEST_ADD_FOLDER_AFTER = 3;
     
+    public static final int DLG_CONFIRM_REMOVE = 0;
+    public static final int DLG_ASK_INSTALL_FREEPLUGS = 1;
+    public static final int DLG_ADD_LOCATION = 2;
+    public static final int DLG_OSS_LICENSES = 3;
+    public static final int DLG_ABOUT = 4;
+    
+    private int mSelected = -1; // selected playlist track (for ctx menu)    
+
     private Worker mAlbumArtWorker;
     private AlbumArtHandler mAlbumArtHandler;
-    private ImageView mCover;
     private final static int IDCOLIDX = 0;
     private static final String BASE64_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkImQu4KYIG7zDP/yrHhHr3bEh+WN+H1g6oQtwoq1L7KWmpD7b5x2a2w0Y3Y60vFb+73694ICZahSdADHlV36DmbmGX7CJFQAF/FYm+DP8hMUEPvUEyHCDZ+mwR6wnh7B4L4ywiHIByxmtAUK07gCRgCF4Y528DQhjlyga3O6r9QpCOPr6Y2cEAZkeDjIEowHcxyG/hFKeSn0fwTfPfc7Pj/W3qfZ9/7ksMquFQUB6DoXKMMMKd4BV7bEeB4bvhUJ/8M9NviBM9wLJjMqcEY8LrBZ49RBNXeW+zwSb6f8f7ZbLkRFoZMPdBwtiFStu8TUlPPUbSt0OBo1QxwiFlCLvQIDAQAB";
     
@@ -96,16 +106,34 @@ public class Deadbeef extends Activity {
         mAlbumArtWorker = new Worker("album art worker");
         mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
         
-        setContentView(R.layout.main);
+        setContentView(R.layout.main2);
+      
+        ListView lst = (ListView)findViewById(R.id.list); 
+        if (lst != null) {
+        	lst.setOnItemClickListener (new AdapterView.OnItemClickListener() {
+			    @Override
+			    public void onItemClick (AdapterView<?> parent, View v, int position, long id) {
+			   		try {
+			   			MusicUtils.sService.playIdx (position);
+			   		}
+			   		catch (RemoteException e) {
+			   		}
+			    };
+        	});
+	        ((Button)findViewById(R.id.addfolder)).setOnClickListener(mAddFolderListener);
+	        ((Button)findViewById(R.id.clear)).setOnClickListener(mClearListener);
+        }
         
         // set album art widget to square size
 //        DisplayMetrics dm = new DisplayMetrics();
 //        getWindowManager().getDefaultDisplay().getMetrics(dm);
         
-        mCover = (ImageView) findViewById(R.id.cover);
-        mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
-        mCover.setVisibility(View.VISIBLE);
-        mCover.setOnClickListener(mCoverClickListener);
+        ImageView vCover = (ImageView) findViewById(R.id.cover);
+        if (vCover != null) {
+	        mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(-1, -1)).sendToTarget();
+	        vCover.setVisibility(View.VISIBLE);
+	        vCover.setOnClickListener(mCoverClickListener);
+        }
         
 //        mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
         
@@ -121,7 +149,7 @@ public class Deadbeef extends Activity {
         }
         p.height = p.width = MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = min;
         coverwrap.setLayoutParams(p);*/
-        
+
         ((ImageButton)findViewById(R.id.playlist)).setOnClickListener(mPlaylistListener);
         ((ImageButton)findViewById(R.id.prev)).setOnClickListener(mPrevListener);
         ((ImageButton)findViewById(R.id.play)).setOnClickListener(mPlayPauseListener);
@@ -141,12 +169,19 @@ public class Deadbeef extends Activity {
 	        public void onServiceConnected(ComponentName className, IBinder obj) {
 	        	Log.e("DDB", "Deadbeef.onCreate connected");
 	        	MusicUtils.sService = IMediaPlaybackService.Stub.asInterface(obj);
+	        	
+		        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+	        	
 		        startMediaServiceListener ();
     	        handler.post(new Runnable() {
 				    public void run() {
+				    	ListView lst = (ListView)findViewById(R.id.list); 
+				        if (lst != null) {
+			                lst.setAdapter(adapter);
+				        }
 				        if (0 == DeadbeefAPI.conf_get_int("android.freeplugins_dont_ask", 0)) {
 					        if (!DeadbeefAPI.plugin_exists("stdmpg")) {
-					        	showDialog (1);
+					        	showDialog (DLG_ASK_INSTALL_FREEPLUGS);
 					        }
 				        }
 				    }
@@ -194,7 +229,25 @@ public class Deadbeef extends Activity {
         super.onDestroy();
     }
 
-    
+	private OnClickListener mAddFolderListener = new OnClickListener() {
+        public void onClick(View v) {
+        	// this works in background thread, need to disable android listadapter nonsense
+        	AddFolder ();
+        }
+    };
+
+    private OnClickListener mClearListener = new OnClickListener() {
+        public void onClick(View v) {
+        	DeadbeefAPI.pl_clear (); // FIXME: should be called through mediaservice, only when connected
+    		DeadbeefAPI.plt_save_current ();
+	        ListView lst = (ListView)findViewById(R.id.list); 
+	        if (lst != null) {
+		        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+	            lst.setAdapter(adapter);
+	        }
+        }
+    };
+
     private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
         public void allow() {
             if (isFinishing()) {
@@ -389,8 +442,11 @@ public class Deadbeef extends Activity {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case ALBUM_ART_DECODED:
-                    mCover.setImageBitmap((Bitmap)msg.obj);
-                    mCover.getDrawable().setDither(true);
+			        ImageView vCover = (ImageView) findViewById(R.id.cover);
+			        if (vCover != null) {
+	                    vCover.setImageBitmap((Bitmap)msg.obj);
+	                    vCover.getDrawable().setDither(true);
+			        }
                     break;
 
                 case REFRESH:
@@ -427,10 +483,19 @@ public class Deadbeef extends Activity {
 	        public void onReceive(Context context, Intent intent) {
 	        	if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_START")) {
 //					Log.w("DDB", "main received ADD_FILES_START");
+		    		ListView lst = (ListView)findViewById(R.id.list);
+		    		if (lst != null) { 
+		    			lst.setAdapter(null);
+		    		}
 					showProgress (true);
     			}
 	        	else if (intent.getAction().toString().equals ("org.deadbeef.android.ADD_FILES_FINISH")) {
 //					Log.w("DDB", "main received ADD_FILES_END");
+			        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+		    		ListView lst = (ListView)findViewById(R.id.list);
+		    		if (lst != null) { 
+		    			lst.setAdapter(adapter);
+		    		}
 					showProgress (false);
     			}
 	        }
@@ -557,8 +622,11 @@ public class Deadbeef extends Activity {
 						        Context context = Deadbeef.this;
 						        Bitmap bmp = BitmapFactory.decodeStream(
 						        		context.getResources().openRawResource(R.drawable.albumart_sid), null, opts);
-			    				mCover.setImageBitmap(bmp);
-		                    	mCover.getDrawable().setDither(true);
+						        ImageView vCover = (ImageView) findViewById(R.id.cover);
+						        if (vCover != null) {
+				    				vCover.setImageBitmap(bmp);
+			                    	vCover.getDrawable().setDither(true);
+						        }
 			    			}
 			    			else if (path.toLowerCase().endsWith(".nsf")) {
 						        BitmapFactory.Options opts = new BitmapFactory.Options();
@@ -566,8 +634,11 @@ public class Deadbeef extends Activity {
 						        Context context = Deadbeef.this;
 						        Bitmap bmp = BitmapFactory.decodeStream(
 						        		context.getResources().openRawResource(R.drawable.albumart_nes), null, opts);
-			    				mCover.setImageBitmap(bmp);
-		                    	mCover.getDrawable().setDither(true);
+						        ImageView vCover = (ImageView) findViewById(R.id.cover);
+						        if (vCover != null) {
+				    				vCover.setImageBitmap(bmp);
+			                    	vCover.getDrawable().setDither(true);
+						        }
 			    			}
 			    			else {
 					            long songid = -1;
@@ -617,7 +688,10 @@ public class Deadbeef extends Activity {
 				                mAlbumArtHandler.removeMessages(GET_ALBUM_ART);
 				                mAlbumArtHandler.obtainMessage(GET_ALBUM_ART, new AlbumSongIdWrapper(albumid, songid)).sendToTarget();
 			    			}
-			                mCover.setVisibility(View.VISIBLE);
+					        ImageView vCover = (ImageView) findViewById(R.id.cover);
+					        if (vCover != null) {
+				                vCover.setVisibility(View.VISIBLE);
+					        }
 	    	    			DeadbeefAPI.pl_item_unref (trk);
 	    	    			
 	    	    		}
@@ -713,6 +787,11 @@ public class Deadbeef extends Activity {
     	else if (requestCode == REQUEST_SELECT_PLAYLIST && resultCode >= 0) {
     		DeadbeefAPI.plt_set_curr_idx (resultCode);
     		DeadbeefAPI.conf_save ();
+    		final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+    		ListView lst = (ListView)findViewById(R.id.list);
+    		if (lst != null) { 
+    			lst.setAdapter(adapter);
+    		}
     	}
     }
 
@@ -733,10 +812,10 @@ public class Deadbeef extends Activity {
 	    	startActivityForResult(i, REQUEST_SELECT_PLAYLIST);
         }
         else if (id == R.id.menu_about) {
-        	showDialog (0);
+        	showDialog (DLG_ABOUT);
         }
         else if (id == R.id.menu_add_location) {
-        	showDialog (2);
+        	showDialog (DLG_ADD_LOCATION);
         }
         else if (id == R.id.menu_equalizer) {
         	Intent i = new Intent (this, EQ.class);
@@ -752,7 +831,7 @@ public class Deadbeef extends Activity {
     @Override
     protected Dialog onCreateDialog(int id) {
     	LayoutInflater factory = LayoutInflater.from(this);
-    	if (id == 0) {
+    	if (id == DLG_ABOUT) {
 	        final View textView = factory.inflate(R.layout.aboutbox, null);
 	        return new AlertDialog.Builder(Deadbeef.this)
 	            .setIcon(R.drawable.icon)
@@ -760,12 +839,12 @@ public class Deadbeef extends Activity {
 	            .setView(textView)
 	            .setNeutralButton(R.string.osslicenses_button, new DialogInterface.OnClickListener() {
 	                public void onClick(DialogInterface dialog, int whichButton) {
-	                	showDialog (3);
+	                	showDialog (DLG_OSS_LICENSES);
 	                }
 	            })
 	            .create();
     	}
-    	else if (id == 1) {
+    	else if (id == DLG_ASK_INSTALL_FREEPLUGS) {
 	        final View textView = factory.inflate(R.layout.install_freeplugins, null);
 	        return new AlertDialog.Builder(Deadbeef.this)
 	            .setIcon(R.drawable.icon)
@@ -800,10 +879,10 @@ public class Deadbeef extends Activity {
 	            })
 	            .create();
     	}
-    	else if (id == 2) {
+    	else if (id == DLG_ADD_LOCATION) {
     		return AddLocation ();
     	}
-    	else if (id == 3) {
+    	else if (id == DLG_OSS_LICENSES) {
 	        final View textView = factory.inflate(R.layout.osslicenses, null);
 	        return new AlertDialog.Builder(Deadbeef.this)
 	            .setIcon(R.drawable.icon)
@@ -811,7 +890,26 @@ public class Deadbeef extends Activity {
 	            .setView(textView)
 	            .create();
     	}
-    	return null;
+    	else if (id == DLG_CONFIRM_REMOVE) {
+            return new AlertDialog.Builder(Deadbeef.this)
+                .setIcon(R.drawable.icon)
+                .setTitle(R.string.remove_track_confirm)
+                .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                    	DeadbeefAPI.plt_remove_item(DeadbeefAPI.plt_get_curr(), mSelected);
+				        final FileListAdapter adapter = new FileListAdapter(Deadbeef.this, R.layout.plitem, R.id.title); 
+			    		ListView lst = (ListView)findViewById(R.id.list);
+			    		if (lst != null) { 
+			    			lst.setAdapter(adapter);
+			    		}
+                    }
+                })
+                .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                    }
+                })
+                .create();
+    	}    	return null;
     }
     
     private Dialog AddLocation () {
