@@ -17,13 +17,13 @@ import android.widget.TextView;
 
 public class SelectPlaylist extends ListActivity {
 	
-	private static final int ACT_CREATE = 0;
-	private static final int ACT_DELETE = 1;
-	private static final int ACT_RENAME = 2;
+	private static final int ACT_CREATE_PLAYLIST = 0;
+	private static final int ACT_DELETE_PLAYLIST = 1;
+	private static final int ACT_RENAME_PLAYLIST = 2;
 	
 	private int mSelected;
 	
-	private void fillList () {
+	private void fillPlaylistsList () {
         final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,R.layout.trackproperty,R.id.property);
         
         int n = DeadbeefAPI.plt_get_count ();
@@ -40,14 +40,14 @@ public class SelectPlaylist extends ListActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.playlists);
-        fillList ();
+        fillPlaylistsList ();
         registerForContextMenu(findViewById(android.R.id.list));
 	}
 	
 	@Override
     protected Dialog onCreateDialog(int id) {
 		switch (id) {
-		case ACT_CREATE: {
+		case ACT_CREATE_PLAYLIST: {
             LayoutInflater factory = LayoutInflater.from(this);
             final View textEntryView = factory.inflate(R.layout.editplaylist, null);
             return new AlertDialog.Builder(SelectPlaylist.this)
@@ -57,7 +57,7 @@ public class SelectPlaylist extends ListActivity {
                 .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
                     	DeadbeefAPI.plt_add (DeadbeefAPI.plt_get_count(), ((TextView)textEntryView.findViewById(R.id.title)).getText().toString());
-                    	fillList ();
+                    	fillPlaylistsList ();
                     }
                 })
                 .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
@@ -68,7 +68,7 @@ public class SelectPlaylist extends ListActivity {
                 })
                 .create();
 			}
-		case ACT_RENAME: {
+		case ACT_RENAME_PLAYLIST: {
             LayoutInflater factory = LayoutInflater.from(this);
             final View textEntryView = factory.inflate(R.layout.editplaylist, null);
             return new AlertDialog.Builder(SelectPlaylist.this)
@@ -78,7 +78,7 @@ public class SelectPlaylist extends ListActivity {
                 .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
                     	DeadbeefAPI.plt_set_title (mSelected, ((TextView)textEntryView.findViewById(R.id.title)).getText().toString());
-                    	fillList ();
+                    	fillPlaylistsList ();
                     }
                 })
                 .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
@@ -89,14 +89,14 @@ public class SelectPlaylist extends ListActivity {
                 })
                 .create();
 			}
-		case ACT_DELETE:
+		case ACT_DELETE_PLAYLIST:
             return new AlertDialog.Builder(SelectPlaylist.this)
                 .setIcon(R.drawable.icon)
                 .setTitle(R.string.delete_playlist_confirm)
                 .setPositiveButton(R.string.alert_dialog_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
                     	DeadbeefAPI.plt_remove(mSelected);
-                    	fillList ();
+                    	fillPlaylistsList ();
                     }
                 })
                 .setNegativeButton(R.string.alert_dialog_cancel, new DialogInterface.OnClickListener() {
@@ -114,7 +114,7 @@ public class SelectPlaylist extends ListActivity {
     public void onListItemClick (ListView l, View v, int position, long id) {
 		if (position == 0) {
 			// showDialog
-			showDialog(ACT_CREATE);
+			showDialog(ACT_CREATE_PLAYLIST);
 		}
 		else {
 			setResult(position-1);
@@ -126,18 +126,18 @@ public class SelectPlaylist extends ListActivity {
 	public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
 		Log.e("DDB","onCreateContextMenu");
 		mSelected = ((AdapterContextMenuInfo)menuInfo).position-1;
-		menu.add(0, ACT_RENAME, 0, R.string.rename_playlist);
-		menu.add(0, ACT_DELETE, 1, R.string.delete_playlist);
+		menu.add(0, ACT_RENAME_PLAYLIST, 0, R.string.rename_playlist);
+		menu.add(0, ACT_DELETE_PLAYLIST, 1, R.string.delete_playlist);
 	}
     	
 	@Override
 	public boolean onContextItemSelected (MenuItem item) {
 		switch (item.getItemId()) {
-		case ACT_RENAME:
-			showDialog (ACT_RENAME);
+		case ACT_RENAME_PLAYLIST:
+			showDialog (ACT_RENAME_PLAYLIST);
 			break;
-		case ACT_DELETE:
-			showDialog (ACT_DELETE);
+		case ACT_DELETE_PLAYLIST:
+			showDialog (ACT_DELETE_PLAYLIST);
 			break;
 		}
 		return false;

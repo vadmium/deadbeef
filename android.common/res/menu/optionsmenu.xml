@@ -10,9 +10,9 @@
   <item android:id="@+id/menu_clear_playlist"
    android:icon="@drawable/ic_menu_clear_playlist"
    android:title="Clear playlist" />
-  <item android:id="@+id/menu_manage_playlists"
+  <!-- item android:id="@+id/menu_manage_playlists"
    android:icon="@drawable/ic_menu_playlists"
-   android:title="Manage playlists" />
+   android:title="Manage playlists" /-->
   <item android:id="@+id/menu_add_location"
    android:icon="@drawable/ic_menu_add"
    android:title="Add location" />

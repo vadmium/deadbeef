@@ -17,7 +17,9 @@
 <resources>
     <color name="appwidget_text">#ffffffff</color>
 
-    <color name="transparent">#00000000</color>
+    <color name="transparent">#0000</color>
+    <color name="black">#f000</color>
+    <color name="lcd">#ffb0ad91</color>
 
 </resources>
 
