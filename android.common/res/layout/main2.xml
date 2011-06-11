@@ -33,7 +33,7 @@
 		android:id="@+id/info"
 		android:orientation="vertical"
 	    android:layout_width="fill_parent"
-	    android:layout_height="130dip"
+	    android:layout_height="wrap_content"
 	>
     <ImageButton
         android:id="@+id/ShuffleMode"
@@ -164,11 +164,8 @@
     android:layout_height="50dip"
     android:orientation="horizontal"
 	android:layout_centerHorizontal="true"
-	    android:layout_marginTop="3dip"
-	    android:layout_marginBottom="3dip"
-	    android:layout_marginLeft="3dip"
-	    android:layout_marginRight="3dip"
         android:layout_alignParentBottom="true"
+        android:background="@drawable/seekbar_bg"
     >
 
     <ImageButton
@@ -176,50 +173,45 @@
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/playbar_list"
-        android:background="@drawable/playbar1w"
+        android:src="@drawable/lcd_playlist_selector"
+        android:background="#0000"
         android:scaleType="fitCenter"
-        android:padding="10dip"
         />    
     <ImageButton
         android:id="@+id/prev"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/playbar_prev"
-        android:background="@drawable/playbar2w"
+        android:src="@drawable/lcd_prev_selector"
+        android:background="#0000"
         android:scaleType="fitCenter"
-        android:padding="10dip"
         />    
     <ImageButton
         android:id="@+id/play"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/playbar_play"
-        android:background="@drawable/playbar3w"
+        android:src="@drawable/lcd_play_selector"
+        android:background="#0000"
         android:scaleType="fitCenter"
-        android:padding="10dip"
        />    
     <ImageButton
         android:id="@+id/next"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/playbar_next"
-        android:background="@drawable/playbar4w"
+        android:src="@drawable/lcd_next_selector"
+        android:background="#0000"
         android:scaleType="fitCenter"
-        android:padding="10dip"
         />    
     <ImageButton
         android:id="@+id/add"
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/playbar_add"
-        android:background="@drawable/playbar5w"
+        android:src="@drawable/lcd_addfolder_selector"
+        android:background="#0000"
         android:scaleType="fitCenter"
-        android:padding="10dip"
         />    
     </LinearLayout>
     

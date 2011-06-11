@@ -726,9 +726,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					curr_state = new_state;
 					ImageButton button = (ImageButton) findViewById(R.id.play);
 					if (!curr_state) {
-						button.setImageResource(R.drawable.playbar_play);
+						button.setImageResource(R.drawable.lcd_play_selector);
 					} else {
-						button.setImageResource(R.drawable.playbar_pause);
+						button.setImageResource(R.drawable.lcd_pause_selector);
 					}
 				}
 
