@@ -241,10 +241,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					}
 				};
 			});
-			((Button) findViewById(R.id.addfolder))
-					.setOnClickListener(mAddFolderListener);
-			((Button) findViewById(R.id.clear))
-					.setOnClickListener(mClearListener);
 		}
 
 		// playlists list
@@ -327,7 +323,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 				.setOnClickListener(mPlayPauseListener);
 		((ImageButton) findViewById(R.id.next))
 				.setOnClickListener(mNextListener);
-		((ImageButton) findViewById(R.id.add)).setOnClickListener(mAddListener);
+		((ImageButton) findViewById(R.id.add)).setOnClickListener(mAddFolderListener);
 		((ImageButton) findViewById(R.id.ShuffleMode))
 				.setOnClickListener(mShuffleModeListener);
 		((ImageButton) findViewById(R.id.RepeatMode))
@@ -410,28 +406,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		MusicUtils.unbindFromService(this);
 		super.onDestroy();
 	}
-
-	private OnClickListener mAddFolderListener = new OnClickListener() {
-		public void onClick(View v) {
-			// this works in background thread, need to disable android
-			// listadapter nonsense
-			AddFolder();
-		}
-	};
-
-	private OnClickListener mClearListener = new OnClickListener() {
-		public void onClick(View v) {
-			DeadbeefAPI.pl_clear(); // FIXME: should be called through
-									// mediaservice, only when connected
-			DeadbeefAPI.plt_save_current();
-			ListView lst = (ListView) findViewById(R.id.playlist);
-			if (lst != null) {
-				final FileListAdapter adapter = new FileListAdapter(
-						Deadbeef.this, R.layout.plitem, R.id.title);
-				lst.setAdapter(adapter);
-			}
-		}
-	};
 
 	private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
 		public void allow() {
@@ -1286,8 +1260,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		}
 	};
 
-	private OnClickListener mAddListener = new OnClickListener() {
+	private OnClickListener mAddFolderListener = new OnClickListener() {
 		public void onClick(View v) {
+			// this works in background thread, need to disable android
+			// listadapter nonsense
 			AddFolder();
 		}
 	};

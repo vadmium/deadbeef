@@ -156,24 +156,6 @@
                >
     </ListView>
     
-    <LinearLayout
-    	android:layout_width="wrap_content"
-    	android:layout_height="wrap_content"
-    	android:orientation="horizontal">
-	<Button
-			android:text="Add Folders"
-			android:id="@+id/addfolder"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content">
-	</Button>
-	<Button
-			android:text="Clear"
-			android:id="@+id/clear"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content">
-	</Button>
-	</LinearLayout>
-	  
 </LinearLayout>
 	
 <LinearLayout
