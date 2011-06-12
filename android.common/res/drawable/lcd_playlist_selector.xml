@@ -5,5 +5,5 @@
         android:drawable="@drawable/lcd_playlist_pressed" />
 
     <item
-         android:drawable="@@drawable/lcd_playlist" />
+         android:drawable="@drawable/lcd_playlist" />
 </selector>

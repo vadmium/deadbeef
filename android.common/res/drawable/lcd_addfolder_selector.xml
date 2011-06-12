@@ -5,5 +5,5 @@
         android:drawable="@drawable/lcd_addfolder_pressed" />
 
     <item
-         android:drawable="@@drawable/lcd_addfolder" />
+         android:drawable="@drawable/lcd_addfolder" />
 </selector>

@@ -5,5 +5,5 @@
         android:drawable="@drawable/lcd_prev_pressed" />
 
     <item
-         android:drawable="@@drawable/lcd_prev" />
+         android:drawable="@drawable/lcd_prev" />
 </selector>

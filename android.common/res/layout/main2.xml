@@ -84,11 +84,12 @@
         android:shadowDx="2"
         android:shadowDy="2"
         android:shadowRadius="2"
+        android:text=" "
         />
 	<TextView
+		android:id="@+id/np_artist_album"
 		android:layout_height="wrap_content"
 		android:layout_width="fill_parent"
-		android:id="@+id/np_artist_album"
         android:singleLine="true"
         android:ellipsize="marquee"
 		android:gravity="left"
@@ -99,6 +100,7 @@
         android:shadowDx="2"
         android:shadowDy="2"
         android:shadowRadius="2"
+        android:text=" "
 	    />
 
 
