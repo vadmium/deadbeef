@@ -21,7 +21,6 @@ interface IMediaPlaybackService
     void cycleRepeatMode();
     void cycleShuffleMode();
     void startFile(String fname);
-//    int getCurrentIdx();
     int getPlayOrder();
     int getPlayMode();
     
@@ -30,6 +29,9 @@ interface IMediaPlaybackService
     boolean busyAddingFiles ();
     
     void handle_ddb_events ();
+    
     int conf_save ();
+    
+    boolean isLicensed ();
 }
 

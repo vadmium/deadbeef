@@ -1,5 +1,7 @@
 #!/bin/bash
 
+OPTS="-C -P -ftabstop=4"
+
 # java
 
 for folder in src ; do
@@ -9,7 +11,7 @@ for folder in src ; do
         find $folder -name "*.$ext" | while read i ; do
             out=`dirname $i`/`basename $i .in`
 #            echo $i $out
-            cpp -CC -P $@ "$i" "$out"
+            cpp $OPTS $@ "$i" "$out"
         done
 
     done
@@ -23,8 +25,14 @@ for folder in res.in ; do
             out=`dirname $i`/`basename $i .in`
             out=`echo $out | sed 's/res\.in/res/'`
 #            echo $i $out
-            cpp -CC -P $@ "$i" "$out"
+            cpp $OPTS $@ "$i" "$out"
         done
 
     done
 done
+
+# AndroidManifest
+if [ -f AndroidManifest.xml.in ] ; then
+    out=AndroidManifest.xml
+    cpp $OPTS $@ AndroidManifest.xml.in "$out"
+fi

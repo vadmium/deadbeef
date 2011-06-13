@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest
+#ifdef FREEVERSION
+	package="org.deadbeef.android"
+#else
+	package="org.deadbeefpro.android"
+#endif
 
-
-
- package="org.deadbeefpro.android"
-
-
-
-
-      android:versionCode="7"
-      android:versionName="1.0.4"
+#define QUOTEME_(x) #x
+#define QUOTEME(x) QUOTEME_(x)
+      android:versionCode=QUOTEME(VERSION_CODE)
+      android:versionName=QUOTEME(VERSION_STRING)
 
       xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />
@@ -19,20 +19,20 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-
-
-
-
+#ifdef USE_LICENSING
+    <uses-permission android:name="com.android.vending.CHECK_LICENSE" />
+#endif
+    
     <application
-     android:icon="@drawable/icon"
-     android:label="@string/app_name"
-     android:testOnly="false"
-     android:debuggable="false"
-     >
-
-      <activity android:name="org.deadbeef.android.Deadbeef"
-
-          android:icon="@drawable/icon"
+    	android:icon="@drawable/icon"
+    	android:label="@string/app_name"
+    	android:testOnly="false"
+    	android:debuggable="false"
+    	>
+    	 
+    	 <activity android:name="org.deadbeef.android.Deadbeef"
+    	 
+        		android:icon="@drawable/icon"
                 android:theme="@android:style/Theme.NoTitleBar"
                 android:label="@string/app_name"
                 android:taskAffinity=""
@@ -48,8 +48,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-     <activity android:name="org.deadbeef.android.StreamStarter">
+        
+	    <activity android:name="org.deadbeef.android.StreamStarter">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -63,33 +63,33 @@
                 <data android:mimeType="application/x-zip-compressed"/>
             </intent-filter>
         </activity>
-
-  <service android:name="org.deadbeef.android.MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/service_name" android:enabled="true">
-  </service>
-
-  <activity android:name="com.google.ads.AdActivity"
+        
+		<service android:name="org.deadbeef.android.MediaPlaybackService" android:label="@string/app_name" android:icon="@drawable/stat_notify_musicplayer" android:process="@string/service_name" android:enabled="true">
+		</service>
+		
+		<activity android:name="com.google.ads.AdActivity"
               android:configChanges="keyboard|keyboardHidden|orientation"/>
 
     <activity android:name="org.deadbeef.android.FileBrowser"
-      android:label="@string/title_file_browser"
-      android:launchMode="standard">
- </activity>
+    	 android:label="@string/title_file_browser"
+    	 android:launchMode="standard">
+	</activity>
     <activity android:name="org.deadbeef.android.PlaylistViewer"
-      android:label="@string/title_playlist_viewer"
-      android:launchMode="standard">
- </activity>
+    	 android:label="@string/title_playlist_viewer"
+    	 android:launchMode="standard">
+	</activity>
     <activity android:name="org.deadbeef.android.EQ"
-      android:label="@string/title_eq"
-      android:launchMode="standard">
- </activity>
+    	 android:label="@string/title_eq"
+    	 android:launchMode="standard">
+	</activity>
     <activity android:name="org.deadbeef.android.SelectEqPreset"
-      android:label="@string/select_eq_preset"
-      android:launchMode="standard">
- </activity>
+    	 android:label="@string/select_eq_preset"
+    	 android:launchMode="standard">
+	</activity>
 
     <activity
-     android:name="org.deadbeef.android.TrackPropertiesViewer"
-     android:label="Track properties">
+    	android:name="org.deadbeef.android.TrackPropertiesViewer"
+    	android:label="Track properties">
      <intent-filter>
          <action android:name="org.deadbeef.android.TRACK_PROPERTIES_VIEWER" />
          <category android:name="android.intent.category.DEFAULT" />
@@ -97,24 +97,24 @@
     </activity>
 
     <activity
-     android:name="org.deadbeef.android.SelectPlaylist"
-     android:label="Playlists">
+    	android:name="org.deadbeef.android.SelectPlaylist"
+    	android:label="Playlists">
      <intent-filter>
          <action android:name="org.deadbeef.android.PLAYLIST_MANAGER" />
          <category android:name="android.intent.category.DEFAULT" />
      </intent-filter>
     </activity>
     <activity android:name="org.deadbeef.android.Settings"
-      android:label="Settings"
-      android:launchMode="standard">
- </activity>
-
- <receiver android:name="org.deadbeef.android.MediaButtonIntentReceiver">
-        <intent-filter>
-            <action android:name="android.intent.action.MEDIA_BUTTON" />
-            <action android:name="android.media.AUDIO_BECOMING_NOISY" />
-        </intent-filter>
- </receiver>
+    	 android:label="Settings"
+    	 android:launchMode="standard">
+	</activity>
+		
+	<receiver android:name="org.deadbeef.android.MediaButtonIntentReceiver">
+	       <intent-filter>
+	           <action android:name="android.intent.action.MEDIA_BUTTON" />
+	           <action android:name="android.media.AUDIO_BECOMING_NOISY" />
+	       </intent-filter>
+	</receiver>              
         <receiver android:name="org.deadbeef.android.MediaAppWidgetProvider">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -123,4 +123,4 @@
         </receiver>
 </application>
 
-</manifest>
+</manifest> 

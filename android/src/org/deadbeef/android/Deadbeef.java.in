@@ -1,4 +1,5 @@
 package org.deadbeef.android;
+import PACKAGENAME.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -101,18 +102,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 	private Worker mAlbumArtWorker;
 	private AlbumArtHandler mAlbumArtHandler;
 	private final static int IDCOLIDX = 0;
-	private static final String BASE64_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkImQu4KYIG7zDP/yrHhHr3bEh+WN+H1g6oQtwoq1L7KWmpD7b5x2a2w0Y3Y60vFb+73694ICZahSdADHlV36DmbmGX7CJFQAF/FYm+DP8hMUEPvUEyHCDZ+mwR6wnh7B4L4ywiHIByxmtAUK07gCRgCF4Y528DQhjlyga3O6r9QpCOPr6Y2cEAZkeDjIEowHcxyG/hFKeSn0fwTfPfc7Pj/W3qfZ9/7ksMquFQUB6DoXKMMMKd4BV7bEeB4bvhUJ/8M9NviBM9wLJjMqcEY8LrBZ49RBNXeW+zwSb6f8f7ZbLkRFoZMPdBwtiFStu8TUlPPUbSt0OBo1QxwiFlCLvQIDAQAB";
-
-/*	private LicenseCheckerCallback mLicenseCheckerCallback;
-	private LicenseChecker mChecker;
-	private static final byte[] SALT = new byte[] { 91, 117, 85, -103, 0, -16,
-			118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56 };*/
-
-#ifdef FREEVERSION
-	public static final boolean freeversion = true;
-#else
-	public static final boolean freeversion = false;
-#endif
 
 	private float downXValue;
 
@@ -180,6 +169,62 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		}
 
 		lst.setAdapter(adapter);
+	}
+	
+	private void startService () {
+		MusicUtils.bindToService(this, new ServiceConnection() {
+			public void onServiceConnected(ComponentName className, IBinder obj) {
+				Log.e("DDB", "Deadbeef.onCreate connected");
+				MusicUtils.sService = IMediaPlaybackService.Stub
+						.asInterface(obj);
+				
+#ifdef USE_LICENSING
+				try {
+					if (!MusicUtils.sService.isLicensed ()) {
+						Toast toast = Toast
+								.makeText(Deadbeef.this,
+										"Deadbeef license check failed, exiting",
+										Toast.LENGTH_SHORT);
+						toast.show();
+						Deadbeef.this.finish ();
+						return;
+					}
+				}
+				catch (RemoteException e) {
+				}
+#endif
+
+				final FileListAdapter adapter = new FileListAdapter(
+						Deadbeef.this, R.layout.plitem, R.id.title);
+
+				startMediaServiceListener();
+				handler.post(new Runnable() {
+					public void run() {
+						ListView lst = (ListView) findViewById(R.id.playlist);
+						if (lst != null) {
+							lst.setAdapter(adapter);
+						}
+						lst = (ListView) findViewById(R.id.playlists);
+						if (lst != null) {
+							fillPlaylistsList(lst);
+						}
+						if (0 == DeadbeefAPI.conf_get_int(
+								"android.freeplugins_dont_ask", 0)) {
+							if (!DeadbeefAPI.plugin_exists("stdmpg")) {
+								showDialog(DLG_ASK_INSTALL_FREEPLUGS);
+							}
+						}
+					}
+				});
+
+			}
+
+			public void onServiceDisconnected(ComponentName className) {
+				Log.e("DDB", "service disconnected");
+				stopMediaServiceListener();
+				MusicUtils.sService = null;
+			}
+		});
 	}
 
 	/** Called when the activity is first created. */
@@ -371,58 +416,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		seekbar = (SeekBar) findViewById(R.id.seekbar);
 
 		Log.e("DDB", "Deadbeef.onCreate bind");
-		MusicUtils.bindToService(this, new ServiceConnection() {
-			public void onServiceConnected(ComponentName className, IBinder obj) {
-				Log.e("DDB", "Deadbeef.onCreate connected");
-				MusicUtils.sService = IMediaPlaybackService.Stub
-						.asInterface(obj);
-
-				final FileListAdapter adapter = new FileListAdapter(
-						Deadbeef.this, R.layout.plitem, R.id.title);
-
-				startMediaServiceListener();
-				handler.post(new Runnable() {
-					public void run() {
-						ListView lst = (ListView) findViewById(R.id.playlist);
-						if (lst != null) {
-							lst.setAdapter(adapter);
-						}
-						lst = (ListView) findViewById(R.id.playlists);
-						if (lst != null) {
-							fillPlaylistsList(lst);
-						}
-						if (0 == DeadbeefAPI.conf_get_int(
-								"android.freeplugins_dont_ask", 0)) {
-							if (!DeadbeefAPI.plugin_exists("stdmpg")) {
-								showDialog(DLG_ASK_INSTALL_FREEPLUGS);
-							}
-						}
-					}
-				});
-
-			}
-
-			public void onServiceDisconnected(ComponentName className) {
-				Log.e("DDB", "service disconnected");
-				stopMediaServiceListener();
-				MusicUtils.sService = null;
-			}
-		});
-
-/*		if (!freeversion) {
-			// Construct the LicenseCheckerCallback. The library calls this when
-			// done.
-			mLicenseCheckerCallback = new MyLicenseCheckerCallback();
-
-			// Construct the LicenseChecker with a Policy.
-			String deviceId = Secure.getString(getContentResolver(),
-					Secure.ANDROID_ID);
-			mChecker = new LicenseChecker(this, new ServerManagedPolicy(this,
-					new AESObfuscator(SALT, getPackageName(), deviceId)),
-					BASE64_PUBLIC_KEY);
-
-			mChecker.checkAccess(mLicenseCheckerCallback);
-		}*/
+		
+		startService ();
 	}
 
 	@Override
@@ -436,9 +431,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 	@Override
 	public void onDestroy() {
-/*		if (!freeversion) {
-			mChecker.onDestroy();
-		}*/
 		mAlbumArtWorker.quit();
 		if (null != mTimer) {
 			mTimerTask.cancel();
@@ -450,39 +442,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		MusicUtils.unbindFromService(this);
 		super.onDestroy();
 	}
-/*
-	private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
-		public void allow() {
-			if (isFinishing()) {
-				// Don't update UI if Activity is finishing.
-				return;
-			}
-			// Should allow user access.
-			// Toast toast = Toast.makeText(Deadbeef.this, "Access Allowed",
-			// Toast.LENGTH_SHORT);
-			// toast.show();
-		}
-
-		public void dontAllow() {
-			if (isFinishing()) {
-				// Don't update UI if Activity is finishing.
-				return;
-			}
-			Toast toast = Toast
-					.makeText(Deadbeef.this,
-							"Deadbeef license check failed, exiting",
-							Toast.LENGTH_LONG);
-			toast.show();
-			Deadbeef.this.finish();
-
-		}
-
-		@Override
-		public void applicationError(ApplicationErrorCode errorCode) {
-			// TODO Auto-generated method stub
-
-		}
-	}*/
 
 	private class ProgressTask extends TimerTask {
 		public void run() {
@@ -577,23 +536,26 @@ public class Deadbeef extends Activity implements OnTouchListener {
 	}
 
 	private String getTotalTimeFormatted() {
-		float pl_totaltime = DeadbeefAPI.pl_get_totaltime();
-		int daystotal = (int) pl_totaltime / (3600 * 24);
-		int hourtotal = ((int) pl_totaltime / 3600) % 24;
-		int mintotal = ((int) pl_totaltime / 60) % 60;
-		int sectotal = ((int) pl_totaltime) % 60;
-		String totaltime_str;
-		if (daystotal == 0) {
-			totaltime_str = String.format("%d:%02d:%02d", hourtotal, mintotal,
-					sectotal);
-		} else if (daystotal == 1) {
-			totaltime_str = String.format("1 day %d:%02d:%02d", hourtotal,
-					mintotal, sectotal);
-		} else {
-			totaltime_str = String.format("%d days %d:%02d:%02d", daystotal,
-					hourtotal, mintotal, sectotal);
+		if (MusicUtils.sService != null) {
+			float pl_totaltime = DeadbeefAPI.pl_get_totaltime();
+			int daystotal = (int) pl_totaltime / (3600 * 24);
+			int hourtotal = ((int) pl_totaltime / 3600) % 24;
+			int mintotal = ((int) pl_totaltime / 60) % 60;
+			int sectotal = ((int) pl_totaltime) % 60;
+			String totaltime_str;
+			if (daystotal == 0) {
+				totaltime_str = String.format("%d:%02d:%02d", hourtotal, mintotal,
+						sectotal);
+			} else if (daystotal == 1) {
+				totaltime_str = String.format("1 day %d:%02d:%02d", hourtotal,
+						mintotal, sectotal);
+			} else {
+				totaltime_str = String.format("%d days %d:%02d:%02d", daystotal,
+						hourtotal, mintotal, sectotal);
+			}
+			return totaltime_str;
 		}
-		return totaltime_str;
+		return "";
 	}
 
 	private String plstate_prev = "";
@@ -733,6 +695,18 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 	final Runnable UpdateInfoRunnable = new Runnable() {
 		public void run() {
+#ifdef USE_LICENSING
+			if (MusicUtils.sService != null) {
+				try {
+					if (!MusicUtils.sService.isLicensed ()) {
+						Deadbeef.this.finish ();
+						return;
+					}
+				}
+				catch (RemoteException e) {
+				}
+			}
+#endif
 			if (!isVisible) {
 				return;
 			}

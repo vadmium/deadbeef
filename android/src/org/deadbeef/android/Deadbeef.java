@@ -1,4 +1,5 @@
 package org.deadbeef.android;
+import org.deadbeefpro.android.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -101,18 +102,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
  private Worker mAlbumArtWorker;
  private AlbumArtHandler mAlbumArtHandler;
  private final static int IDCOLIDX = 0;
- private static final String BASE64_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkImQu4KYIG7zDP/yrHhHr3bEh+WN+H1g6oQtwoq1L7KWmpD7b5x2a2w0Y3Y60vFb+73694ICZahSdADHlV36DmbmGX7CJFQAF/FYm+DP8hMUEPvUEyHCDZ+mwR6wnh7B4L4ywiHIByxmtAUK07gCRgCF4Y528DQhjlyga3O6r9QpCOPr6Y2cEAZkeDjIEowHcxyG/hFKeSn0fwTfPfc7Pj/W3qfZ9/7ksMquFQUB6DoXKMMMKd4BV7bEeB4bvhUJ/8M9NviBM9wLJjMqcEY8LrBZ49RBNXeW+zwSb6f8f7ZbLkRFoZMPdBwtiFStu8TUlPPUbSt0OBo1QxwiFlCLvQIDAQAB";
-
-/*	private LicenseCheckerCallback mLicenseCheckerCallback;
-	private LicenseChecker mChecker;
-	private static final byte[] SALT = new byte[] { 91, 117, 85, -103, 0, -16,
-			118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56 };*/
-
-
- public static final boolean freeversion = true;
-
-
-
 
  private float downXValue;
 
@@ -182,17 +171,49 @@ public class Deadbeef extends Activity implements OnTouchListener {
   lst.setAdapter(adapter);
  }
 
+ private void startService () {
+  MusicUtils.bindToService(this, new ServiceConnection() {
+   public void onServiceConnected(ComponentName className, IBinder obj) {
+    Log.e("DDB", "Deadbeef.onCreate connected");
+    MusicUtils.sService = IMediaPlaybackService.Stub
+      .asInterface(obj);
+    final FileListAdapter adapter = new FileListAdapter(
+      Deadbeef.this, R.layout.plitem, R.id.title);
+    startMediaServiceListener();
+    handler.post(new Runnable() {
+     public void run() {
+      ListView lst = (ListView) findViewById(R.id.playlist);
+      if (lst != null) {
+       lst.setAdapter(adapter);
+      }
+      lst = (ListView) findViewById(R.id.playlists);
+      if (lst != null) {
+       fillPlaylistsList(lst);
+      }
+      if (0 == DeadbeefAPI.conf_get_int(
+        "android.freeplugins_dont_ask", 0)) {
+       if (!DeadbeefAPI.plugin_exists("stdmpg")) {
+        showDialog(DLG_ASK_INSTALL_FREEPLUGS);
+       }
+      }
+     }
+    });
+   }
+   public void onServiceDisconnected(ComponentName className) {
+    Log.e("DDB", "service disconnected");
+    stopMediaServiceListener();
+    MusicUtils.sService = null;
+   }
+  });
+ }
  /** Called when the activity is first created. */
  @Override
  public void onCreate(Bundle savedInstanceState) {
   Log.e("DDB", "Deadbeef.onCreate");
   super.onCreate(savedInstanceState);
-
   mAlbumArtWorker = new Worker("album art worker");
   mAlbumArtHandler = new AlbumArtHandler(mAlbumArtWorker.getLooper());
-
   setContentView(R.layout.main2);
-
   if (savedInstanceState != null) {
    ViewFlipper vf;
    vf = (ViewFlipper) findViewById(R.id.mainflipper);
@@ -200,9 +221,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
    vf = (ViewFlipper) findViewById(R.id.coverflipper);
    vf.setDisplayedChild(savedInstanceState.getInt("coverflipper_page", 0));
   }
-
   findViewById(R.id.mainview).setOnTouchListener((OnTouchListener) this);
-
   OnGestureListener gstList = new SimpleOnGestureListener() {
    public boolean onFling(MotionEvent e1, MotionEvent e2,
      float velocityX, float velocityY) {
@@ -233,7 +252,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   };
   final GestureDetector detector = new GestureDetector(gstList, mHandler);
-
   OnTouchListener touchListener = new OnTouchListener() {
    public boolean onTouch(View view, MotionEvent e) {
     boolean rv = detector.onTouchEvent(e);
@@ -243,7 +261,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
     return false;
    }
   };
-
   ListView lst = (ListView) findViewById(R.id.playlist);
   if (lst != null) {
    lst.setOnTouchListener(touchListener);
@@ -268,14 +285,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
      menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
      menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
    //		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
-
      Intent i = new Intent (Deadbeef.this, TrackPropertiesViewer.class);
      i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
      menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
     }
    });
   }
-
   // playlists list
   lst = (ListView) findViewById(R.id.playlists);
   if (lst != null) {
@@ -321,7 +336,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    });
    lst.setOnTouchListener(touchListener);
   }
-
   ImageView vCover = (ImageView) findViewById(R.id.cover);
   if (vCover != null) {
    vCover.setOnTouchListener(touchListener);
@@ -330,13 +344,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
    vCover.setVisibility(View.VISIBLE);
    vCover.setOnClickListener(mCoverClickListener);
   }
-
   // set album art widget to square size
   // DisplayMetrics dm = new DisplayMetrics();
   // getWindowManager().getDefaultDisplay().getMetrics(dm);
-
   // mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
-
   /*
 		 * View coverwrap = (View)findViewById(R.id.coverwrap);
 		 * coverwrap.setVisibility(View.VISIBLE);
@@ -348,7 +359,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		 * MusicUtils.mArtworkWidth = MusicUtils.mArtworkHeight = min;
 		 * coverwrap.setLayoutParams(p);
 		 */
-
   ((ImageButton) findViewById(R.id.showplaylist))
     .setOnClickListener(mPlaylistListener);
   ((ImageButton) findViewById(R.id.prev))
@@ -363,68 +373,13 @@ public class Deadbeef extends Activity implements OnTouchListener {
     .setOnClickListener(mShuffleModeListener);
   ((ImageButton) findViewById(R.id.RepeatMode))
     .setOnClickListener(mRepeatModeListener);
-
   SeekBar sb = (SeekBar) findViewById(R.id.seekbar);
   sb.setMax(100);
   sb.setOnSeekBarChangeListener(sbChangeListener);
-
   seekbar = (SeekBar) findViewById(R.id.seekbar);
-
   Log.e("DDB", "Deadbeef.onCreate bind");
-  MusicUtils.bindToService(this, new ServiceConnection() {
-   public void onServiceConnected(ComponentName className, IBinder obj) {
-    Log.e("DDB", "Deadbeef.onCreate connected");
-    MusicUtils.sService = IMediaPlaybackService.Stub
-      .asInterface(obj);
-
-    final FileListAdapter adapter = new FileListAdapter(
-      Deadbeef.this, R.layout.plitem, R.id.title);
-
-    startMediaServiceListener();
-    handler.post(new Runnable() {
-     public void run() {
-      ListView lst = (ListView) findViewById(R.id.playlist);
-      if (lst != null) {
-       lst.setAdapter(adapter);
-      }
-      lst = (ListView) findViewById(R.id.playlists);
-      if (lst != null) {
-       fillPlaylistsList(lst);
-      }
-      if (0 == DeadbeefAPI.conf_get_int(
-        "android.freeplugins_dont_ask", 0)) {
-       if (!DeadbeefAPI.plugin_exists("stdmpg")) {
-        showDialog(DLG_ASK_INSTALL_FREEPLUGS);
-       }
-      }
-     }
-    });
-
-   }
-
-   public void onServiceDisconnected(ComponentName className) {
-    Log.e("DDB", "service disconnected");
-    stopMediaServiceListener();
-    MusicUtils.sService = null;
-   }
-  });
-
-/*		if (!freeversion) {
-			// Construct the LicenseCheckerCallback. The library calls this when
-			// done.
-			mLicenseCheckerCallback = new MyLicenseCheckerCallback();
-
-			// Construct the LicenseChecker with a Policy.
-			String deviceId = Secure.getString(getContentResolver(),
-					Secure.ANDROID_ID);
-			mChecker = new LicenseChecker(this, new ServerManagedPolicy(this,
-					new AESObfuscator(SALT, getPackageName(), deviceId)),
-					BASE64_PUBLIC_KEY);
-
-			mChecker.checkAccess(mLicenseCheckerCallback);
-		}*/
+  startService ();
  }
-
  @Override
  protected void onSaveInstanceState(Bundle outState) {
   ViewFlipper vf;
@@ -433,12 +388,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
   vf = (ViewFlipper) findViewById(R.id.coverflipper);
   outState.putInt("coverflipper_page", vf.getDisplayedChild());
  }
-
  @Override
  public void onDestroy() {
-/*		if (!freeversion) {
-			mChecker.onDestroy();
-		}*/
   mAlbumArtWorker.quit();
   if (null != mTimer) {
    mTimerTask.cancel();
@@ -450,49 +401,13 @@ public class Deadbeef extends Activity implements OnTouchListener {
   MusicUtils.unbindFromService(this);
   super.onDestroy();
  }
-/*
-	private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
-		public void allow() {
-			if (isFinishing()) {
-				// Don't update UI if Activity is finishing.
-				return;
-			}
-			// Should allow user access.
-			// Toast toast = Toast.makeText(Deadbeef.this, "Access Allowed",
-			// Toast.LENGTH_SHORT);
-			// toast.show();
-		}
-
-		public void dontAllow() {
-			if (isFinishing()) {
-				// Don't update UI if Activity is finishing.
-				return;
-			}
-			Toast toast = Toast
-					.makeText(Deadbeef.this,
-							"Deadbeef license check failed, exiting",
-							Toast.LENGTH_LONG);
-			toast.show();
-			Deadbeef.this.finish();
-
-		}
-
-		@Override
-		public void applicationError(ApplicationErrorCode errorCode) {
-			// TODO Auto-generated method stub
-
-		}
-	}*/
-
  private class ProgressTask extends TimerTask {
   public void run() {
    handler.post(UpdateInfoRunnable);
   }
  }
-
  public void onWindowFocusChanged(boolean hasFocus) {
   isVisible = hasFocus;
-
   if (isVisible && null == mTimer) {
    mTimer = new Timer();
    mTimerTask = new ProgressTask();
@@ -508,23 +423,18 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  }
-
  private long last_br_update = 0;
  private String sbtext = "";
-
  void updateStatusbar() {
   String sbtext_new;
   float songpos;
-
   int track = DeadbeefAPI.streamer_get_playing_track();
   int fmt = DeadbeefAPI.streamer_get_current_fileinfo_format(); // FIXME:
                   // might
                   // crash
                   // streamer
-
   float duration = track != 0 ? DeadbeefAPI.pl_get_item_duration(track)
     : -1;
-
   try {
    if (MusicUtils.sService.isStopped() || 0 == track || 0 == fmt) {
     sbtext_new = "Stopped";
@@ -535,7 +445,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
     int secpos = (int) (playpos - minpos * 60);
     int mindur = (int) (duration / 60);
     int secdur = (int) (duration - mindur * 60);
-
     String mode;
     int channels = DeadbeefAPI.fmt_get_channels(fmt);
     if (channels <= 2) {
@@ -546,14 +455,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
     int samplerate = DeadbeefAPI.fmt_get_samplerate(fmt);
     int bitspersample = DeadbeefAPI.fmt_get_bps(fmt);
     songpos = playpos;
-
     String t;
     if (duration >= 0) {
      t = String.format("%d:%02d", mindur, secdur);
     } else {
      t = "-:--";
     }
-
     // String spaused = MusicUtils.sService.isPaused() ? "Paused | "
     // : "";
     String ft = DeadbeefAPI.pl_get_track_filetype(track);
@@ -570,37 +477,36 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   } catch (RemoteException ex) {
   }
-
   if (0 != track) {
    DeadbeefAPI.pl_item_unref(track);
   }
  }
-
  private String getTotalTimeFormatted() {
-  float pl_totaltime = DeadbeefAPI.pl_get_totaltime();
-  int daystotal = (int) pl_totaltime / (3600 * 24);
-  int hourtotal = ((int) pl_totaltime / 3600) % 24;
-  int mintotal = ((int) pl_totaltime / 60) % 60;
-  int sectotal = ((int) pl_totaltime) % 60;
-  String totaltime_str;
-  if (daystotal == 0) {
-   totaltime_str = String.format("%d:%02d:%02d", hourtotal, mintotal,
-     sectotal);
-  } else if (daystotal == 1) {
-   totaltime_str = String.format("1 day %d:%02d:%02d", hourtotal,
-     mintotal, sectotal);
-  } else {
-   totaltime_str = String.format("%d days %d:%02d:%02d", daystotal,
-     hourtotal, mintotal, sectotal);
+  if (MusicUtils.sService != null) {
+   float pl_totaltime = DeadbeefAPI.pl_get_totaltime();
+   int daystotal = (int) pl_totaltime / (3600 * 24);
+   int hourtotal = ((int) pl_totaltime / 3600) % 24;
+   int mintotal = ((int) pl_totaltime / 60) % 60;
+   int sectotal = ((int) pl_totaltime) % 60;
+   String totaltime_str;
+   if (daystotal == 0) {
+    totaltime_str = String.format("%d:%02d:%02d", hourtotal, mintotal,
+      sectotal);
+   } else if (daystotal == 1) {
+    totaltime_str = String.format("1 day %d:%02d:%02d", hourtotal,
+      mintotal, sectotal);
+   } else {
+    totaltime_str = String.format("%d days %d:%02d:%02d", daystotal,
+      hourtotal, mintotal, sectotal);
+   }
+   return totaltime_str;
   }
-  return totaltime_str;
+  return "";
  }
-
  private String plstate_prev = "";
  private String pltitle_prev = "";
  private ProgressDialog progressDialog;
  public int progressDepth = 0;
-
  private void showProgress(boolean show) {
   synchronized (this) {
    if (show) {
@@ -623,12 +529,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   });
  }
-
  private static final int REFRESH = 1;
  private static final int QUIT = 2;
  private static final int GET_ALBUM_ART = 3;
  private static final int ALBUM_ART_DECODED = 4;
-
  private void queueNextRefresh(long delay) {
   try {
    if (!MusicUtils.sService.isPaused()) {
@@ -639,11 +543,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
   } catch (RemoteException ex) {
   }
  }
-
  private long refreshNow() {
   return 500;
  }
-
  private final Handler mHandler = new Handler() {
   @Override
   public void handleMessage(Message msg) {
@@ -655,12 +557,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
      vCover.getDrawable().setDither(true);
     }
     break;
-
    case REFRESH:
     long next = refreshNow();
     queueNextRefresh(next);
     break;
-
    case QUIT:
     // This can be moved back to onCreate once the bug that prevents
     // Dialogs from being started from onCreate/onResume is fixed.
@@ -674,15 +574,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
 				 * } }) .setCancelable(false) .show();
 				 */
     break;
-
    default:
     break;
    }
   }
  };
-
  private BroadcastReceiver mMediaServiceReceiver = null;
-
  void startMediaServiceListener() {
   mMediaServiceReceiver = new BroadcastReceiver() {
    @Override
@@ -713,35 +610,29 @@ public class Deadbeef extends Activity implements OnTouchListener {
   filter.addAction("org.deadbeef.android.ADD_FILES_FINISH");
   registerReceiver(mMediaServiceReceiver, filter);
  }
-
  void stopMediaServiceListener() {
   if (null != mMediaServiceReceiver) {
    unregisterReceiver(mMediaServiceReceiver);
    mMediaServiceReceiver = null;
   }
  }
-
  private static class AlbumSongIdWrapper {
   public long albumid;
   public long songid;
-
   AlbumSongIdWrapper(long aid, long sid) {
    albumid = aid;
    songid = sid;
   }
  }
-
  final Runnable UpdateInfoRunnable = new Runnable() {
   public void run() {
    if (!isVisible) {
     return;
    }
    try {
-
     TextView tv;
     TextView st;
     String totaltime_str = getTotalTimeFormatted();
-
     /*
 				 * st = (TextView)findViewById(R.id.plstate); String plstate =
 				 * String.format ("%d tracks | %s total playtime",
@@ -749,7 +640,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 				 * (!plstate_prev.equals(plstate)) { plstate_prev = plstate;
 				 * st.setText(plstate); }
 				 */
-
     String pltitle = DeadbeefAPI.plt_get_title(DeadbeefAPI
       .plt_get_curr());
     if (pltitle != null && !pltitle.equals(pltitle_prev)) {
@@ -757,13 +647,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
      st.setText(pltitle);
      pltitle_prev = pltitle;
     }
-
     if (MusicUtils.sService == null) {
      st = (TextView) findViewById(R.id.status);
      st.setText("Stopped");
      return;
     }
-
     // playpause button
     boolean new_state = MusicUtils.sService.isPlaying();
     if (new_state != curr_state) {
@@ -775,7 +663,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
       button.setImageResource(R.drawable.lcd_pause_selector);
      }
     }
-
     // shuffle button
     int new_order = MusicUtils.sService.getPlayOrder();
     if (new_order != play_order) {
@@ -789,7 +676,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
       button.setImageResource(R.drawable.shuffle_albums);
      }
     }
-
     // repeat button
     int new_mode = MusicUtils.sService.getPlayMode();
     if (new_mode != play_mode) {
@@ -803,14 +689,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
       button.setImageResource(R.drawable.repeat_single);
      }
     }
-
     boolean state = MusicUtils.sService.isPlaying();
     int track = DeadbeefAPI.streamer_get_playing_track();
-
     if (track != curr_track || (playback_state != state && state)) {
      curr_track = track;
      playback_state = state;
-
      if (curr_track >= 0) {
       // update album/artist/title
       tv = (TextView) findViewById(R.id.np_artist_album);
@@ -818,11 +701,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
         + MusicUtils.sService.getAlbumName());
       tv = (TextView) findViewById(R.id.np_title);
       tv.setText(MusicUtils.sService.getTrackName());
-
       int trk = DeadbeefAPI.streamer_get_playing_track();
       if (0 != trk) {
        String path = DeadbeefAPI.pl_get_track_path(trk);
-
        if (path.toLowerCase().endsWith(".sid")) {
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
@@ -853,7 +734,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
         long songid = -1;
         long albumid = -1;
         if (path != null) {
-
          Cursor mCursor = null;
          String[] mCursorCols = new String[] {
            "audio._id AS _id", // index must
@@ -861,7 +741,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
                 // IDCOLIDX
                 // below
            MediaStore.Audio.Media.ALBUM_ID, };
-
          ContentResolver resolver = getContentResolver();
          Uri uri;
          String where;
@@ -877,7 +756,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
             + "=?";
           selectionArgs = new String[] { path };
          }
-
          try {
           mCursor = resolver.query(uri,
             mCursorCols, where,
@@ -894,7 +772,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
           }
          } catch (UnsupportedOperationException ex) {
          }
-
          if (songid >= 0) {
           if (mCursor != null) {
            albumid = mCursor
@@ -915,7 +792,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
         vCover.setVisibility(View.VISIBLE);
        }
        DeadbeefAPI.pl_item_unref(trk);
-
       }
      }
     }
@@ -926,9 +802,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 				 * (!new_pos_text.equals (current_pos_text)) { current_pos_text
 				 * = new_pos_text; current_pos_tv.setText(current_pos_text); }
 				 */
-
     updateStatusbar();
-
     // update seekbar
     if (dontUpdatePlayPos) {
      return;
@@ -943,7 +817,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  };
-
  @Override
  public void onResume() {
   super.onResume();
@@ -957,19 +830,16 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  }
-
  @Override
  public void onNewIntent(Intent intent) {
   setIntent(intent);
  }
-
  @Override
  public boolean onCreateOptionsMenu(Menu menu) {
   MenuInflater inflater = getMenuInflater();
   inflater.inflate(R.menu.optionsmenu, menu);
   return true;
  }
-
  private OnClickListener mPrevListener = new OnClickListener() {
   public void onClick(View v) {
    try {
@@ -978,7 +848,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  };
-
  private OnClickListener mNextListener = new OnClickListener() {
   public void onClick(View v) {
    try {
@@ -987,13 +856,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  };
-
  private void AddFolder() {
   Log.i(TAG, "AddFolder ()");
   Intent i = new Intent(this, FileBrowser.class);
   startActivityForResult(i, REQUEST_ADD_FOLDER);
  }
-
  @Override
  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
   // add folder to playlist
@@ -1013,7 +880,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  }
-
  @Override
  public boolean onOptionsItemSelected(MenuItem item) {
   int id = item.getItemId();
@@ -1045,7 +911,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
   }
   return true;
  };
-
  @Override
  protected Dialog onCreateDialog(int id) {
   LayoutInflater factory = LayoutInflater.from(this);
@@ -1174,7 +1039,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
        new DialogInterface.OnClickListener() {
         public void onClick(DialogInterface dialog,
           int whichButton) {
-
          /* User clicked cancel so do some stuff */
         }
        }).create();
@@ -1204,7 +1068,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
        new DialogInterface.OnClickListener() {
         public void onClick(DialogInterface dialog,
           int whichButton) {
-
          /* User clicked cancel so do some stuff */
         }
        }).create();
@@ -1228,14 +1091,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
        new DialogInterface.OnClickListener() {
         public void onClick(DialogInterface dialog,
           int whichButton) {
-
          /* User clicked Cancel so do some stuff */
         }
        }).create();
   }
   return null;
  }
-
  private Dialog AddLocation() {
   LayoutInflater factory = LayoutInflater.from(this);
   final View textEntryView = factory.inflate(R.layout.addlocation, null);
@@ -1261,7 +1122,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
        }
       }).create();
  }
-
  private void PlayPause() {
   try {
    if (!MusicUtils.sService.isPlaying()) {
@@ -1273,7 +1133,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    Log.e(TAG, "remote exception on PlayPause");
   }
  }
-
  private OnClickListener mCoverClickListener = new OnClickListener() {
   public void onClick(View v) {
    // int trk = DeadbeefAPI.streamer_get_playing_track ();
@@ -1290,13 +1149,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
    // }
   }
  };
-
  private OnClickListener mPlayPauseListener = new OnClickListener() {
   public void onClick(View v) {
    PlayPause();
   }
  };
-
  private OnClickListener mPlaylistListener = new OnClickListener() {
   public void onClick(View v) {
    // Intent i = new Intent(Deadbeef.this, PlaylistViewer.class);
@@ -1315,7 +1172,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
      : R.drawable.lcd_playlist_selector);
   }
  };
-
  private OnClickListener mAddFolderListener = new OnClickListener() {
   public void onClick(View v) {
    // this works in background thread, need to disable android
@@ -1323,7 +1179,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    AddFolder();
   }
  };
-
  private OnClickListener mRepeatModeListener = new OnClickListener() {
   public void onClick(View v) {
    try {
@@ -1333,7 +1188,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  };
-
  private OnClickListener mShuffleModeListener = new OnClickListener() {
   public void onClick(View v) {
    try {
@@ -1343,7 +1197,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  };
-
  void PlayerSeek(float value) {
   try {
    MusicUtils.sService.seek(value);
@@ -1351,7 +1204,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
    Log.e(TAG, "remote exception in onListItemClick");
   }
  }
-
  float trackedPos = 0;
  private SeekBar.OnSeekBarChangeListener sbChangeListener = new SeekBar.OnSeekBarChangeListener() {
   public void onProgressChanged(SeekBar seekBar, int progress,
@@ -1364,24 +1216,19 @@ public class Deadbeef extends Activity implements OnTouchListener {
     PlayerSeek(trackedPos);
    }
   }
-
   public void onStartTrackingTouch(SeekBar seekBar) {
    dontUpdatePlayPos = true;
   }
-
   public void onStopTrackingTouch(SeekBar seekBar) {
    dontUpdatePlayPos = false;
    PlayerSeek(trackedPos);
   }
  };
-
  public class AlbumArtHandler extends Handler {
   private long mAlbumId = -1;
-
   public AlbumArtHandler(Looper looper) {
    super(looper);
   }
-
   @Override
   public void handleMessage(Message msg) {
    long albumid = ((AlbumSongIdWrapper) msg.obj).albumid;
@@ -1407,11 +1254,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
   }
  }
-
  private static class Worker implements Runnable {
   private final Object mLock = new Object();
   private Looper mLooper;
-
   /**
 		 * Creates a worker thread with the given name. The thread then runs a
 		 * {@link android.os.Looper}.
@@ -1432,11 +1277,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
     }
    }
   }
-
   public Looper getLooper() {
    return mLooper;
   }
-
   public void run() {
    synchronized (mLock) {
     Looper.prepare();
@@ -1445,12 +1288,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
    }
    Looper.loop();
   }
-
   public void quit() {
    mLooper.quit();
   }
  }
-
  @Override
  public boolean onContextItemSelected(MenuItem item) {
   switch (item.getItemId()) {
@@ -1476,5 +1317,4 @@ public class Deadbeef extends Activity implements OnTouchListener {
   }
   return false;
  }
-
 }

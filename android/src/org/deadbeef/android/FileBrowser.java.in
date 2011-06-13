@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import PACKAGENAME.R;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
@@ -31,31 +31,31 @@ public class FileBrowser extends ListActivity {
 
     @Override
     public void onListItemClick (ListView l, View v, int position, long id) {
-     ((FileBrowserAdapter)getListAdapter()).Clicked (position);
+   		((FileBrowserAdapter)getListAdapter()).Clicked (position);
     };
 
     //private ProgressDialog progressDialog; 
     private void AddCurrentFolder() {
-     try {
-  if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
-         Intent i = getIntent ();
-         String idx_str = getIntent().getData().getFragment ();
-         int idx = Integer.parseInt(idx_str);
-         String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
-
-         int plt = Integer.parseInt(plt_str);
-
-      MusicUtils.sService.pl_insert_dir(((FileBrowserAdapter)getListAdapter()).getPath (), plt, idx);
+    	try {
+		if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
+	        Intent i = getIntent ();
+	        String idx_str = getIntent().getData().getFragment ();
+	        int idx = Integer.parseInt(idx_str);
+	        String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
+	        
+	        int plt = Integer.parseInt(plt_str);
+	        
+    		MusicUtils.sService.pl_insert_dir(((FileBrowserAdapter)getListAdapter()).getPath (), plt, idx);
         }
         else {
-      MusicUtils.sService.pl_add_dir(((FileBrowserAdapter)getListAdapter()).getPath ());
+    		MusicUtils.sService.pl_add_dir(((FileBrowserAdapter)getListAdapter()).getPath ());
         }
-     }
-     catch (RemoteException ex) {
-     }
-  setResult(RESULT_OK);
-  DeadbeefAPI.conf_set_str ("android.lastpath", ((FileBrowserAdapter)getListAdapter()).getPath ());
-  DeadbeefAPI.conf_save ();
+    	}
+    	catch (RemoteException ex) {
+    	}
+		setResult(RESULT_OK);
+		DeadbeefAPI.conf_set_str ("android.lastpath", ((FileBrowserAdapter)getListAdapter()).getPath ());
+		DeadbeefAPI.conf_save ();
         finish ();
 
 /*    public void AddFolder () {
@@ -66,8 +66,8 @@ public class FileBrowser extends ListActivity {
     public void AddFolderAfter (int plt, int trk) {
         DeadbeefAPI.pl_insert_dir (plt, trk, currentPath);
     }*/
-
-     /*
+    	
+    	/*
         progressDialog = ProgressDialog.show(this,      
                 "Please wait",
                 "Adding files to playlist...", true);
@@ -97,16 +97,16 @@ public class FileBrowser extends ListActivity {
 
     private OnClickListener mAddFolderListener = new OnClickListener() {
         public void onClick(View v) {
-         AddCurrentFolder ();
+        	AddCurrentFolder ();
         }
     };
-
+    
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
-     if (((FileBrowserAdapter)getListAdapter()).goBack ()) {
-      return true;
-     }
+    	if (((FileBrowserAdapter)getListAdapter()).goBack ()) {
+    		return true;
+    	}
     }
     return super.onKeyDown(keyCode, event);
 }

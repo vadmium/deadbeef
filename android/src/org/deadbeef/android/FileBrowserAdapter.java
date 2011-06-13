@@ -1,4 +1,5 @@
 package org.deadbeef.android;
+import org.deadbeefpro.android.R;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -24,103 +25,103 @@ public class FileBrowserAdapter extends BaseAdapter {
         setPath (initPath);
     }
 
-    
+
     public void setPathReal () {
-    	File currentDir = new File (currentPath); 
-    	files.clear ();
-    	files.add ("..");
-    	File list[] = currentDir.listFiles ();
-    	if (list != null) {
-	    	for (File f : list) {
-	    		if (f.isDirectory ()) {
-	    			files.add ("<DIR> " + f.getName ());
-	    		}
-	    		else {
-	    			files.add (f.getName ());
-	    		}
-	    	}
-    	}
-    	notifyDataSetChanged ();
+     File currentDir = new File (currentPath);
+     files.clear ();
+     files.add ("..");
+     File list[] = currentDir.listFiles ();
+     if (list != null) {
+      for (File f : list) {
+       if (f.isDirectory ()) {
+        files.add ("<DIR> " + f.getName ());
+       }
+       else {
+        files.add (f.getName ());
+       }
+      }
+     }
+     notifyDataSetChanged ();
     }
 
-    
+
     public void setPath (String path) {
-    	history.add(currentPath);
-    	currentPath = path;
-    	setPathReal ();
+     history.add(currentPath);
+     currentPath = path;
+     setPathReal ();
     }
-    
+
     public boolean goBack () {
-    	if (history.size() <= 1) {
-    		return false;
-    	}
-    	
-    	currentPath = history.get(history.size () - 1);
-    	history.remove(history.size () - 1);
-    	setPathReal ();
-    	return true;
+     if (history.size() <= 1) {
+      return false;
+     }
+
+     currentPath = history.get(history.size () - 1);
+     history.remove(history.size () - 1);
+     setPathReal ();
+     return true;
     }
-    
+
     public int getCount() {
-    	return files.size ();
-    }
-    
-    public Object	 getItem(int position) {
-    	return files.get(position);
-    }
-    
-    public long	 getItemId(int position) {
-    	return position;
-    }
- 
-    public boolean	 hasStableIds() {
-    	return false;
+     return files.size ();
     }
 
-   public View	 getView(int position, View convertView, ViewGroup parent) {
-	    	View v = convertView;
-	        if (v == null) {
-	            LayoutInflater vi = (LayoutInflater)myContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-	            v = vi.inflate(R.layout.file, null);
-	        }
-	        String o = files.get (position);
+    public Object getItem(int position) {
+     return files.get(position);
+    }
 
-	        if (o != null && v != null) {                                
-	            TextView tt = (TextView) v.findViewById(R.id.file);
-	            if (tt != null) {
-	                tt.setText(o);
-	            }
-	        }
+    public long getItemId(int position) {
+     return position;
+    }
 
-	        return v;
-	}
-   
+    public boolean hasStableIds() {
+     return false;
+    }
+
+   public View getView(int position, View convertView, ViewGroup parent) {
+      View v = convertView;
+         if (v == null) {
+             LayoutInflater vi = (LayoutInflater)myContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+             v = vi.inflate(R.layout.file, null);
+         }
+         String o = files.get (position);
+
+         if (o != null && v != null) {
+             TextView tt = (TextView) v.findViewById(R.id.file);
+             if (tt != null) {
+                 tt.setText(o);
+             }
+         }
+
+         return v;
+ }
+
    public boolean Clicked (int position) {
-	   if (position == 0) {
-		   // step one folder up
-		   File clickedFile = new File(currentPath);
+    if (position == 0) {
+     // step one folder up
+     File clickedFile = new File(currentPath);
 
-		   clickedFile = clickedFile.getParentFile();
-		   if (clickedFile == null) {
-			   return false;
-		   }
-		   setPath (clickedFile.getAbsolutePath());
-	   }
-	   else {
-		   String pathName = files.get(position);
-		   if (pathName.startsWith ("<DIR> ")) {
-			   pathName = pathName.substring (6, pathName.length()); 
-		   }
-		   File clickedFile = new File(currentPath+'/'+pathName);
-		   if (clickedFile.isDirectory ()) {
-			   setPath (clickedFile.getAbsolutePath());
-		   }
-	   }
-	   return true;
+     clickedFile = clickedFile.getParentFile();
+     if (clickedFile == null) {
+      return false;
+     }
+     setPath (clickedFile.getAbsolutePath());
+    }
+    else {
+     String pathName = files.get(position);
+     if (pathName.startsWith ("<DIR> ")) {
+      pathName = pathName.substring (6, pathName.length());
+     }
+     File clickedFile = new File(currentPath+'/'+pathName);
+     if (clickedFile.isDirectory ()) {
+      setPath (clickedFile.getAbsolutePath());
+     }
+    }
+    return true;
    }
-   
+
    public String getPath () {
-	   return currentPath;
+    return currentPath;
    }
 
 }

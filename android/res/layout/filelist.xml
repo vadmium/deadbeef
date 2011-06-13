@@ -3,24 +3,12 @@
 <LinearLayout
               xmlns:android="http://schemas.android.com/apk/res/android"
 
-              xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+
 
               android:layout_width="fill_parent"
               android:layout_height="fill_parent"
               android:orientation="vertical"
               android:layout_weight="1" >
-
-
- <com.google.ads.AdView android:id="@+id/adView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        ads:adUnitId="a14de22b29b03f5"
-        ads:adSize="BANNER"
-        ads:loadAdOnCreate="true"
-        />
-
-
     <ListView android:id="@id/android:list"
                android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -34,8 +22,6 @@
                android:background="@drawable/infopanel"
                >
     </ListView>
-
-
  <RelativeLayout
   android:id="@+id/RelativeLayout01"
   android:layout_height="wrap_content"

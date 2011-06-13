@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import PACKAGENAME.R;
 
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
@@ -34,17 +34,17 @@ public class MusicUtils {
     }
 
     public static boolean bindToService(Context context, ServiceConnection callback) {
-  Log.e("DDB", "bindToService");
-
+		Log.e("DDB", "bindToService");
+    	
         context.startService(new Intent(context, MediaPlaybackService.class));
         ServiceBinder sb = new ServiceBinder(callback);
         sConnectionMap.put(context, sb);
         return context.bindService((new Intent()).setClass(context,
                 MediaPlaybackService.class), sb, 0);
     }
-
+    
     public static void unbindFromService(Context context) {
-  Log.e("DDB", "unbindFromService");
+		Log.e("DDB", "unbindFromService");
         ServiceBinder sb = (ServiceBinder) sConnectionMap.remove(context);
         if (sb == null) {
             Log.e("DDB", "Trying to unbind for unknown Context");
@@ -64,14 +64,14 @@ public class MusicUtils {
         ServiceBinder(ServiceConnection callback) {
             mCallback = callback;
         }
-
+        
         public void onServiceConnected(ComponentName className, android.os.IBinder service) {
             sService = IMediaPlaybackService.Stub.asInterface(service);
             if (mCallback != null) {
                 mCallback.onServiceConnected(className, service);
             }
         }
-
+        
         public void onServiceDisconnected(ComponentName className) {
             if (mCallback != null) {
                 mCallback.onServiceDisconnected(className);
@@ -79,7 +79,7 @@ public class MusicUtils {
             sService = null;
         }
     }
-
+    
     // A really simple BitmapDrawable-like class, that doesn't do
     // scaling, dithering or filtering.
     private static class FastBitmapDrawable extends Drawable {
@@ -102,7 +102,7 @@ public class MusicUtils {
         public void setColorFilter(ColorFilter cf) {
         }
     }
-
+    
     private static int sArtId = -2;
     private static Bitmap mCachedBit = null;
     private static final BitmapFactory.Options sBitmapOptionsCache = new BitmapFactory.Options();
@@ -112,7 +112,7 @@ public class MusicUtils {
     private static int sArtCacheId = -1;
     public static int mArtworkWidth = -1;
     public static int mArtworkHeight = -1;
-
+    
     static {
         // for the cache, 
         // 565 is faster to decode and display
@@ -135,7 +135,7 @@ public class MusicUtils {
             e.printStackTrace();
         }
         */
-     sArtCacheId = 0;
+    	sArtCacheId = 0;
     }
 
     public static void clearAlbumArtCache() {
@@ -143,7 +143,7 @@ public class MusicUtils {
             sArtCache.clear();
         }
     }
-
+    
     public static Drawable getCachedArtwork(Context context, long artIndex, BitmapDrawable defaultArtwork) {
         Drawable d = null;
         synchronized(sArtCache) {
@@ -186,7 +186,7 @@ public class MusicUtils {
             try {
                 fd = res.openFileDescriptor(uri, "r");
                 int sampleSize = 1;
-
+                
                 // Compute the closest power-of-two scale factor 
                 // and pass that to sBitmapOptionsCache.inSampleSize, which will
                 // result in faster decoding and better quality
@@ -215,7 +215,7 @@ public class MusicUtils {
                         b = tmp;
                     }
                 }
-
+                
                 return b;
             } catch (FileNotFoundException e) {
             } finally {
@@ -289,10 +289,10 @@ public class MusicUtils {
                 }
             }
         }
-
+        
         return null;
     }
-
+    
     // get album art for specified file
     private static final String sExternalMediaUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.toString();
     private static Bitmap getArtworkFromFile(Context context, long songid, long albumid) {
@@ -322,22 +322,22 @@ public class MusicUtils {
             }
         }
         catch (FileNotFoundException ex) {
-         return null;
+        	return null;
         }
-     catch (java.lang.IllegalStateException ex) {
-      return null;
-     }
+    	catch (java.lang.IllegalStateException ex) {
+    		return null;
+    	}
         if (bm != null) {
             mCachedBit = bm;
         }
         return bm;
     }
-
+    
     private static Bitmap getDefaultArtwork(Context context) {
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inPreferredConfig = Bitmap.Config.ARGB_8888;
         return BitmapFactory.decodeStream(
                 context.getResources().openRawResource(R.drawable.albumart_mp_unknown), null, opts);
     }
-
+    
 }
