@@ -138,12 +138,11 @@
              
 	</RelativeLayout>
     
-<LinearLayout
-		android:orientation="vertical"
-	    android:layout_width="fill_parent"
-	    android:layout_height="fill_parent"
-        android:layout_weight="1"
-  >
+<ViewFlipper android:id="@+id/coverflipper"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="1">
+          
     <ListView android:id="@+id/playlist"
                android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -158,7 +157,23 @@
                >
     </ListView>
     
-</LinearLayout>
+	<RelativeLayout
+		android:id="@+id/coverwrap"
+		android:orientation="vertical"
+	    android:layout_width="fill_parent"
+	    android:layout_height="fill_parent"
+               android:layout_weight="1"
+	>
+	<ImageView
+		android:id="@+id/cover"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+		android:layout_centerHorizontal="true"
+	>
+	</ImageView>
+	</RelativeLayout>
+
+</ViewFlipper>
 	
 <LinearLayout
 	android:id="@+id/playbar"
@@ -175,7 +190,7 @@
         android:layout_width="0dip"
         android:layout_weight="1"
         android:layout_height="fill_parent"
-        android:src="@drawable/lcd_playlist_selector"
+        android:src="@drawable/lcd_cover_selector"
         android:background="#0000"
         android:scaleType="fitCenter"
         />    

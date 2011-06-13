@@ -295,6 +295,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 		ImageView vCover = (ImageView) findViewById(R.id.cover);
 		if (vCover != null) {
+			vCover.setOnTouchListener(touchListener);
 			mAlbumArtHandler.obtainMessage(GET_ALBUM_ART,
 					new AlbumSongIdWrapper(-1, -1)).sendToTarget();
 			vCover.setVisibility(View.VISIBLE);
@@ -1255,10 +1256,22 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 	private OnClickListener mPlaylistListener = new OnClickListener() {
 		public void onClick(View v) {
-			Intent i = new Intent(Deadbeef.this, PlaylistViewer.class);
-			startActivity(i);
+//			Intent i = new Intent(Deadbeef.this, PlaylistViewer.class);
+//			startActivity(i);
+			ViewFlipper vf = (ViewFlipper) findViewById(R.id.coverflipper);
+			// Set the animation
+			vf.setInAnimation(AnimationUtils.loadAnimation(Deadbeef.this,
+					R.anim.push_right_in));
+			vf.setOutAnimation(AnimationUtils.loadAnimation(Deadbeef.this,
+					R.anim.push_right_out));
+			// Flip!
+			vf.showPrevious();
+			ImageButton btn = (ImageButton)findViewById (R.id.showplaylist);
+			int idx = vf.getDisplayedChild();
+			btn.setImageResource(idx == 0 ? R.drawable.lcd_cover_selector : R.drawable.lcd_playlist_selector);
 		}
 	};
+
 
 	private OnClickListener mAddFolderListener = new OnClickListener() {
 		public void onClick(View v) {
