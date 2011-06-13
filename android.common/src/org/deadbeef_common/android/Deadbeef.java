@@ -28,10 +28,10 @@ import android.os.RemoteException;
 import android.provider.MediaStore;
 import android.provider.Settings.Secure;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.GestureDetector;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.GestureDetector.SimpleOnGestureListener;
-import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -42,8 +42,8 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -52,7 +52,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 
 import com.android.vending.licensing.AESObfuscator;
 import com.android.vending.licensing.LicenseChecker;
@@ -96,6 +95,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
 	private static final int ACT_DELETE_PLAYLIST = 6;
 	private static final int ACT_RENAME_PLAYLIST = 7;
 
+    public static final int MENU_ACT_ADD_FILES = 8;
+    public static final int MENU_ACT_ADD_FOLDER = 9;
+    public static final int MENU_ACT_REMOVE = 10;
+    public static final int MENU_ACT_MOVE_TO_PLAYLIST = 11;
+    public static final int MENU_ACT_PROPERTIES = 12;
+	
 	private int mSelected = -1; // selected playlist track (for ctx menu)
 
 	private Worker mAlbumArtWorker;
@@ -249,6 +254,23 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					}
 				};
 			});
+			registerForContextMenu(lst);
+			lst.setOnCreateContextMenuListener(new View.OnCreateContextMenuListener() {
+				@Override
+				public void onCreateContextMenu(ContextMenu menu, View v,
+						ContextMenu.ContextMenuInfo menuInfo) {
+					mSelected = ((AdapterContextMenuInfo)menuInfo).position;
+					Log.e("DDB","onCreateContextMenu");
+			//		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
+					menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
+					menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
+			//		menu.add(0, MENU_ACT_MOVE_TO_PLAYLIST, 3, R.string.ctx_menu_move_to_playlist);
+					
+					Intent i = new Intent (Deadbeef.this, TrackPropertiesViewer.class);
+					i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(((AdapterContextMenuInfo)menuInfo).position)));
+					menu.add(0, MENU_ACT_PROPERTIES, 4, R.string.ctx_menu_properties).setIntent (i);
+				}
+			});
 		}
 
 		// playlists list
@@ -297,10 +319,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			lst.setOnTouchListener(touchListener);
 		}
 
-		// set album art widget to square size
-		// DisplayMetrics dm = new DisplayMetrics();
-		// getWindowManager().getDefaultDisplay().getMetrics(dm);
-
 		ImageView vCover = (ImageView) findViewById(R.id.cover);
 		if (vCover != null) {
 			vCover.setOnTouchListener(touchListener);
@@ -309,6 +327,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			vCover.setVisibility(View.VISIBLE);
 			vCover.setOnClickListener(mCoverClickListener);
 		}
+
+		// set album art widget to square size
+		// DisplayMetrics dm = new DisplayMetrics();
+		// getWindowManager().getDefaultDisplay().getMetrics(dm);
 
 		// mCover.setScaleType (ImageView.ScaleType.CENTER_CROP);
 
@@ -1434,6 +1456,19 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			break;
 		case ACT_DELETE_PLAYLIST:
 			showDialog(ACT_DELETE_PLAYLIST);
+			break;
+		case MENU_ACT_ADD_FILES:
+			break;
+		case MENU_ACT_ADD_FOLDER:
+	        Intent i = new Intent (this, FileBrowser.class);
+	        i.setAction("ADD_FOLDER_AFTER");
+	        i.setData(Uri.fromParts("track", String.valueOf (DeadbeefAPI.plt_get_curr()), String.valueOf(mSelected)));
+	    	startActivityForResult(i, Deadbeef.REQUEST_ADD_FOLDER_AFTER);
+			break;
+		case MENU_ACT_REMOVE:
+			showDialog (DLG_CONFIRM_REMOVE);
+			break;
+		case MENU_ACT_MOVE_TO_PLAYLIST:
 			break;
 		}
 		return false;
