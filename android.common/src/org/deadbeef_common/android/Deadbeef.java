@@ -53,11 +53,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
-import com.android.vending.licensing.AESObfuscator;
-import com.android.vending.licensing.LicenseChecker;
-import com.android.vending.licensing.LicenseCheckerCallback;
-import com.android.vending.licensing.ServerManagedPolicy;
-
 public class Deadbeef extends Activity implements OnTouchListener {
 	String TAG = "DDB";
 	Handler handler = new Handler();
@@ -108,10 +103,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
 	private final static int IDCOLIDX = 0;
 	private static final String BASE64_PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkImQu4KYIG7zDP/yrHhHr3bEh+WN+H1g6oQtwoq1L7KWmpD7b5x2a2w0Y3Y60vFb+73694ICZahSdADHlV36DmbmGX7CJFQAF/FYm+DP8hMUEPvUEyHCDZ+mwR6wnh7B4L4ywiHIByxmtAUK07gCRgCF4Y528DQhjlyga3O6r9QpCOPr6Y2cEAZkeDjIEowHcxyG/hFKeSn0fwTfPfc7Pj/W3qfZ9/7ksMquFQUB6DoXKMMMKd4BV7bEeB4bvhUJ/8M9NviBM9wLJjMqcEY8LrBZ49RBNXeW+zwSb6f8f7ZbLkRFoZMPdBwtiFStu8TUlPPUbSt0OBo1QxwiFlCLvQIDAQAB";
 
-	private LicenseCheckerCallback mLicenseCheckerCallback;
+/*	private LicenseCheckerCallback mLicenseCheckerCallback;
 	private LicenseChecker mChecker;
 	private static final byte[] SALT = new byte[] { 91, 117, 85, -103, 0, -16,
-			118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56 };
+			118, -17, -100, 14, -13, 107, 79, -78, -23, -5, -73, -63, -34, -56 };*/
 
 	public static final boolean freeversion = true;
 
@@ -410,7 +405,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			}
 		});
 
-		if (!freeversion) {
+/*		if (!freeversion) {
 			// Construct the LicenseCheckerCallback. The library calls this when
 			// done.
 			mLicenseCheckerCallback = new MyLicenseCheckerCallback();
@@ -423,7 +418,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					BASE64_PUBLIC_KEY);
 
 			mChecker.checkAccess(mLicenseCheckerCallback);
-		}
+		}*/
 	}
 
 	@Override
@@ -437,9 +432,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 	@Override
 	public void onDestroy() {
-		if (!freeversion) {
+/*		if (!freeversion) {
 			mChecker.onDestroy();
-		}
+		}*/
 		mAlbumArtWorker.quit();
 		if (null != mTimer) {
 			mTimerTask.cancel();
@@ -451,7 +446,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 		MusicUtils.unbindFromService(this);
 		super.onDestroy();
 	}
-
+/*
 	private class MyLicenseCheckerCallback implements LicenseCheckerCallback {
 		public void allow() {
 			if (isFinishing()) {
@@ -483,7 +478,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			// TODO Auto-generated method stub
 
 		}
-	}
+	}*/
 
 	private class ProgressTask extends TimerTask {
 		public void run() {
