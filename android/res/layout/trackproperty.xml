@@ -2,15 +2,18 @@
 <LinearLayout
   xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="fill_parent"
-  android:layout_height="fill_parent">
+  android:layout_height="fill_parent"
+  android:background="@color/list_item_bg">
   <TextView android:id="@+id/property"
       android:textAppearance="?android:attr/textAppearanceMedium"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="Track: Property Example"
-      android:layout_marginLeft="6dip"
-      android:textColor="#f000"
-      android:padding="10dip"
+      android:text=" "
+      android:textColor="@drawable/plitem_color"
+      android:shadowColor="#ff5d5b4e"
+      android:shadowDx="2"
+      android:shadowDy="2"
+      android:shadowRadius="2"
       />
   
 </LinearLayout>
