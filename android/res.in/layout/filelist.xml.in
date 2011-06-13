@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+              android:layout_width="fill_parent" 
+              android:layout_height="fill_parent" 
+              android:orientation="vertical"
+              android:layout_weight="1" >
+
+#ifdef FREEVERSION
+	<com.google.ads.AdView android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        ads:adUnitId="a14de22b29b03f5"
+        ads:adSize="BANNER"
+        ads:loadAdOnCreate="true"
+        />    
+#endif
+
+    <ListView android:id="@id/android:list"
+               android:layout_width="fill_parent"
+               android:layout_height="fill_parent"
+               android:layout_weight="1"
+               android:choiceMode="singleChoice"
+               android:fastScrollEnabled="true"
+               android:scrollbarStyle="outsideInset"
+               android:cacheColorHint="#0000"
+               android:divider="#f000"
+               android:dividerHeight="1sp"
+               android:background="@drawable/infopanel"
+               >
+    </ListView>
+
+
+	<RelativeLayout
+		android:id="@+id/RelativeLayout01"
+		android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:gravity="center_horizontal">
+		<LinearLayout
+			android:id="@+id/LinearLayout01"
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content">
+			<Button
+				android:text="Add Folder"
+				android:id="@+id/browse_add_folder"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content">
+			</Button>
+		</LinearLayout>
+	</RelativeLayout>
+</LinearLayout>

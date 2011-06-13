@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# java
+
+for folder in src ; do
+    for ext in java.in; do
+
+        #echo "find $folder -name *.$ext"
+        find $folder -name "*.$ext" | while read i ; do
+            out=`dirname $i`/`basename $i .in`
+#            echo $i $out
+            cpp -CC -P $@ "$i" "$out"
+        done
+
+    done
+done
+
+# resources
+for folder in res.in ; do
+    for ext in xml.in; do
+        #echo "find $folder -name *.$ext"
+        find $folder -name "*.$ext" | while read i ; do
+            out=`dirname $i`/`basename $i .in`
+            out=`echo $out | sed 's/res\.in/res/'`
+#            echo $i $out
+            cpp -CC -P $@ "$i" "$out"
+        done
+
+    done
+done
