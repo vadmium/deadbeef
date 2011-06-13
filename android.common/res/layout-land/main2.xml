@@ -184,13 +184,6 @@
 	    >
 
     <ImageButton
-        android:id="@+id/ShuffleMode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/shuffle_bg"
-        android:src="@drawable/shuffle"
-        />    
-    <ImageButton
         android:id="@+id/showplaylist"
         android:layout_width="0dip"
         android:layout_weight="1"
@@ -236,11 +229,21 @@
         android:scaleType="fitCenter"
         />    
     <ImageButton
+        android:id="@+id/ShuffleMode"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/shuffle_bg"
+        android:background="#0000"
+        android:scaleType="fitCenter"
+        />    
+    <ImageButton
         android:id="@+id/RepeatMode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/repeat_bg"
-        android:src="@drawable/repeat"
+        android:layout_width="0dip"
+        android:layout_weight="1"
+        android:layout_height="fill_parent"
+        android:src="@drawable/repeat_bg"
+        android:background="#0000"
         android:scaleType="fitCenter"
         />
     </LinearLayout>

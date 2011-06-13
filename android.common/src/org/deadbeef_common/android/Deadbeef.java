@@ -783,7 +783,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					play_order = new_order;
 					ImageButton button = (ImageButton) findViewById(R.id.ShuffleMode);
 					if (play_order == 0) {
-						button.setImageResource(-1);
+						button.setImageResource(R.drawable.shuffle_bg);
 					} else if (play_order == 1) {
 						button.setImageResource(R.drawable.shuffle);
 					} else if (play_order == 3) {
@@ -799,7 +799,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					if (play_mode == 0) {
 						button.setImageResource(R.drawable.repeat);
 					} else if (play_mode == 1) {
-						button.setImageResource(-1);
+						button.setImageResource(R.drawable.repeat_bg);
 					} else if (play_mode == 2) {
 						button.setImageResource(R.drawable.repeat_single);
 					}

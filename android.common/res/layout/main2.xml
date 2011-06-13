@@ -39,16 +39,16 @@
         android:id="@+id/ShuffleMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/shuffle_bg"
-        android:src="@drawable/shuffle"
+        android:background="#0000"
+        android:src="@drawable/shuffle_bg"
         android:layout_alignParentLeft="true"
         />    
     <ImageButton
         android:id="@+id/RepeatMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/repeat_bg"
-        android:src="@drawable/repeat"
+        android:background="#0000"
+        android:src="@drawable/repeat_bg"
         android:layout_alignParentRight="true"
         
         />
