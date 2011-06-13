@@ -237,7 +237,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 		OnTouchListener touchListener = new OnTouchListener() {
 			public boolean onTouch(View view, MotionEvent e) {
-				return detector.onTouchEvent(e);
+				boolean rv = detector.onTouchEvent(e);
+				if (rv) {
+					e.setAction(MotionEvent.ACTION_CANCEL);
+				}
+				return false;
 			}
 		};
 
