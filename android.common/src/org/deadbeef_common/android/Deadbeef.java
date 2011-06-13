@@ -134,7 +134,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			if (downXValue - currentX < -10) {
 				Log.e("DDB", "prev");
 				// Get a reference to the ViewFlipper
-				ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+				ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
 				// Set the animation
 				vf.setInAnimation(AnimationUtils.loadAnimation(this,
 						R.anim.push_right_in));
@@ -148,7 +148,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 			if (downXValue - currentX > 10) {
 				Log.e("DDB", "next");
 				// Get a reference to the ViewFlipper
-				ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+				ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
 				// Set the animation
 				vf.setInAnimation(AnimationUtils.loadAnimation(this,
 						R.anim.push_left_in));
@@ -189,6 +189,14 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 		setContentView(R.layout.main2);
 
+		if (savedInstanceState != null) {
+			ViewFlipper vf;
+			vf = (ViewFlipper) findViewById(R.id.mainflipper);
+			vf.setDisplayedChild(savedInstanceState.getInt("mainflipper_page", 0));
+			vf = (ViewFlipper) findViewById(R.id.coverflipper);
+			vf.setDisplayedChild(savedInstanceState.getInt("coverflipper_page", 0));
+		}
+
 		findViewById(R.id.mainview).setOnTouchListener((OnTouchListener) this);
 
 		OnGestureListener gstList = new SimpleOnGestureListener() {
@@ -196,7 +204,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					float velocityX, float velocityY) {
 				Log.e("DDB", "onFling, vel=" + velocityX);
 				if (velocityX > 1000) {
-					ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+					ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
 					// Set the animation
 					vf.setInAnimation(AnimationUtils.loadAnimation(
 							Deadbeef.this, R.anim.push_right_in));
@@ -207,7 +215,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					return true;
 				} else if (velocityX < -1000) {
 					// Get a reference to the ViewFlipper
-					ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+					ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
 					// Set the animation
 					vf.setInAnimation(AnimationUtils.loadAnimation(
 							Deadbeef.this, R.anim.push_left_in));
@@ -258,13 +266,13 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					} else {
 						DeadbeefAPI.plt_set_curr_idx(position - 1);
 						DeadbeefAPI.conf_save();
-						final FileListAdapter adapter = new FileListAdapter(Deadbeef.this,
-								R.layout.plitem, R.id.title);
+						final FileListAdapter adapter = new FileListAdapter(
+								Deadbeef.this, R.layout.plitem, R.id.title);
 						ListView lst = (ListView) findViewById(R.id.playlist);
 						if (lst != null) {
 							lst.setAdapter(adapter);
 						}
-						ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+						ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
 						// Set the animation
 						vf.setInAnimation(AnimationUtils.loadAnimation(
 								Deadbeef.this, R.anim.push_left_in));
@@ -324,7 +332,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
 				.setOnClickListener(mPlayPauseListener);
 		((ImageButton) findViewById(R.id.next))
 				.setOnClickListener(mNextListener);
-		((ImageButton) findViewById(R.id.add)).setOnClickListener(mAddFolderListener);
+		((ImageButton) findViewById(R.id.add))
+				.setOnClickListener(mAddFolderListener);
 		((ImageButton) findViewById(R.id.ShuffleMode))
 				.setOnClickListener(mShuffleModeListener);
 		((ImageButton) findViewById(R.id.RepeatMode))
@@ -389,6 +398,15 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 			mChecker.checkAccess(mLicenseCheckerCallback);
 		}
+	}
+
+	@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		ViewFlipper vf;
+		vf = (ViewFlipper) findViewById(R.id.mainflipper);
+		outState.putInt("mainflipper_page", vf.getDisplayedChild());
+		vf = (ViewFlipper) findViewById(R.id.coverflipper);
+		outState.putInt("coverflipper_page", vf.getDisplayedChild());
 	}
 
 	@Override
@@ -1256,8 +1274,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
 	private OnClickListener mPlaylistListener = new OnClickListener() {
 		public void onClick(View v) {
-//			Intent i = new Intent(Deadbeef.this, PlaylistViewer.class);
-//			startActivity(i);
+			// Intent i = new Intent(Deadbeef.this, PlaylistViewer.class);
+			// startActivity(i);
 			ViewFlipper vf = (ViewFlipper) findViewById(R.id.coverflipper);
 			// Set the animation
 			vf.setInAnimation(AnimationUtils.loadAnimation(Deadbeef.this,
@@ -1266,12 +1284,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
 					R.anim.push_right_out));
 			// Flip!
 			vf.showPrevious();
-			ImageButton btn = (ImageButton)findViewById (R.id.showplaylist);
+			ImageButton btn = (ImageButton) findViewById(R.id.showplaylist);
 			int idx = vf.getDisplayedChild();
-			btn.setImageResource(idx == 0 ? R.drawable.lcd_cover_selector : R.drawable.lcd_playlist_selector);
+			btn.setImageResource(idx == 0 ? R.drawable.lcd_cover_selector
+					: R.drawable.lcd_playlist_selector);
 		}
 	};
-
 
 	private OnClickListener mAddFolderListener = new OnClickListener() {
 		public void onClick(View v) {

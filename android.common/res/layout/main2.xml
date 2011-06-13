@@ -18,7 +18,7 @@
         ads:loadAdOnCreate="true"
         />
         
-<ViewFlipper android:id="@+id/details"
+<ViewFlipper android:id="@+id/mainflipper"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_weight="1">  
