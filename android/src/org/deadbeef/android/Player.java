@@ -33,6 +33,9 @@ class Player {
 		minSize = AudioTrack.getMinBufferSize(current_samplerate,
 	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
+		minSize = 32000;
+   		Log.e("DDB","bufSize="+minSize);
+
 		
 		audio = new AudioTrack(
 		AudioManager.STREAM_MUSIC, samplerate,
