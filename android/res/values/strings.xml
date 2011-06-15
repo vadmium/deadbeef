@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hello">Hello World, Deadbeef!</string>
-    <string name="app_name">DeaDBeeF Pro</string>
+
+
+
+    <string name="app_name">DeaDBeeF</string>
+
     <string name="service_name">deadbeef</string>
     <string name="title_file_browser">Browse file</string>
     <string name="playback_service_connected">Connected</string>
@@ -23,7 +27,11 @@
 <string name="delete_playlist_confirm">Sure?</string>
 <string name="about">About</string>
 <string name="about_text">
-DeaDBeeF Pro for Android 1.0.4\n
+
+
+
+DeaDBeeF 1.0.5rc1 for Android\n
+
 Copyright © 2009-2011 <a href="mailto:wakeroid@gmail.com">Alexey Yakovenko</a>\n
 <a href="http://deadbeef.sf.net">http://deadbeef.sf.net</a>\n
 \n

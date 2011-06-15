@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import org.deadbeef.android.R;
 
 import android.content.Context;
 import android.view.LayoutInflater;
