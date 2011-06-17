@@ -35,6 +35,11 @@
                 android:name="Default"
                 android:title="Default playlist"
                 android:key="default_playlist" />
+        <CheckBoxPreference
+                android:title="Set big buffer size"
+                android:defaultValue="false"
+                android:summary="Overrides default sound buffer size with bigger value. May reduce skipping, enable only if playback has problems."
+                android:key="enable_bigbuffer" />
         </PreferenceCategory>
 </PreferenceScreen>
 

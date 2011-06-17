@@ -22,6 +22,7 @@ class Player {
     		AudioFormat.ENCODING_PCM_16BIT);
     
     
+    public static boolean needReinit = false;
     public boolean playing = true;
     private Thread playThread;
     
@@ -33,7 +34,10 @@ class Player {
 		minSize = AudioTrack.getMinBufferSize(current_samplerate,
 	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
-//		minSize = 64000;
+		
+		if (DeadbeefAPI.conf_get_int ("javaplayer.usebigbuffer", 0) != 0) {
+			minSize = 64000;
+		}
    		Log.e("DDB","bufSize="+minSize);
 
 		
@@ -78,9 +82,10 @@ class Player {
     				continue;
     			}
     			
-        	    if (audio == null || samplerate != current_samplerate || channels != current_channels) {
+        	    if (needReinit || audio == null || samplerate != current_samplerate || channels != current_channels) {
         	    	initAudio (samplerate, channels);
         	    	audio.play();
+        	    	needReinit = false;
         	    }
 
         	    if (prevsize != minSize) {

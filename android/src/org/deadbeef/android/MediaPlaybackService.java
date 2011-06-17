@@ -1,6 +1,6 @@
 // based on source of google's official Music app 
 package org.deadbeef.android;
-import org.deadbeef.android.R;
+import org.deadbeefpro.android.R;
 
 import java.io.File;
 import java.io.IOException;
@@ -363,11 +363,11 @@ public class MediaPlaybackService extends Service {
    PackageManager pkm = getPackageManager();
    List<PackageInfo> list = pkm.getInstalledPackages(0);
    Iterator<PackageInfo> it=list.iterator();
-   String pluginPath = "";
+   String pluginPath = "org.deadbeefpro.android";
          while(it.hasNext())
          {
           String nm=(String)it.next().packageName;
-          if (nm.startsWith ("org.deadbeef.android.")) {
+          if (nm.startsWith ("org.deadbeef.android.") && !nm.equals("org.deadbeefpro.android")) {
            pluginPath += ":" + nm;
           }
          }

@@ -424,13 +424,15 @@ public class MediaPlaybackService extends Service {
 			List<PackageInfo> list = pkm.getInstalledPackages(0);
 			Iterator<PackageInfo> it=list.iterator();
 			
-			String pluginPath = "";
+#define QUOTEME_(x) #x
+#define QUOTEME(x) QUOTEME_(x)
+			String pluginPath = QUOTEME(PACKAGENAME);
 	
 	        while(it.hasNext())
 	        {
 	        	String nm=(String)it.next().packageName;
 	        	
-	        	if (nm.startsWith ("org.deadbeef.android.")) {
+	        	if (nm.startsWith ("org.deadbeef.android.") && !nm.equals(QUOTEME(PACKAGENAME))) {
 	        		pluginPath += ":" + nm;
 	        	}
 	        }
