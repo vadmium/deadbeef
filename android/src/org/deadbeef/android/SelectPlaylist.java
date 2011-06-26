@@ -25,7 +25,7 @@ public class SelectPlaylist extends ListActivity {
  private int mSelected;
 
  private void fillPlaylistsList () {
-        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,R.layout.trackproperty,R.id.property);
+        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,R.layout.plt,R.id.property);
 
         int n = DeadbeefAPI.plt_get_count ();
         adapter.add("Add new playlist");

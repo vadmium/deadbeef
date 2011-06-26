@@ -44,6 +44,7 @@ public class DeadbeefAPI
     public static native int plt_set_title (int plt, String title);
     public static native void plt_move (int from, int before);
     public static native void plt_remove_item (int plt, int it);
+    public static native int plt_get_item_count (int plt);
 	
 	// playback ctrl
 	public static native void play_prev ();

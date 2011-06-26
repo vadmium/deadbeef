@@ -289,6 +289,14 @@ JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1remove_1item
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    plt_get_item_count
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1count
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    play_prev
  * Signature: ()V
  */

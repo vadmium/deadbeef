@@ -1636,3 +1636,14 @@ JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_str_1get_1idx_1of (JNIEnv *env, jclass cls, jint trk) {
     return str_get_idx_of ((playItem_t *)trk);
 }
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1count (JNIEnv *env, jclass cls, jint idx) {
+    playlist_t *plt = plt_get_for_idx (idx);
+    if (plt) {
+        int cnt = plt_get_item_count (plt, PL_MAIN);
+        plt_unref (plt);
+        return cnt;
+    }
+    return 0;
+}

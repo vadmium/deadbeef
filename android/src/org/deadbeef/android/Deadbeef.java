@@ -158,17 +158,20 @@ public class Deadbeef extends Activity implements OnTouchListener {
  }
 
  private void fillPlaylistsList(ListView lst) {
-  final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-    R.layout.trackproperty, R.id.property);
+        final PlaylistListAdapter adapter = new PlaylistListAdapter(this);
+        lst.setAdapter(adapter);
 
-  int n = DeadbeefAPI.plt_get_count();
-  adapter.add("Add new playlist");
-  for (int i = 0; i < n; i++) {
-   String nm = DeadbeefAPI.plt_get_title(i);
-   adapter.add(nm);
-  }
+//		final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+//				R.layout.plt, R.id.property);
 
-  lst.setAdapter(adapter);
+/*		int n = DeadbeefAPI.plt_get_count();
+		adapter.add("Add new playlist");
+		for (int i = 0; i < n; i++) {
+			String nm = DeadbeefAPI.plt_get_title(i);
+			adapter.add(nm);
+		}
+
+		lst.setAdapter(adapter);*/
  }
 
  private void startService () {
