@@ -387,6 +387,17 @@ public class Deadbeef extends Activity implements OnTouchListener {
   outState.putInt("mainflipper_page", vf.getDisplayedChild());
   vf = (ViewFlipper) findViewById(R.id.coverflipper);
   outState.putInt("coverflipper_page", vf.getDisplayedChild());
+  // store playback position and track index
+  int trk = DeadbeefAPI.streamer_get_playing_track ();
+  float playpos = -1;
+  int playtrack = -1;
+  if (trk != 0) {
+   playtrack = DeadbeefAPI.str_get_idx_of (trk);
+   DeadbeefAPI.pl_item_unref (trk);
+   playpos = DeadbeefAPI.streamer_get_playpos ();
+  }
+  outState.putFloat ("resumeposition", playpos);
+  outState.putInt ("resumetrack", playtrack);
  }
  @Override
  public void onDestroy() {

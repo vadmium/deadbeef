@@ -78,6 +78,7 @@ public class DeadbeefAPI
 	public static native int streamer_get_current_fileinfo_format ();
 	public static native float streamer_get_playpos ();
 	public static native int streamer_get_apx_bitrate ();
+	public static native int str_get_idx_of (int trk);
 	
 	// format
 	public static native int fmt_get_channels (int fmt);

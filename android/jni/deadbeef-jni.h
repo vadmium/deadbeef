@@ -505,6 +505,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_streamer_1get_1apx_
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    str_get_idx_of
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_str_1get_1idx_1of
+  (JNIEnv *, jclass, jint);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    fmt_get_channels
  * Signature: (I)I
  */

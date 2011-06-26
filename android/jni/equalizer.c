@@ -42,6 +42,11 @@
 #include <stdlib.h>
 #include "equalizer.h"
 
+//#define trace(...) { android_trace(__VA_ARGS__); }
+#define trace(...)
+//void
+//android_trace (const char *fmt, ...);
+
 // Fixed Point Fractional bits
 #define FP_FRBITS 28
 
@@ -96,8 +101,14 @@ output_set_eq(int active, float pre, float * bands)
     int i;
 
     preamp = 1.0 + 0.0932471 * pre + 0.00279033 * pre * pre;
-    for (i = 0; i < 10; ++i)
-        gain[i] = 0.03 * bands[i] + 0.000999999 * bands[i] * bands[i];
+    trace ("src preamp: %f\n", pre);
+
+    for (i = 0; i < 10; ++i) {
+        float g = bands[i];
+        gain[i] = 0.03 * g + 0.000999999 * g * g;
+        trace ("src band %d: %f\n", i, g);
+    }
+    trace ("%f %f %f %f %f %f %f %f %f %f %f\n", preamp, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5], gain[6], gain[7], gain[8], gain[9]);
 }
 
 /* Init the filter */
@@ -116,6 +127,8 @@ init_iir(int on, float preamp_ctrl, float *eq_ctrl)
 int
 iir(char *d, int length)
 {
+    trace ("%f %f %f %f %f %f %f %f %f %f %f\n", preamp, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5], gain[6], gain[7], gain[8], gain[9]);
+
     int16_t *data = (int16_t *) d;
 
     /* Indexes for the history arrays
@@ -165,7 +178,7 @@ iir(char *d, int length)
                  * The multiplication by 2.0 was 'moved' into the coefficients to save
                  * CPU cycles here */
                 /* Apply the gain  */
-                out[channel] += data_history[band][channel].y[i] * gain[band];  // * 2.0;
+                out[channel] += data_history[band][channel].y[i] * gain[band]; // * 2.0;
             }                   /* For each band */
 
             if (0) {
@@ -196,6 +209,8 @@ iir(char *d, int length)
              */
 
             out[channel] += (data[index + channel] >> 2);
+            out[channel] *= 4;
+            //out[channel] += data[index + channel];
 
             //printf("out[channel] = %f\n", out[channel]);
             /* Round and convert to integer */

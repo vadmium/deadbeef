@@ -1493,13 +1493,13 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1is_1enabled (JNIEnv *env, jclass cls) 
 
 JNIEXPORT jfloat JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1get_1param (JNIEnv *env, jclass cls, jint p) {
-    return (eq_bands[p] + 12) / 24.f * 100.f;
+    return (eq_bands[p] + 20) / 40.f * 100.f;
 }
 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1set_1param (JNIEnv *env, jclass cls, jint p, jfloat v) {
     // convert from 0..100 range
-    eq_bands[p] = v / 100.f * 24.f - 12.f;
+    eq_bands[p] = v / 100.f * 40.f - 20.f;
     eq_changed = 1;
 }
 
@@ -1630,4 +1630,9 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1format_1title (JNIEnv *env, jclass cls
     pl_format_title ((playItem_t *)trk, idx, buffer, sizeof (buffer), id, str);
     (*env)->ReleaseStringUTFChars(env, fmt, str);
     return (*env)->NewStringUTF(env, buffer);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_str_1get_1idx_1of (JNIEnv *env, jclass cls, jint trk) {
+    return str_get_idx_of ((playItem_t *)trk);
 }
