@@ -11,6 +11,7 @@ import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceActivity;
 import android.widget.Toast;
 import org.deadbeef.android.Player;
+import android.util.Log;
 
 public class Settings extends PreferenceActivity {
     @Override
@@ -22,14 +23,8 @@ public class Settings extends PreferenceActivity {
         // lastfm
         findPreference("enable_lastfm").setOnPreferenceClickListener(new OnPreferenceClickListener() {
             public boolean onPreferenceClick(Preference preference) {
-             /*if (Deadbeef.freeversion) {
-            		((CheckBoxPreference)preference).setChecked(false);
-                    Toast.makeText(Settings.this, "This feature is not available in free version", Toast.LENGTH_SHORT).show();
-            	}
-            	else*/ {
-              DeadbeefAPI.conf_set_int("android.enable_lastfm", ((CheckBoxPreference)preference).isChecked() ? 1 : 0);
-              DeadbeefAPI.conf_save ();
-             }
+          DeadbeefAPI.conf_set_int("android.enable_lastfm", ((CheckBoxPreference)preference).isChecked() ? 1 : 0);
+             DeadbeefAPI.conf_save ();
              return true;
             }
         });
@@ -39,11 +34,11 @@ public class Settings extends PreferenceActivity {
    @Override
    public boolean onPreferenceChange(Preference preference,
      Object newValue) {
-             String val = ((ListPreference)preference).getValue();
-             if (val.equals("Track")) {
+             String val = newValue.toString();
+             if (val.equals("1")) {
               DeadbeefAPI.conf_set_int("replaygain_mode", 1);
              }
-             else if (val.equals("Album")) {
+             else if (val.equals("2")) {
               DeadbeefAPI.conf_set_int("replaygain_mode", 2);
              }
              else {
@@ -74,8 +69,7 @@ public class Settings extends PreferenceActivity {
 
         // default playlist
         findPreference("default_playlist").setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-            public boolean onPreferenceChange(Preference preference,
-     Object newValue) {
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
     DeadbeefAPI.conf_set_str("cli_add_playlist_name", newValue.toString());
              DeadbeefAPI.conf_save ();
     return true;

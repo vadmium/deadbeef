@@ -35,7 +35,7 @@ class Player {
 	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
 		
-		if (DeadbeefAPI.conf_get_int ("javaplayer.usebigbuffer", 0) != 0) {
+		if (DeadbeefAPI.conf_get_int ("javaplayer.usebigbuffer", 1) != 0) {
 			minSize = 64000;
 		}
    		Log.e("DDB","bufSize="+minSize);
@@ -93,8 +93,10 @@ class Player {
         	    	buffer = new short[minSize];
         	    	prevsize = minSize;
         	    }
-        	    DeadbeefAPI.getBuffer(minSize, buffer);
-        	    audio.write(buffer, 0, minSize);
+        	    if (audio.getPlayState () == AudioTrack.PLAYSTATE_PLAYING) {
+        	    	DeadbeefAPI.getBuffer(minSize, buffer);
+        	    	audio.write(buffer, 0, minSize);
+        	    }
 
     			if (null != MusicUtils.sService) {
 	    			try {
