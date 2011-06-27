@@ -638,6 +638,18 @@ public class Deadbeef extends Activity implements OnTouchListener {
    songid = sid;
   }
  }
+ private void refreshPlaylist () {
+  ListView lst = (ListView) findViewById(R.id.playlist);
+   if (lst != null) {
+         int trk = DeadbeefAPI.streamer_get_playing_track ();
+         int idx = -1;
+         if (trk != 0) {
+          idx = DeadbeefAPI.str_get_idx_of (trk);
+          DeadbeefAPI.pl_item_unref (trk);
+         }
+   ((FileListAdapter)lst.getAdapter ()).updateCurrent (idx, curr_state);
+  }
+ }
  final Runnable UpdateInfoRunnable = new Runnable() {
   public void run() {
    if (!isVisible) {
@@ -676,6 +688,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
      } else {
       button.setImageResource(R.drawable.lcd_pause_selector);
      }
+     refreshPlaylist ();
     }
     // shuffle button
     int new_order = MusicUtils.sService.getPlayOrder();
@@ -708,6 +721,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
     if (track != curr_track || (playback_state != state && state)) {
      curr_track = track;
      playback_state = state;
+     refreshPlaylist ();
      if (curr_track >= 0) {
       // update album/artist/title
       tv = (TextView) findViewById(R.id.np_artist_album);

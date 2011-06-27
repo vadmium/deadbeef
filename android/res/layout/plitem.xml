@@ -30,6 +30,15 @@
       android:shadowDy="2"
       android:shadowRadius="2"
       />
+      
+  	<ImageView
+		android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+		android:layout_toLeftOf="@id/duration"
+	>
+	</ImageView>
+
 
   <TextView android:id="@+id/title"
       android:textAppearance="?android:attr/textAppearanceMedium"
@@ -37,7 +46,7 @@
       android:layout_height="wrap_content"
       android:text="Song Title"
       android:singleLine="true"
-      android:layout_toLeftOf="@id/duration"
+      android:layout_toLeftOf="@id/status"
       android:textColor="@drawable/plitem_color"
       android:shadowColor="#ff5d5b4e"
       android:shadowDx="2"
@@ -47,9 +56,10 @@
 
   <TextView android:id="@+id/artist"
       android:textAppearance="?android:attr/textAppearanceSmall"
-      android:layout_width="wrap_content"
+      android:layout_width="fill_parent"
       android:layout_height="wrap_content"
       android:layout_below="@id/title"
+      android:layout_toLeftOf="@id/status"
       android:text="Song Artist"
       android:singleLine="true"
       android:textColor="@drawable/plitem_color"
