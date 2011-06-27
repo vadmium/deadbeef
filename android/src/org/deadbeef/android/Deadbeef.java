@@ -3,6 +3,7 @@ import org.deadbeefpro.android.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Date;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -53,6 +54,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
+import android.widget.AbsListView;
 
 public class Deadbeef extends Activity implements OnTouchListener {
  String TAG = "DDB";
@@ -105,10 +107,12 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
  private float downXValue;
 
+ private static long mPlaylistTimer = 0;
+ private int mScrollFollow = -1;
+
  @Override
  public boolean onTouch(View arg0, MotionEvent arg1) {
   // Get the action that was done on this touch event
-  Log.e("DDB", "onTouch (" + arg1.getAction() + "), x=" + arg1.getX());
   switch (arg1.getAction()) {
   case MotionEvent.ACTION_DOWN: {
    // store the X value when the user's finger was pressed down
@@ -118,14 +122,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
   case MotionEvent.ACTION_CANCEL:
   case MotionEvent.ACTION_UP: {
-   Log.e("DDB", "onTouch UP, x=" + downXValue + "dx="
-     + (downXValue - arg1.getX()));
    // Get the X value when the user released his/her finger
    float currentX = arg1.getX();
 
    // going backwards: pushing stuff to the right
    if (downXValue - currentX < -10) {
-    Log.e("DDB", "prev");
     // Get a reference to the ViewFlipper
     ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
     // Set the animation
@@ -139,7 +140,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
 
    // going forwards: pushing stuff to the left
    if (downXValue - currentX > 10) {
-    Log.e("DDB", "next");
     // Get a reference to the ViewFlipper
     ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
     // Set the animation
@@ -228,7 +228,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
   OnGestureListener gstList = new SimpleOnGestureListener() {
    public boolean onFling(MotionEvent e1, MotionEvent e2,
      float velocityX, float velocityY) {
-    Log.e("DDB", "onFling, vel=" + velocityX);
     if (velocityX > 1000) {
      ViewFlipper vf = (ViewFlipper) findViewById(R.id.mainflipper);
      // Set the animation
@@ -261,6 +260,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
     if (rv) {
      e.setAction(MotionEvent.ACTION_CANCEL);
     }
+    Deadbeef.mPlaylistTimer = new Date().getTime();
     return false;
    }
   };
@@ -283,7 +283,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
     public void onCreateContextMenu(ContextMenu menu, View v,
       ContextMenu.ContextMenuInfo menuInfo) {
      mSelected = ((AdapterContextMenuInfo)menuInfo).position;
-     Log.e("DDB","onCreateContextMenu");
    //		menu.add(0, MENU_ACT_ADD_FILES, 0, R.string.ctx_menu_add_files);
      menu.add(0, MENU_ACT_ADD_FOLDER, 1, R.string.ctx_menu_add_folder);
      menu.add(0, MENU_ACT_REMOVE, 2, R.string.ctx_menu_remove);
@@ -380,7 +379,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
   sb.setMax(100);
   sb.setOnSeekBarChangeListener(sbChangeListener);
   seekbar = (SeekBar) findViewById(R.id.seekbar);
-  Log.e("DDB", "Deadbeef.onCreate bind");
   startService ();
  }
  @Override
@@ -640,7 +638,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
  }
  private void refreshPlaylist () {
   ListView lst = (ListView) findViewById(R.id.playlist);
-   if (lst != null) {
+  if (lst != null) {
          int trk = DeadbeefAPI.streamer_get_playing_track ();
          int idx = -1;
          if (trk != 0) {
@@ -648,6 +646,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
           DeadbeefAPI.pl_item_unref (trk);
          }
    ((FileListAdapter)lst.getAdapter ()).updateCurrent (idx, curr_state);
+   mScrollFollow = idx;
   }
  }
  final Runnable UpdateInfoRunnable = new Runnable() {
@@ -656,6 +655,15 @@ public class Deadbeef extends Activity implements OnTouchListener {
     return;
    }
    try {
+    Log.e ("DDB", "pltm="+mPlaylistTimer+" tm="+new Date().getTime()+" follow="+mScrollFollow+" diff="+(new Date().getTime() - mPlaylistTimer));
+    if (mScrollFollow >= 0 && new Date().getTime() - mPlaylistTimer > 5000) {
+     ListView lst = (ListView) findViewById(R.id.playlist);
+     if (lst != null) {
+      int h = lst.getHeight();
+      lst.setSelectionFromTop(mScrollFollow, h/2);
+      mScrollFollow = -1;
+     }
+    }
     TextView tv;
     TextView st;
     String totaltime_str = getTotalTimeFormatted();
@@ -841,7 +849,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
      seekbar.setProgress(seekbar_pos);
     }
    } catch (RemoteException e) {
-    Log.e(TAG, "playback service error");
    }
   }
  };
@@ -885,7 +892,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
   }
  };
  private void AddFolder() {
-  Log.i(TAG, "AddFolder ()");
   Intent i = new Intent(this, FileBrowser.class);
   startActivityForResult(i, REQUEST_ADD_FOLDER);
  }
