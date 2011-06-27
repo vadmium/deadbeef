@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import org.deadbeef.android.R;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -39,18 +39,18 @@ public class PlaylistListAdapter extends BaseAdapter
              LayoutInflater vi = (LayoutInflater)myContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
              v = vi.inflate(R.layout.plt, null);
          }
-         
+
          if (v != null) {
              TextView t1 = (TextView) v.findViewById(R.id.property);
              TextView t2 = (TextView) v.findViewById(R.id.count);
-	         if (position == 0) {
-	        	 t1.setText ("Add new playlist");
-	         }
-	         else {
+          if (position == 0) {
+           t1.setText ("Add new playlist");
+          }
+          else {
                  t1.setText(DeadbeefAPI.plt_get_title(position-1));
                  int cnt = DeadbeefAPI.plt_get_item_count (position-1);
                  t2.setText(String.format("%d tracks", cnt));
-	         }
+          }
          }
 
          return v;

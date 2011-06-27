@@ -121,11 +121,25 @@
    android:thumb="@color/transparent"
 
                 />
+
+
+ <com.google.ads.AdView android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        ads:adUnitId="a14de22b29b03f5"
+        ads:adSize="BANNER"
+        ads:loadAdOnCreate="true"
+        android:layout_below="@id/seekbar"
+        />
+
+
   </RelativeLayout>
+
   <ViewFlipper android:id="@+id/coverflipper"
           android:layout_width="fill_parent"
           android:layout_height="fill_parent"
           android:layout_weight="1">
+
       <ListView android:id="@+id/playlist"
                  android:layout_width="fill_parent"
                  android:layout_height="fill_parent"
@@ -139,6 +153,7 @@
                  android:listSelector="@drawable/list_selector"
                  >
       </ListView>
+
    <RelativeLayout
     android:id="@+id/coverwrap"
     android:orientation="vertical"
@@ -155,8 +170,12 @@
    >
    </ImageView>
    </RelativeLayout>
+
   </ViewFlipper>
  </LinearLayout>
+
+
+
  <LinearLayout
   android:id="@+id/playbar"
      android:layout_width="fill_parent"
@@ -166,6 +185,7 @@
          android:layout_alignParentBottom="true"
          android:background="@drawable/seekbar_bg"
      >
+
     <ImageButton
         android:id="@+id/showplaylist"
         android:layout_width="0dip"
@@ -230,7 +250,9 @@
         android:scaleType="fitCenter"
         />
     </LinearLayout>
+
     </LinearLayout>
+
     <ListView android:id="@+id/playlists"
               android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -244,5 +266,7 @@
                android:listSelector="@drawable/list_selector"
                >
     </ListView>
+
 </ViewFlipper>
+
 </LinearLayout>
