@@ -34,9 +34,9 @@ class Player {
 		minSize = AudioTrack.getMinBufferSize(current_samplerate,
 	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
-		
-		if (DeadbeefAPI.conf_get_int ("javaplayer.usebigbuffer", 1) != 0) {
-			minSize = 64000;
+		int bufsize = DeadbeefAPI.conf_get_int ("javaplayer.buffersize", 32000);
+		if (bufsize != -1) {
+			minSize = bufsize;
 		}
    		Log.e("DDB","bufSize="+minSize);
 

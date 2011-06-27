@@ -77,12 +77,12 @@ public class Settings extends PreferenceActivity {
         });
 
         // buffer size
-        findPreference("enable_bigbuffer").setOnPreferenceClickListener(new OnPreferenceClickListener() {
-     @Override
-     public boolean onPreferenceClick(Preference preference) {
-    Player.needReinit = true;
-    DeadbeefAPI.conf_set_int("javaplayer.usebigbuffer", ((CheckBoxPreference)preference).isChecked() ? 1 : 0);
+        findPreference("buffersize").setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+   @Override
+   public boolean onPreferenceChange(Preference preference, Object newValue) {
+    DeadbeefAPI.conf_set_int("javaplayer.buffersize", Integer.parseInt(newValue.toString()));
              DeadbeefAPI.conf_save ();
+    Player.needReinit = true;
     return true;
    }
         });

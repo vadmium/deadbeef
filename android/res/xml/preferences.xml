@@ -35,11 +35,18 @@
                 android:name="Default"
                 android:title="Default playlist"
                 android:key="default_playlist" />
-        <CheckBoxPreference
+        <!-- CheckBoxPreference
                 android:title="Use large buffer size"
                 android:defaultValue="true"
                 android:summary="Large buffer is better for CPU load."
-                android:key="enable_bigbuffer" />
+                android:key="enable_bigbuffer" /-->
+        <ListPreference
+                android:title="Sound buffer size"
+                android:summary="Higher size increases latency, but reduces CPU load"
+                android:key="buffersize"
+                android:entries="@array/bufferSizes"
+                android:entryValues="@array/bufferSizeValues"
+                android:defaultValue="32000"/>
         </PreferenceCategory>
 </PreferenceScreen>
 

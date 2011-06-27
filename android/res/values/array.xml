@@ -11,4 +11,19 @@
    <item>1</item>
    <item>2</item>
 </string-array>
+
+<string-array name="bufferSizes">
+   <item>Minimal</item>
+   <item>16K</item>
+   <item>32K</item>
+   <item>64K</item>
+</string-array>
+
+<string-array name="bufferSizeValues">
+   <item>-1</item>
+   <item>16000</item>
+   <item>32000</item>
+   <item>64000</item>
+</string-array>
+
 </resources>
