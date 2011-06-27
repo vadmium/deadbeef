@@ -655,7 +655,6 @@ public class Deadbeef extends Activity implements OnTouchListener {
     return;
    }
    try {
-    Log.e ("DDB", "pltm="+mPlaylistTimer+" tm="+new Date().getTime()+" follow="+mScrollFollow+" diff="+(new Date().getTime() - mPlaylistTimer));
     if (mScrollFollow >= 0 && new Date().getTime() - mPlaylistTimer > 5000) {
      ListView lst = (ListView) findViewById(R.id.playlist);
      if (lst != null) {
