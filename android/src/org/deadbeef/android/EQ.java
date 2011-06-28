@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeef.android.R;
+import org.deadbeefpro.android.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
