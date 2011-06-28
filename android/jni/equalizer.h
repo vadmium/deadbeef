@@ -35,10 +35,10 @@
 #ifndef IIR_H
 #define IIR_H
 
-#define EQ_MAX_BANDS 10
+#define EQ_MAX_BANDS 12
 #define EQ_CHANNELS 2
 
-int iir(char * d, int length);
+int iir(int16_t *data, int length);
 void init_iir(int on , float preamp_ctrl, float*  eq_ctrl);
 
 

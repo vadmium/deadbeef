@@ -575,7 +575,7 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
     if (eq_on) {
 //        struct timeval tm1;
 //        gettimeofday (&tm1, NULL);
-        iir (b, size*2);
+        iir ((int16_t*)b, size*2);
 //        struct timeval tm2;
 //        gettimeofday (&tm2, NULL);
 //        int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);

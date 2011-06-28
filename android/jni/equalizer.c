@@ -40,97 +40,83 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "equalizer.h"
+#ifdef USE_NEON
+#include <arm_neon.h>
+#endif
 
-//#define trace(...) { android_trace(__VA_ARGS__); }
-#define trace(...)
-//void
-//android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
+//#define trace(...)
+void
+android_trace (const char *fmt, ...);
 
-// Fixed Point Fractional bits
-#define FP_FRBITS 28
+//#define USE_FIXEDPOINT
 
-// Conversions
-#define EQ_REAL(x) ((int)((x) * (1 << FP_FRBITS)))
-
-/* Floating point */
-typedef struct {
-    float beta;
-    float alpha;
-    float gamma;
-} sIIRCoefficients;
-
-/* Coefficient history for the IIR filter */
-typedef struct {
-    float x[3];                 /* x[n], x[n-1], x[n-2] */
-    float y[3];                 /* y[n], y[n-1], y[n-2] */
-} sXYData;
+#ifdef USE_FIXEDPOINT
+typedef int32_t REAL;
+#define BP 10
+#define STEP (1.0 / (1<<BP))
+#define FIXED(f) ((REAL)((f) / STEP))
+#define REAL(f) ((float)(f) * STEP)
+#define MUL(a,b) ((REAL)(((long long)(a)*(b))>>BP))
+//#define DIV(a,b) ((((long long)(a)<<BP))/(b))
+#else
+typedef float REAL;
+#define FIXED(f) (f)
+#define REAL(f) (f)
+#define MUL(a,b) ((a)*(b))
+//#define DIV(a,b) ((a)/(b))
+#endif
 
 /* BETA, ALPHA, GAMMA */
-static sIIRCoefficients iir_cforiginal10[] = {
-    {(9.9421504945e-01), (2.8924752745e-03), (1.9941421835e+00)},   /*    60.0 Hz */
-    {(9.8335039428e-01), (8.3248028618e-03), (1.9827686547e+00)},   /*   170.0 Hz */
-    {(9.6958094144e-01), (1.5209529281e-02), (1.9676601546e+00)},   /*   310.0 Hz */
-    {(9.4163923306e-01), (2.9180383468e-02), (1.9345490229e+00)},   /*   600.0 Hz */
-    {(9.0450844499e-01), (4.7745777504e-02), (1.8852109613e+00)},   /*  1000.0 Hz */
-    {(7.3940088234e-01), (1.3029955883e-01), (1.5829158753e+00)},   /*  3000.0 Hz */
-    {(5.4697667908e-01), (2.2651166046e-01), (1.0153238114e+00)},   /*  6000.0 Hz */
-    {(3.1023210589e-01), (3.4488394706e-01), (-1.8142472036e-01)},  /* 12000.0 Hz */
-    {(2.6718639778e-01), (3.6640680111e-01), (-5.2117742267e-01)},  /* 14000.0 Hz */
-    {(2.4201241845e-01), (3.7899379077e-01), (-8.0847117831e-01)},  /* 16000.0 Hz */
+#define BETA 0
+#define ALPHA 1
+#define GAMMA 2
+static const REAL iir_cf[3][12] = {
+    { FIXED(9.9421504945e-01), FIXED(9.8335039428e-01), FIXED(9.6958094144e-01), FIXED(9.4163923306e-01), FIXED(9.0450844499e-01), FIXED(7.3940088234e-01), FIXED(5.4697667908e-01), FIXED(3.1023210589e-01), FIXED(2.6718639778e-01), FIXED(2.4201241845e-01), 0, 0 },
+
+    { FIXED(2.8924752745e-03), FIXED(8.3248028618e-03), FIXED(1.5209529281e-02), FIXED(2.9180383468e-02), FIXED(4.7745777504e-02), FIXED(1.3029955883e-01), FIXED(2.2651166046e-01), FIXED(3.4488394706e-01), FIXED(3.6640680111e-01), FIXED(3.7899379077e-01), 0, 0 },
+
+    { FIXED(1.9941421835e+00), FIXED(1.9827686547e+00), FIXED(1.9676601546e+00), FIXED(1.9345490229e+00), FIXED(1.8852109613e+00), FIXED(1.5829158753e+00), FIXED(1.0153238114e+00), FIXED(-1.8142472036e-01), FIXED(-5.2117742267e-01), FIXED(-8.0847117831e-01), 0, 0 }
 };
 
 /* History for two filters */
-static sXYData data_history[EQ_MAX_BANDS][EQ_CHANNELS];
-static sXYData data_history2[EQ_MAX_BANDS][EQ_CHANNELS];
-
-/* Coefficients */
-static sIIRCoefficients *iir_cf;
+static REAL data_history_x[EQ_CHANNELS][3][EQ_MAX_BANDS];
+static REAL data_history_y[EQ_CHANNELS][3][EQ_MAX_BANDS];
 
 /* Gain for each band
  * values should be between -0.2 and 1.0 */
-static float gain[10];
-static float preamp;
-
-int round_trick(float floatvalue_to_round);
-
+static REAL gain[EQ_MAX_BANDS];
+static REAL preamp;
 
 static void
 output_set_eq(int active, float pre, float * bands)
 {
     int i;
 
-    preamp = 1.0 + 0.0932471 * pre + 0.00279033 * pre * pre;
-    trace ("src preamp: %f\n", pre);
+    preamp = FIXED(1.0 + 0.0932471 * pre + 0.00279033 * pre * pre);
 
     for (i = 0; i < 10; ++i) {
         float g = bands[i];
-        gain[i] = 0.03 * g + 0.000999999 * g * g;
-        trace ("src band %d: %f\n", i, g);
+        gain[i] = FIXED(0.03 * g + 0.000999999 * g * g);
     }
-    trace ("%f %f %f %f %f %f %f %f %f %f %f\n", preamp, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5], gain[6], gain[7], gain[8], gain[9]);
 }
 
 /* Init the filter */
 void
 init_iir(int on, float preamp_ctrl, float *eq_ctrl)
 {
-    iir_cf = iir_cforiginal10;
-
     /* Zero the history arrays */
-    memset(data_history, 0, sizeof(sXYData) * EQ_MAX_BANDS * EQ_CHANNELS);
-    memset(data_history2, 0, sizeof(sXYData) * EQ_MAX_BANDS * EQ_CHANNELS);
+    memset(data_history_x, 0, sizeof(data_history_x));
+    memset(data_history_y, 0, sizeof(data_history_y));
 
     output_set_eq(on, preamp_ctrl, eq_ctrl);
 }
 
 int
-iir(char *d, int length)
+iir(int16_t * restrict data, int length)
 {
-    trace ("%f %f %f %f %f %f %f %f %f %f %f\n", preamp, gain[0], gain[1], gain[2], gain[3], gain[4], gain[5], gain[6], gain[7], gain[8], gain[9]);
-
-    int16_t *data = (int16_t *) d;
-
     /* Indexes for the history arrays
      * These have to be kept between calls to this function
      * hence they are static */
@@ -138,7 +124,7 @@ iir(char *d, int length)
 
     int index, band, channel;
     int tempint, halflength;
-    float out[EQ_CHANNELS], pcm[EQ_CHANNELS];
+    REAL out[EQ_CHANNELS], pcm[EQ_CHANNELS];
 
     /**
 	 * IIR filter equation is
@@ -158,50 +144,57 @@ iir(char *d, int length)
         /* For each channel */
         for (channel = 0; channel < EQ_CHANNELS; channel++) {
             /* No need to scale when processing the PCM with the filter */
-            pcm[channel] = data[index + channel];
-            /* Preamp gain */
-            pcm[channel] *= preamp;
-
+#ifdef USE_FIXEDPOINT
+            pcm[channel] = (REAL)data[index + channel] * preamp;
+#else
+            pcm[channel] = MUL((float)data[index + channel],preamp);
+#endif
             out[channel] = 0;
+#ifdef USE_NEON
+            /* For each band */
+            for (band = 0; band < 12; band += 4) {
+                float32x4_t xi = vdupq_n_f32 (pcm[channel]);
+                /* Store Xi(n) */
+                vst1q_f32 ((float32_t *)&data_history_x[channel][i][band], xi);
+                float32x4_t beta = vld1q_f32((float32_t*)&iir_cf[BETA][band]);
+                float32x4_t alpha = vld1q_f32((float32_t*)&iir_cf[ALPHA][band]);
+                float32x4_t gamma = vld1q_f32((float32_t*)&iir_cf[GAMMA][band]);
+
+                /* Calculate and store Yi(n) */
+                float32x4_t xk = vld1q_f32((float32_t*)&data_history_x[channel][k][band]);
+                float32x4_t yj = vld1q_f32((float32_t*)&data_history_y[channel][j][band]);
+                float32x4_t yk = vld1q_f32((float32_t*)&data_history_y[channel][k][band]);
+
+                // alpha * (xi - xk) + gamma * yj - beta * yk
+                float32x4_t yi = vsubq_f32 (vaddq_f32 (vmulq_f32 (alpha, vsubq_f32 (xi, xk)), vmulq_f32 (gamma, yj)), vmulq_f32 (beta, yk));
+                vst1q_f32 ((float32_t*)&data_history_y[channel][i][band], yi);
+
+                // yi * gain
+                float32_t res[4];
+                vst1q_f32 (res, vmulq_f32 (yi, vld1q_f32((float32_t*)&gain[band])));
+                out[channel] += res[0];
+                out[channel] += res[1];
+                out[channel] += res[2];
+                out[channel] += res[3];
+            }
+#else
             /* For each band */
             for (band = 0; band < 10; band++) {
                 /* Store Xi(n) */
-                data_history[band][channel].x[i] = pcm[channel];
+                data_history_x[channel][i][band] = pcm[channel];
                 /* Calculate and store Yi(n) */
-                data_history[band][channel].y[i] =
-                    (iir_cf[band].alpha * (data_history[band][channel].x[i]
-                                           - data_history[band][channel].x[k])
-                     + iir_cf[band].gamma * data_history[band][channel].y[j]
-                     - iir_cf[band].beta * data_history[band][channel].y[k]
+                data_history_y[channel][i][band] =
+                    (MUL(iir_cf[ALPHA][band], (data_history_x[channel][i][band] - data_history_x[channel][k][band]))
+                     + MUL(iir_cf[GAMMA][band], data_history_y[channel][j][band])
+                     - MUL(iir_cf[BETA][band], data_history_y[channel][k][band])
                     );
                 /*
                  * The multiplication by 2.0 was 'moved' into the coefficients to save
                  * CPU cycles here */
                 /* Apply the gain  */
-                out[channel] += data_history[band][channel].y[i] * gain[band]; // * 2.0;
+                out[channel] += MUL(data_history_y[channel][i][band], gain[band]); // * 2.0;
             }                   /* For each band */
-
-            if (0) {
-                /* Filter the sample again */
-                for (band = 0; band < 10; band++) {
-                    /* Store Xi(n) */
-                    data_history2[band][channel].x[i] = out[channel];
-                    /* Calculate and store Yi(n) */
-                    data_history2[band][channel].y[i] =
-                        (iir_cf[band].alpha *
-                         (data_history2[band][channel].x[i]
-                          - data_history2[band][channel].x[k])
-                         +
-                         iir_cf[band].gamma *
-                         data_history2[band][channel].y[j]
-                         -
-                         iir_cf[band].beta * data_history2[band][channel].y[k]
-                        );
-                    /* Apply the gain */
-                    out[channel] +=
-                        data_history2[band][channel].y[i] * gain[band];
-                }               /* For each band */
-            }
+#endif
 
             /* Volume stuff
                Scale down original PCM sample and add it to the filters
@@ -209,26 +202,15 @@ iir(char *d, int length)
              */
 
             out[channel] += (data[index + channel] >> 2);
-            out[channel] *= 4;
-            //out[channel] += data[index + channel];
-
-            //printf("out[channel] = %f\n", out[channel]);
-            /* Round and convert to integer */
-#if 0
-#ifdef PPC
-            tempint = round_ppc(out[channel]);
+            
+#ifdef USE_FIXEDPOINT
+            tempint = out[channel] >> (BP-2);
 #else
-# ifdef X86
-            tempint = round_trick(out[channel]);
-# else
-            tempint = (int) lroundf(out[channel]);
-# endif
-#endif
-#endif
-            //tempint = (int) lroundf(out[channel]);
+            out[channel] *= 4;
             tempint = (int) out[channel];
+#endif
+//            trace ("data %d, preamp %lld, pcm %lld, out %d\n", (int)data[index + channel], preamp, pcm[channel], tempint);
 
-            //printf("iir: old=%d new=%d\n", data[index+channel], tempint);
             /* Limit the output */
             if (tempint < -32768)
                 data[index + channel] = -32768;
@@ -249,8 +231,6 @@ iir(char *d, int length)
             j = 0;
         else
             k = 0;
-
-
     }                           /* For each pair of samples */
 
     return length;
