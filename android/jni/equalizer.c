@@ -114,6 +114,11 @@ init_iir(int on, float preamp_ctrl, float *eq_ctrl)
     output_set_eq(on, preamp_ctrl, eq_ctrl);
 }
 
+#ifdef USE_ASM
+void
+EXTERN_ASMeq_apply_neon(float32_t *dhxi, float32_t *dhxk, float32_t *dhyi, float32_t *dhyj, float32_t *dhyk, float32_t *pcm, float32_t *cfa, float32_t *cfb, float32_t *cfg, float32_t *gain, float32_t *out);
+#endif
+
 int
 iir(int16_t * restrict data, int length)
 {
@@ -124,7 +129,7 @@ iir(int16_t * restrict data, int length)
 
     int index, band, channel;
     int tempint, halflength;
-    REAL out[EQ_CHANNELS], pcm[EQ_CHANNELS];
+    REAL out[EQ_CHANNELS] __attribute__ ((aligned (16))), pcm[EQ_CHANNELS] __attribute__ ((aligned (16)));
 
     /**
 	 * IIR filter equation is
@@ -149,34 +154,55 @@ iir(int16_t * restrict data, int length)
 #else
             pcm[channel] = MUL((float)data[index + channel],preamp);
 #endif
-            out[channel] = 0;
 #ifdef USE_NEON
+            float32_t *dhxi = (float32_t *)data_history_x[channel][i];
+            float32_t *dhxk = (float32_t *)data_history_x[channel][k];
+            float32_t *dhyi = (float32_t *)data_history_y[channel][i];
+            float32_t *dhyj = (float32_t *)data_history_y[channel][j];
+            float32_t *dhyk = (float32_t *)data_history_y[channel][k];
+            float32_t *cfa = (float32_t *)iir_cf[ALPHA];
+            float32_t *cfb = (float32_t *)iir_cf[BETA];
+            float32_t *cfg = (float32_t *)iir_cf[GAMMA];
+#ifdef USE_ASM
+            EXTERN_ASMeq_apply_neon(dhxi, dhxk, dhyi, dhyj, dhyk, (float32_t*)&pcm[channel], cfa, cfb, cfg, (float32_t*)gain, (float32_t*)&out[channel]);
+//            EXTERN_ASMeq_apply_neon((float32_t*)&out[channel], (float32_t*)&pcm[channel], dhyi, dhyj, dhyk, (float32_t*)&pcm[channel], cfa, cfb, cfg, (float32_t*)gain, (float32_t*)&out[channel]);
+#else
+
+            float32x4_t q0 = vdupq_n_f32 (pcm[channel]);
+            out[channel] = 0;
             /* For each band */
             for (band = 0; band < 12; band += 4) {
-                float32x4_t xi = vdupq_n_f32 (pcm[channel]);
                 /* Store Xi(n) */
-                vst1q_f32 ((float32_t *)&data_history_x[channel][i][band], xi);
-                float32x4_t beta = vld1q_f32((float32_t*)&iir_cf[BETA][band]);
-                float32x4_t alpha = vld1q_f32((float32_t*)&iir_cf[ALPHA][band]);
-                float32x4_t gamma = vld1q_f32((float32_t*)&iir_cf[GAMMA][band]);
+                vst1q_f32 (dhxi+band, q0);
+                float32x4_t q1 = vld1q_f32(cfa+band);
+                float32x4_t q2 = vld1q_f32(cfb+band);
+                float32x4_t q3 = vld1q_f32(cfg+band);
 
                 /* Calculate and store Yi(n) */
-                float32x4_t xk = vld1q_f32((float32_t*)&data_history_x[channel][k][band]);
-                float32x4_t yj = vld1q_f32((float32_t*)&data_history_y[channel][j][band]);
-                float32x4_t yk = vld1q_f32((float32_t*)&data_history_y[channel][k][band]);
+                float32x4_t q4 = vld1q_f32(dhxk+band);
+                float32x4_t q5 = vld1q_f32(dhyj+band);
+                float32x4_t q6 = vld1q_f32(dhyk+band);
 
                 // alpha * (xi - xk) + gamma * yj - beta * yk
-                float32x4_t yi = vsubq_f32 (vaddq_f32 (vmulq_f32 (alpha, vsubq_f32 (xi, xk)), vmulq_f32 (gamma, yj)), vmulq_f32 (beta, yk));
-                vst1q_f32 ((float32_t*)&data_history_y[channel][i][band], yi);
+                q4 = vsubq_f32 (q0, q4);
+                q4 = vmulq_f32 (q1, q4);
+                q3 = vmulq_f32 (q3, q5);
+                q2 = vmulq_f32 (q2, q6);
+                q4 = vaddq_f32 (q4, q3);
+                q4 = vsubq_f32 (q4, q2);
+                vst1q_f32 (dhyi+band, q4);
 
                 // yi * gain
                 float32_t res[4];
-                vst1q_f32 (res, vmulq_f32 (yi, vld1q_f32((float32_t*)&gain[band])));
+                q1 = vld1q_f32((float32_t*)&gain[band]);
+                q4 = vmulq_f32 (q4, q1);
+                vst1q_f32 (res, q4);
                 out[channel] += res[0];
                 out[channel] += res[1];
                 out[channel] += res[2];
                 out[channel] += res[3];
             }
+#endif
 #else
             /* For each band */
             for (band = 0; band < 10; band++) {
