@@ -5,5 +5,5 @@ RES_FILE=../bin/resources.ap_
 
 all:
 	javah -classpath ../../android/bin/ -o deadbeef-jni.h org.deadbeef.android.DeadbeefAPI
-	~/android/android-ndk-r5/ndk-build
+	$(NDK)/ndk-build
 

@@ -6,7 +6,7 @@
 
 
 
-    <string name="service_name">deadbeef</string>
+    <string name="service_name">org.deadbeef.android.mediaservice</string>
     <string name="title_file_browser">Browse file</string>
     <string name="playback_service_connected">Connected</string>
     <string name="playback_service_disconnected">Disconnected</string>

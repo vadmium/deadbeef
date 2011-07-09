@@ -155,33 +155,36 @@ iir(int16_t * restrict data, int length)
             pcm[channel] = MUL((float)data[index + channel],preamp);
 #endif
 #ifdef USE_NEON
-            float32_t *dhxi = (float32_t *)data_history_x[channel][i];
-            float32_t *dhxk = (float32_t *)data_history_x[channel][k];
-            float32_t *dhyi = (float32_t *)data_history_y[channel][i];
-            float32_t *dhyj = (float32_t *)data_history_y[channel][j];
-            float32_t *dhyk = (float32_t *)data_history_y[channel][k];
-            float32_t *cfa = (float32_t *)iir_cf[ALPHA];
-            float32_t *cfb = (float32_t *)iir_cf[BETA];
-            float32_t *cfg = (float32_t *)iir_cf[GAMMA];
+            char *dhxi = (char *)data_history_x[channel][i];
+            char *dhxk = (char *)data_history_x[channel][k];
+            char *dhyi = (char *)data_history_y[channel][i];
+            char *dhyj = (char *)data_history_y[channel][j];
+            char *dhyk = (char *)data_history_y[channel][k];
+            char *cfa = (char *)iir_cf[ALPHA];
+            char *cfb = (char *)iir_cf[BETA];
+            char *cfg = (char *)iir_cf[GAMMA];
+            char *gains = (char *)gain;
 #ifdef USE_ASM
-            EXTERN_ASMeq_apply_neon(dhxi, dhxk, dhyi, dhyj, dhyk, (float32_t*)&pcm[channel], cfa, cfb, cfg, (float32_t*)gain, (float32_t*)&out[channel]);
-//            EXTERN_ASMeq_apply_neon((float32_t*)&out[channel], (float32_t*)&pcm[channel], dhyi, dhyj, dhyk, (float32_t*)&pcm[channel], cfa, cfb, cfg, (float32_t*)gain, (float32_t*)&out[channel]);
+            char *o = (char*)&out[channel]; 
+            char *in = (char*)&pcm[channel];
+            EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, (float32_t*)in, (float32_t*)cfa, (float32_t*)cfb, (float32_t*)cfg, (float32_t*)gains, (float32_t*)o);
 #else
 
             float32x4_t q0 = vdupq_n_f32 (pcm[channel]);
-            out[channel] = 0;
+            float s31 = 0;
+//            out[channel] = 0;
             /* For each band */
-            for (band = 0; band < 12; band += 4) {
+            for (band = 0; band < 48; band += 16) {
                 /* Store Xi(n) */
-                vst1q_f32 (dhxi+band, q0);
-                float32x4_t q1 = vld1q_f32(cfa+band);
-                float32x4_t q2 = vld1q_f32(cfb+band);
-                float32x4_t q3 = vld1q_f32(cfg+band);
+                vst1q_f32 ((float32_t*)(dhxi+band), q0);
+                float32x4_t q1 = vld1q_f32((float32_t*)(cfa+band));
+                float32x4_t q2 = vld1q_f32((float32_t*)(cfb+band));
+                float32x4_t q3 = vld1q_f32((float32_t*)(cfg+band));
 
                 /* Calculate and store Yi(n) */
-                float32x4_t q4 = vld1q_f32(dhxk+band);
-                float32x4_t q5 = vld1q_f32(dhyj+band);
-                float32x4_t q6 = vld1q_f32(dhyk+band);
+                float32x4_t q4 = vld1q_f32((float32_t*)(dhxk+band));
+                float32x4_t q5 = vld1q_f32((float32_t*)(dhyj+band));
+                float32x4_t q6 = vld1q_f32((float32_t*)(dhyk+band));
 
                 // alpha * (xi - xk) + gamma * yj - beta * yk
                 q4 = vsubq_f32 (q0, q4);
@@ -190,18 +193,23 @@ iir(int16_t * restrict data, int length)
                 q2 = vmulq_f32 (q2, q6);
                 q4 = vaddq_f32 (q4, q3);
                 q4 = vsubq_f32 (q4, q2);
-                vst1q_f32 (dhyi+band, q4);
+                vst1q_f32 ((float32_t*)(dhyi+band), q4);
 
                 // yi * gain
-                float32_t res[4];
-                q1 = vld1q_f32((float32_t*)&gain[band]);
+                q1 = vld1q_f32((float32_t*)(gains+band));
                 q4 = vmulq_f32 (q4, q1);
-                vst1q_f32 (res, q4);
-                out[channel] += res[0];
-                out[channel] += res[1];
-                out[channel] += res[2];
-                out[channel] += res[3];
+//                float32_t res[4];
+//                vst1q_f32 (res, q4);
+                s31 += vgetq_lane_f32 (q4, 0);
+                s31 += vgetq_lane_f32 (q4, 1);
+                s31 += vgetq_lane_f32 (q4, 2);
+                s31 += vgetq_lane_f32 (q4, 3);
+//                out[channel] += res[0];
+//                out[channel] += res[1];
+//                out[channel] += res[2];
+//                out[channel] += res[3];
             }
+            out[channel] = s31;
 #endif
 #else
             /* For each band */
@@ -227,12 +235,12 @@ iir(int16_t * restrict data, int length)
                output. This substitutes the multiplication by 0.25
              */
 
-            out[channel] += (data[index + channel] >> 2);
+//            out[channel] += (data[index + channel] >> 2);
             
 #ifdef USE_FIXEDPOINT
             tempint = out[channel] >> (BP-2);
 #else
-            out[channel] *= 4;
+//            out[channel] *= 4;
             tempint = (int) out[channel];
 #endif
 //            trace ("data %d, preamp %lld, pcm %lld, out %d\n", (int)data[index + channel], preamp, pcm[channel], tempint);

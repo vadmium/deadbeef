@@ -4,7 +4,7 @@ DEX_FILE=../bin/classes.dex
 RES_FILE=../bin/resources.ap_
 
 all:
-	~/android/android-ndk-r5/ndk-build
+	$(NDK)/ndk-build
 
 install:
 	cd .. && touch src/org/deadbeef/android.freeplugins/AndroidManifest.xml && ant debug
