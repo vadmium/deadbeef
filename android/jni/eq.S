@@ -13,19 +13,13 @@ function eq_apply_neon, export=1
     add r11, sp, #36
 # load args from stack
     ldmfd r11, {r4-r10}
-# simple test which copies data from src to dst
-#    vldr.32 s0, [r5]
-#    vstr.32 s0, [r10]
 
 # duplicate pcm into q0 (xi)
-    flds s14, [r5]
-    fmrs r5, s14
     vdup.32 q0, r5
-#    ldr r5, [r5]
-#    vdup.32 q0, r5
 
 # init out
-    vldr.32 s31, =0
+    mov r5, #0
+    fmsr s31, r5
 
 # current band offset in bytes, each band is 4 bytes, increments by 16 bytes
 # every time

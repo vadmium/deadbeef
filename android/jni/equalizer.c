@@ -73,7 +73,7 @@ typedef float REAL;
 #define BETA 0
 #define ALPHA 1
 #define GAMMA 2
-static const REAL iir_cf[3][12] = {
+static const REAL iir_cf[3][12] __attribute__ ((aligned (16))) = {
     { FIXED(9.9421504945e-01), FIXED(9.8335039428e-01), FIXED(9.6958094144e-01), FIXED(9.4163923306e-01), FIXED(9.0450844499e-01), FIXED(7.3940088234e-01), FIXED(5.4697667908e-01), FIXED(3.1023210589e-01), FIXED(2.6718639778e-01), FIXED(2.4201241845e-01), 0, 0 },
 
     { FIXED(2.8924752745e-03), FIXED(8.3248028618e-03), FIXED(1.5209529281e-02), FIXED(2.9180383468e-02), FIXED(4.7745777504e-02), FIXED(1.3029955883e-01), FIXED(2.2651166046e-01), FIXED(3.4488394706e-01), FIXED(3.6640680111e-01), FIXED(3.7899379077e-01), 0, 0 },
@@ -82,12 +82,12 @@ static const REAL iir_cf[3][12] = {
 };
 
 /* History for two filters */
-static REAL data_history_x[EQ_CHANNELS][3][EQ_MAX_BANDS];
-static REAL data_history_y[EQ_CHANNELS][3][EQ_MAX_BANDS];
+static REAL data_history_x[EQ_CHANNELS][3][EQ_MAX_BANDS] __attribute__ ((aligned (16)));
+static REAL data_history_y[EQ_CHANNELS][3][EQ_MAX_BANDS] __attribute__ ((aligned (16)));
 
 /* Gain for each band
  * values should be between -0.2 and 1.0 */
-static REAL gain[EQ_MAX_BANDS];
+static REAL gain[EQ_MAX_BANDS] __attribute__ ((aligned (16)));
 static REAL preamp;
 
 static void
@@ -116,7 +116,7 @@ init_iir(int on, float preamp_ctrl, float *eq_ctrl)
 
 #ifdef USE_ASM
 void
-EXTERN_ASMeq_apply_neon(float32_t *dhxi, float32_t *dhxk, float32_t *dhyi, float32_t *dhyj, float32_t *dhyk, float32_t *pcm, float32_t *cfa, float32_t *cfb, float32_t *cfg, float32_t *gain, float32_t *out);
+EXTERN_ASMeq_apply_neon(float32_t *dhxi, float32_t *dhxk, float32_t *dhyi, float32_t *dhyj, float32_t *dhyk, float32_t pcm, float32_t *cfa, float32_t *cfb, float32_t *cfg, float32_t *gain, float32_t *out);
 #endif
 
 int
@@ -129,7 +129,6 @@ iir(int16_t * restrict data, int length)
 
     int index, band, channel;
     int tempint, halflength;
-    REAL out[EQ_CHANNELS] __attribute__ ((aligned (16))), pcm[EQ_CHANNELS] __attribute__ ((aligned (16)));
 
     /**
 	 * IIR filter equation is
@@ -149,10 +148,11 @@ iir(int16_t * restrict data, int length)
         /* For each channel */
         for (channel = 0; channel < EQ_CHANNELS; channel++) {
             /* No need to scale when processing the PCM with the filter */
+            REAL out;
 #ifdef USE_FIXEDPOINT
-            pcm[channel] = (REAL)data[index + channel] * preamp;
+            REAL pcm = (REAL)data[index + channel] * preamp;
 #else
-            pcm[channel] = MUL((float)data[index + channel],preamp);
+            REAL pcm = MUL((float)data[index + channel],preamp);
 #endif
 #ifdef USE_NEON
             char *dhxi = (char *)data_history_x[channel][i];
@@ -165,14 +165,11 @@ iir(int16_t * restrict data, int length)
             char *cfg = (char *)iir_cf[GAMMA];
             char *gains = (char *)gain;
 #ifdef USE_ASM
-            char *o = (char*)&out[channel]; 
-            char *in = (char*)&pcm[channel];
-            EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, (float32_t*)in, (float32_t*)cfa, (float32_t*)cfb, (float32_t*)cfg, (float32_t*)gains, (float32_t*)o);
+            EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, pcm, (float32_t*)cfa, (float32_t*)cfb, (float32_t*)cfg, (float32_t*)gains, (float32_t*)&out);
 #else
 
-            float32x4_t q0 = vdupq_n_f32 (pcm[channel]);
+            float32x4_t q0 = vdupq_n_f32 (pcm);
             float s31 = 0;
-//            out[channel] = 0;
             /* For each band */
             for (band = 0; band < 48; band += 16) {
                 /* Store Xi(n) */
@@ -198,24 +195,20 @@ iir(int16_t * restrict data, int length)
                 // yi * gain
                 q1 = vld1q_f32((float32_t*)(gains+band));
                 q4 = vmulq_f32 (q4, q1);
-//                float32_t res[4];
-//                vst1q_f32 (res, q4);
+
+                // add to result
                 s31 += vgetq_lane_f32 (q4, 0);
                 s31 += vgetq_lane_f32 (q4, 1);
                 s31 += vgetq_lane_f32 (q4, 2);
                 s31 += vgetq_lane_f32 (q4, 3);
-//                out[channel] += res[0];
-//                out[channel] += res[1];
-//                out[channel] += res[2];
-//                out[channel] += res[3];
             }
-            out[channel] = s31;
+            out = s31;
 #endif
 #else
             /* For each band */
             for (band = 0; band < 10; band++) {
                 /* Store Xi(n) */
-                data_history_x[channel][i][band] = pcm[channel];
+                data_history_x[channel][i][band] = pcm;
                 /* Calculate and store Yi(n) */
                 data_history_y[channel][i][band] =
                     (MUL(iir_cf[ALPHA][band], (data_history_x[channel][i][band] - data_history_x[channel][k][band]))
@@ -226,7 +219,7 @@ iir(int16_t * restrict data, int length)
                  * The multiplication by 2.0 was 'moved' into the coefficients to save
                  * CPU cycles here */
                 /* Apply the gain  */
-                out[channel] += MUL(data_history_y[channel][i][band], gain[band]); // * 2.0;
+                out += MUL(data_history_y[channel][i][band], gain[band]); // * 2.0;
             }                   /* For each band */
 #endif
 
@@ -235,13 +228,13 @@ iir(int16_t * restrict data, int length)
                output. This substitutes the multiplication by 0.25
              */
 
-//            out[channel] += (data[index + channel] >> 2);
+            out += (data[index + channel] >> 2);
             
 #ifdef USE_FIXEDPOINT
-            tempint = out[channel] >> (BP-2);
+            tempint = out >> (BP-2);
 #else
-//            out[channel] *= 4;
-            tempint = (int) out[channel];
+            tempint = (int) out;
+            tempint *= 4;
 #endif
 //            trace ("data %d, preamp %lld, pcm %lld, out %d\n", (int)data[index + channel], preamp, pcm[channel], tempint);
 
