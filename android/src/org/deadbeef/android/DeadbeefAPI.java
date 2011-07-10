@@ -129,6 +129,9 @@ public class DeadbeefAPI
 	public static native boolean plugin_exists (String id);
 	public static native int reinit ();
 	public static native int plug_load_all ();
+	public static native boolean neon_supported ();
+	public static native boolean vfp_supported ();
+	public static native boolean armv7a_supported ();
 
 	static {
 		System.loadLibrary("deadbeef");

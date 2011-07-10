@@ -53,6 +53,7 @@
 #include "volume.h"
 #include "plugins.h"
 #include "equalizer.h"
+#include <cpu-features.h>
 
 #define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(fmt,...)
@@ -78,10 +79,17 @@ char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 // fake output plugin
 static int jni_out_state = OUTPUT_STATE_STOPPED;
 
+// cpu features
+int neon_supported = 0;
+int armv7a_supported = 0;
+int vfp_supported = 0;
+
+#ifdef USE_NEON
 // dsp params
 float eq_bands[11]; // nr.0 is preamp
 int eq_on = 0;
 float eq_changed = 0;
+#endif
 
 static int jni_out_init(void)
 {
@@ -442,6 +450,27 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     trace ("ssize_t %d\n", sizeof (ssize_t));
     trace ("wchar_t %d\n", sizeof (wchar_t));
 
+#ifndef USE_NEON
+    trace ("neon disabled!\n");
+#endif
+
+    uint64_t features = android_getCpuFeatures ();
+    trace ("cpu features: %llx!\n", features);
+    if (android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM) {
+        if (features & ANDROID_CPU_ARM_FEATURE_NEON) {
+            neon_supported = 1;
+        }
+        if (features & ANDROID_CPU_ARM_FEATURE_ARMv7) {
+            armv7a_supported = 1;
+        }
+        if (features & ANDROID_CPU_ARM_FEATURE_VFPv3) {
+            vfp_supported = 1;
+        }
+    }
+    trace ("neon: %d\n", neon_supported);
+    trace ("vfp: %d\n", vfp_supported);
+    trace ("armv7a: %d\n", armv7a_supported);
+
     // initialize ddb
     trace ("setlocale\n");
     setlocale (LC_ALL, "");
@@ -492,6 +521,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     extern DB_output_t *output_plugin;
     output_plugin = &jni_out;
 
+#ifdef USE_NEON
     // prepare dsp presets
     scan_dsp_presets ();
 
@@ -510,6 +540,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
         fclose (fp);
     }
     eq_changed = 1;
+#endif
 
     trace ("streamer_init\n");
     streamer_init ();
@@ -568,6 +599,7 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
     else {
         memset (b, 0, sizeof (b));
     }
+#ifdef USE_NEON
     if (eq_changed) {
         init_iir (eq_on, eq_bands[0], &eq_bands[1]);
         eq_changed = 0;
@@ -581,6 +613,7 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
 //        int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
 //        trace ("eq took %d ms (%d bytes)\n", ms, size*2);
     }
+#endif
     (*env)->SetShortArrayRegion(env, buffer, 0, size, (short *)b);
     return bytesread;
 }
@@ -1234,6 +1267,7 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1config (JNIEnv *env, jclass cls
     streamer_dsp_chain_save (fname, dsp_chain);
 }
 
+#ifdef USE_NEON
 #define MAX_DSP_PRESETS 20
 #define MAX_DSP_FNAME 100
 char dsp_preset_names[MAX_DSP_PRESETS][100];
@@ -1249,11 +1283,13 @@ make_dsp_presets_path () {
     snprintf (dir, sizeof (dir), "%s/presets/dsp/eq", dbconfdir);
     mkdir (dir, 0);
 }
+#endif
 
 static int dirent_alphasort (const struct dirent **a, const struct dirent **b) {
     return strcmp ((*a)->d_name, (*b)->d_name);
 }
 
+#ifdef USE_NEON
 int
 scan_dsp_presets (void) {
     make_dsp_presets_path ();
@@ -1278,19 +1314,29 @@ scan_dsp_presets (void) {
         free (namelist);
     }
 }
+#endif
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1num_1presets (JNIEnv *env, jclass cls, jint dsp) {
+#ifdef NEON
     return num_dsp_presets;
+#else
+    return 0;
+#endif
 }
 
 JNIEXPORT jstring JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1preset_1name (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+#ifdef NEON
     return (*env)->NewStringUTF(env, dsp_preset_names[idx]);
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1delete_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+#ifdef NEON
     if (idx >= num_dsp_presets) {
         return -1;
     }
@@ -1301,11 +1347,13 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1delete_1preset (JNIEnv *env, jclass c
         memmove (&dsp_preset_names[idx], &dsp_preset_names[idx+1], MAX_DSP_FNAME * (num_dsp_presets-idx-1));
     }
     num_dsp_presets--;
+#endif
     return 0;
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1load_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx) {
+#ifdef NEON
     char f[PATH_MAX];
     snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
     FILE *fp = fopen (f, "rt");
@@ -1322,12 +1370,13 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1load_1preset (JNIEnv *env, jclass cls
     }
 
     fclose (fp);
-
+#endif
     return 0;
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset (JNIEnv *env, jclass cls, jint dsp, jstring name) {
+#ifdef NEON
     char f[PATH_MAX];
     const char *str = (*env)->GetStringUTFChars(env, name, NULL);
     if (str == NULL) {
@@ -1354,10 +1403,13 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1save_1preset (JNIEnv *env, jclass cls
 
     fclose (fp);
     scan_dsp_presets ();
+#endif
+    return 0;
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, jclass cls, jint dsp, jint idx, jstring name) {
+#ifdef NEON
     char newname[PATH_MAX];
     char oldname[PATH_MAX];
     const char *str = (*env)->GetStringUTFChars(env, name, NULL);
@@ -1371,6 +1423,8 @@ Java_org_deadbeef_android_DeadbeefAPI_dsp_1rename_1preset (JNIEnv *env, jclass c
 
     rename (oldname, newname);
     scan_dsp_presets ();
+#endif
+    return 0;
 }
 
 JNIEXPORT jint JNICALL
@@ -1480,31 +1534,44 @@ Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all (JNIEnv *env, jclass cls) 
 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1enable (JNIEnv *env, jclass cls, jboolean enable) {
+#ifdef USE_NEON
     eq_on = enable;
     eq_changed = 1;
     conf_set_int ("android.eq_enabled", eq_on);
     conf_save ();
+#endif
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1is_1enabled (JNIEnv *env, jclass cls) {
+#ifdef USE_NEON
     return eq_on;
+#else
+    return 0;
+#endif
 }
 
 JNIEXPORT jfloat JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1get_1param (JNIEnv *env, jclass cls, jint p) {
+#ifdef USE_NEON
     return (eq_bands[p] + 20) / 40.f * 100.f;
+#else
+    return 0;
+#endif
 }
 
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1set_1param (JNIEnv *env, jclass cls, jint p, jfloat v) {
+#ifdef USE_NEON
     // convert from 0..100 range
     eq_bands[p] = v / 100.f * 40.f - 20.f;
     eq_changed = 1;
+#endif
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1preset (JNIEnv *env, jclass cls, jstring name) {
+#ifdef USE_NEON
     char f[PATH_MAX];
     const char *str = (*env)->GetStringUTFChars(env, name, NULL);
     if (str == NULL) {
@@ -1525,12 +1592,14 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1preset (JNIEnv *env, jclass cls,
 
     fclose (fp);
     scan_dsp_presets ();
+#endif
     return 0;
 }
 
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1load_1preset (JNIEnv *env, jclass cls, jint idx) {
+#ifdef NEON
     char f[PATH_MAX];
     snprintf (f, sizeof (f), "%s/presets/dsp/eq/%s.txt", dbconfdir, dsp_preset_names[idx]);
     FILE *fp = fopen (f, "rt");
@@ -1546,12 +1615,13 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1load_1preset (JNIEnv *env, jclass cls,
     }
 
     fclose (fp);
-
+#endif
     return 0;
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1rename_1preset (JNIEnv *env, jclass cls, jint idx, jstring name) {
+#ifdef USE_NEON
     char newname[PATH_MAX];
     char oldname[PATH_MAX];
     const char *str = (*env)->GetStringUTFChars(env, name, NULL);
@@ -1565,20 +1635,31 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1rename_1preset (JNIEnv *env, jclass cl
 
     rename (oldname, newname);
     scan_dsp_presets ();
+#endif
+    return 0;
 }
 
 JNIEXPORT jstring JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1preset_1name (JNIEnv *env, jclass cls, jint idx) {
+#ifdef USE_NEON
     return (*env)->NewStringUTF(env, dsp_preset_names[idx]);
+#else
+    return NULL;
+#endif
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1num_1presets (JNIEnv *env, jclass cls) {
+#ifdef USE_NEON
     return num_dsp_presets;
+#else
+    return 0;
+#endif
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1delete_1preset (JNIEnv *env, jclass cls, jint idx) {
+#ifdef NEON
     if (idx >= num_dsp_presets) {
         return -1;
     }
@@ -1589,11 +1670,13 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1delete_1preset (JNIEnv *env, jclass cl
         memmove (&dsp_preset_names[idx], &dsp_preset_names[idx+1], MAX_DSP_FNAME * (num_dsp_presets-idx-1));
     }
     num_dsp_presets--;
+#endif
     return 0;
 }
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1config (JNIEnv *env, jclass cls) {
+#ifdef NEON
     char f[PATH_MAX];
     snprintf (f, sizeof (f), "%s/eqconfig", dbconfdir);
     unlink (f);
@@ -1608,6 +1691,7 @@ Java_org_deadbeef_android_DeadbeefAPI_eq_1save_1config (JNIEnv *env, jclass cls)
     }
 
     fclose (fp);
+#endif
     return 0;
 }
 
@@ -1646,4 +1730,19 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1get_1item_1count (JNIEnv *env, jclass
         return cnt;
     }
     return 0;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_neon_1supported (JNIEnv *env, jclass cls) {
+    return neon_supported;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_vfp_1supported (JNIEnv *env, jclass cls) {
+    return vfp_supported;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_armv7a_1supported (JNIEnv *env, jclass cls) {
+    return armv7a_supported;
 }

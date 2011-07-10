@@ -743,6 +743,30 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_reinit
 JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all
   (JNIEnv *, jclass);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    neon_supported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_neon_1supported
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    vfp_supported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_vfp_1supported
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    armv7a_supported
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_armv7a_1supported
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

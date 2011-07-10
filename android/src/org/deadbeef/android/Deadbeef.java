@@ -938,8 +938,17 @@ public class Deadbeef extends Activity implements OnTouchListener {
   } else if (id == R.id.menu_add_location) {
    showDialog(DLG_ADD_LOCATION);
   } else if (id == R.id.menu_equalizer) {
-   Intent i = new Intent(this, EQ.class);
-   startActivity(i);
+   if (DeadbeefAPI.neon_supported ()) {
+    Intent i = new Intent(this, EQ.class);
+    startActivity(i);
+   }
+   else {
+    Toast toast = Toast
+      .makeText(Deadbeef.this,
+        "Equalizer is not supported on this device",
+        Toast.LENGTH_SHORT);
+    toast.show();
+   }
   } else if (id == R.id.menu_settings) {
    Intent i = new Intent(this, Settings.class);
    startActivity(i);
