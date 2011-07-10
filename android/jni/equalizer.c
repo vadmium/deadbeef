@@ -150,7 +150,7 @@ iir(int16_t * restrict data, int length)
 #ifdef USE_FIXEDPOINT
             REAL pcm = (REAL)data[index + channel] * preamp;
 #else
-            REAL pcm = MUL((float)data[index + channel],preamp);
+            REAL pcm = (float)(*data) * preamp; //MUL((float)data[index + channel],preamp);
 #endif
 #ifdef USE_NEON
             char *dhxi = (char *)data_history_x[channel][i];
@@ -158,9 +158,6 @@ iir(int16_t * restrict data, int length)
             char *dhyi = (char *)data_history_y[channel][i];
             char *dhyj = (char *)data_history_y[channel][j];
             char *dhyk = (char *)data_history_y[channel][k];
-            char *cfa = (char *)iir_cfa;
-            char *cfb = (char *)iir_cfb;
-            char *cfg = (char *)iir_cfg;
 #ifdef USE_ASM
             out = EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, pcm);
 #else
@@ -225,7 +222,7 @@ iir(int16_t * restrict data, int length)
                output. This substitutes the multiplication by 0.25
              */
 
-            out += (data[index + channel] >> 2);
+            out += (*data) >> 2;
             
 #ifdef USE_FIXEDPOINT
             tempint = out >> (BP-2);
@@ -237,11 +234,13 @@ iir(int16_t * restrict data, int length)
 
             /* Limit the output */
             if (tempint < -32768)
-                data[index + channel] = -32768;
+                *data = -32768;
             else if (tempint > 32767)
-                data[index + channel] = 32767;
+                *data = 32767;
             else
-                data[index + channel] = tempint;
+                *data = tempint;
+
+            data++;
         }                       /* For each channel */
 
         i++;
