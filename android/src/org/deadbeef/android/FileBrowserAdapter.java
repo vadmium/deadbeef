@@ -3,6 +3,8 @@ import org.deadbeefpro.android.R;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 import android.content.Context;
@@ -25,12 +27,35 @@ public class FileBrowserAdapter extends BaseAdapter {
         setPath (initPath);
     }
 
+    class MyComp implements Comparator {
+     @Override
+     public int compare(Object o1, Object o2) {
+   File f1 = (File)o1;
+   File f2 = (File)o2;
+   String s1 = f1.toString ();
+   String s2 = f2.toString ();
+   if (!f1.isDirectory ()) {
+    s1 = "~" + s1;
+   }
+   else {
+    s1 = " " + s1;
+   }
+   if (!f2.isDirectory ()) {
+    s2 = "~" + s2;
+   }
+   else {
+    s2 = " " + s2;
+   }
+   return s1.compareToIgnoreCase(s2);
+  }
+    };
 
     public void setPathReal () {
      File currentDir = new File (currentPath);
      files.clear ();
      files.add ("..");
      File list[] = currentDir.listFiles ();
+     java.util.Arrays.sort(list, new MyComp());
      if (list != null) {
       for (File f : list) {
        if (f.isDirectory ()) {
