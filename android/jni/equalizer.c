@@ -73,13 +73,11 @@ typedef float REAL;
 #define BETA 0
 #define ALPHA 1
 #define GAMMA 2
-static const REAL iir_cf[3][12] __attribute__ ((aligned (16))) = {
-    { FIXED(9.9421504945e-01), FIXED(9.8335039428e-01), FIXED(9.6958094144e-01), FIXED(9.4163923306e-01), FIXED(9.0450844499e-01), FIXED(7.3940088234e-01), FIXED(5.4697667908e-01), FIXED(3.1023210589e-01), FIXED(2.6718639778e-01), FIXED(2.4201241845e-01), 0, 0 },
+const REAL iir_cfb[12] __attribute__ ((aligned (16))) = { FIXED(9.9421504945e-01), FIXED(9.8335039428e-01), FIXED(9.6958094144e-01), FIXED(9.4163923306e-01), FIXED(9.0450844499e-01), FIXED(7.3940088234e-01), FIXED(5.4697667908e-01), FIXED(3.1023210589e-01), FIXED(2.6718639778e-01), FIXED(2.4201241845e-01), 0, 0 };
 
-    { FIXED(2.8924752745e-03), FIXED(8.3248028618e-03), FIXED(1.5209529281e-02), FIXED(2.9180383468e-02), FIXED(4.7745777504e-02), FIXED(1.3029955883e-01), FIXED(2.2651166046e-01), FIXED(3.4488394706e-01), FIXED(3.6640680111e-01), FIXED(3.7899379077e-01), 0, 0 },
+const REAL iir_cfa[12] __attribute__ ((aligned (16))) = { FIXED(2.8924752745e-03), FIXED(8.3248028618e-03), FIXED(1.5209529281e-02), FIXED(2.9180383468e-02), FIXED(4.7745777504e-02), FIXED(1.3029955883e-01), FIXED(2.2651166046e-01), FIXED(3.4488394706e-01), FIXED(3.6640680111e-01), FIXED(3.7899379077e-01), 0, 0 };
 
-    { FIXED(1.9941421835e+00), FIXED(1.9827686547e+00), FIXED(1.9676601546e+00), FIXED(1.9345490229e+00), FIXED(1.8852109613e+00), FIXED(1.5829158753e+00), FIXED(1.0153238114e+00), FIXED(-1.8142472036e-01), FIXED(-5.2117742267e-01), FIXED(-8.0847117831e-01), 0, 0 }
-};
+const REAL iir_cfg[12] __attribute__ ((aligned (16))) = { FIXED(1.9941421835e+00), FIXED(1.9827686547e+00), FIXED(1.9676601546e+00), FIXED(1.9345490229e+00), FIXED(1.8852109613e+00), FIXED(1.5829158753e+00), FIXED(1.0153238114e+00), FIXED(-1.8142472036e-01), FIXED(-5.2117742267e-01), FIXED(-8.0847117831e-01), 0, 0 };
 
 /* History for two filters */
 static REAL data_history_x[EQ_CHANNELS][3][EQ_MAX_BANDS] __attribute__ ((aligned (16)));
@@ -87,7 +85,7 @@ static REAL data_history_y[EQ_CHANNELS][3][EQ_MAX_BANDS] __attribute__ ((aligned
 
 /* Gain for each band
  * values should be between -0.2 and 1.0 */
-static REAL gain[EQ_MAX_BANDS] __attribute__ ((aligned (16)));
+REAL eq_gain[EQ_MAX_BANDS] __attribute__ ((aligned (16)));
 static REAL preamp;
 
 static void
@@ -99,7 +97,7 @@ output_set_eq(int active, float pre, float * bands)
 
     for (i = 0; i < 10; ++i) {
         float g = bands[i];
-        gain[i] = FIXED(0.03 * g + 0.000999999 * g * g);
+        eq_gain[i] = FIXED(0.03 * g + 0.000999999 * g * g);
     }
 }
 
@@ -115,8 +113,8 @@ init_iir(int on, float preamp_ctrl, float *eq_ctrl)
 }
 
 #ifdef USE_ASM
-void
-EXTERN_ASMeq_apply_neon(float32_t *dhxi, float32_t *dhxk, float32_t *dhyi, float32_t *dhyj, float32_t *dhyk, float32_t pcm, float32_t *cfa, float32_t *cfb, float32_t *cfg, float32_t *gain, float32_t *out);
+float
+EXTERN_ASMeq_apply_neon(float32_t *dhxi, float32_t *dhxk, float32_t *dhyi, float32_t *dhyj, float32_t *dhyk, float32_t pcm);
 #endif
 
 int
@@ -160,12 +158,11 @@ iir(int16_t * restrict data, int length)
             char *dhyi = (char *)data_history_y[channel][i];
             char *dhyj = (char *)data_history_y[channel][j];
             char *dhyk = (char *)data_history_y[channel][k];
-            char *cfa = (char *)iir_cf[ALPHA];
-            char *cfb = (char *)iir_cf[BETA];
-            char *cfg = (char *)iir_cf[GAMMA];
-            char *gains = (char *)gain;
+            char *cfa = (char *)iir_cfa;
+            char *cfb = (char *)iir_cfb;
+            char *cfg = (char *)iir_cfg;
 #ifdef USE_ASM
-            EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, pcm, (float32_t*)cfa, (float32_t*)cfb, (float32_t*)cfg, (float32_t*)gains, (float32_t*)&out);
+            out = EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, pcm);
 #else
 
             float32x4_t q0 = vdupq_n_f32 (pcm);
@@ -193,7 +190,7 @@ iir(int16_t * restrict data, int length)
                 vst1q_f32 ((float32_t*)(dhyi+band), q4);
 
                 // yi * gain
-                q1 = vld1q_f32((float32_t*)(gains+band));
+                q1 = vld1q_f32((float32_t*)(eq_gain+band));
                 q4 = vmulq_f32 (q4, q1);
 
                 // add to result
@@ -219,7 +216,7 @@ iir(int16_t * restrict data, int length)
                  * The multiplication by 2.0 was 'moved' into the coefficients to save
                  * CPU cycles here */
                 /* Apply the gain  */
-                out += MUL(data_history_y[channel][i][band], gain[band]); // * 2.0;
+                out += MUL(data_history_y[channel][i][band], eq_gain[band]); // * 2.0;
             }                   /* For each band */
 #endif
 
