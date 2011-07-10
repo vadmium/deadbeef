@@ -826,7 +826,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
        if (vCover != null) {
         vCover.setVisibility(View.VISIBLE);
        }
-       DeadbeefAPI.pl_item_unref(trk);
+       if (trk != 0) {
+        DeadbeefAPI.pl_item_unref(trk);
+       }
       }
      }
     }

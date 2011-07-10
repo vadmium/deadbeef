@@ -103,7 +103,7 @@ class Player {
 		    			boolean state = MusicUtils.sService.isPlaying ();
 		    			int track = DeadbeefAPI.streamer_get_playing_track();
 			    		if (track != curr_track || (playback_state != state && state)) {
-			    			if (0 != curr_track) {
+			    			if (0 != track) {
 			    				DeadbeefAPI.pl_item_unref(track);
 			    			}
 			    			curr_track = track;
