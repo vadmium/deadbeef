@@ -8,8 +8,8 @@
 
 
 
-      android:versionCode="9"
-      android:versionName="1.0.6"
+      android:versionCode="10"
+      android:versionName="1.0.7dev"
 
       xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />

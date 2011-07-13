@@ -150,7 +150,8 @@ iir(int16_t * restrict data, int length)
 #ifdef USE_FIXEDPOINT
             REAL pcm = (REAL)data[index + channel] * preamp;
 #else
-            REAL pcm = (float)(*data) * preamp; //MUL((float)data[index + channel],preamp);
+            REAL input = (float)(*data);
+            REAL pcm = input * preamp; //MUL((float)data[index + channel],preamp);
 #endif
 #ifdef USE_NEON
             char *dhxi = (char *)data_history_x[channel][i];

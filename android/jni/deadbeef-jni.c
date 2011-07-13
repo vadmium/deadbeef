@@ -52,7 +52,6 @@
 #include "conf.h"
 #include "volume.h"
 #include "plugins.h"
-#include "equalizer.h"
 #include <cpu-features.h>
 
 #define trace(...) { android_trace(__VA_ARGS__); }
@@ -86,9 +85,9 @@ int vfp_supported = 0;
 
 #ifdef USE_NEON
 // dsp params
-float eq_bands[11]; // nr.0 is preamp
-int eq_on = 0;
-float eq_changed = 0;
+extern float eq_bands[11]; // nr.0 is preamp
+extern int eq_on;
+extern float eq_changed;
 #endif
 
 static int jni_out_init(void)
@@ -226,6 +225,49 @@ jnievent_free (void) {
     }
     events = NULL;
     events_tail = NULL;
+}
+
+JavaVM android_jvm;
+
+#define ATTACH_JVM(jni_env)  \
+        JNIEnv g_env;\
+        int env_status = android_jvm->GetEnv(&android_jvm, (void **)&g_env, JNI_VERSION_1_6); \
+        jint attachResult = android_jvm->AttachCurrentThread(&android_jvm, &jni_env,NULL);
+
+#define DETACH_JVM(jni_env)   if( env_status == JNI_EDETACHED ){ android_jvm->DetachCurrentThread(&android_jvm); }
+
+#define THREAD_PRIORITY_AUDIO -16
+#define THREAD_PRIORITY_URGENT_AUDIO -19
+
+static int
+set_android_thread_priority(int priority){
+    jclass process_class;
+    jmethodID set_prio_method;
+    JNIEnv *jni_env = 0;
+    ATTACH_JVM(jni_env);
+    int result = 0;
+
+    //Get pointer to the java class
+    process_class = (jclass)(*jni_env)->NewGlobalRef(jni_env, (*jni_env)->FindClass(jni_env, "android/os/Process"));
+    if (process_class == 0) {
+        result = -1;
+        goto on_finish;
+    }
+
+    //Get the set priority function
+    set_prio_method = (*jni_env)->GetStaticMethodID(jni_env, process_class, "setThreadPriority", "(I)V");
+    if (set_prio_method == 0) {
+        result = -1;
+        goto on_finish;
+    }
+
+    //Call it
+    (*jni_env)->CallStaticIntMethod(jni_env, process_class, set_prio_method, priority);
+    // TODO : catch exceptions
+
+on_finish:
+    DETACH_JVM(jni_env);
+    return result;
 }
 
 static int
@@ -438,6 +480,12 @@ mainloop_thread (void *ctx) {
     }
 }
 
+JNIEXPORT jint
+JNI_OnLoad(JavaVM *vm, void *reserved) {
+    android_jvm = *vm;
+    return JNI_VERSION_1_4;
+}
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
@@ -600,6 +648,7 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
         memset (b, 0, sizeof (b));
     }
 #ifdef USE_NEON
+#if 0
     if (eq_changed) {
         init_iir (eq_on, eq_bands[0], &eq_bands[1]);
         eq_changed = 0;
@@ -613,6 +662,7 @@ Java_org_deadbeef_android_DeadbeefAPI_getBuffer (JNIEnv *env, jclass cls, jint s
 //        int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
 //        trace ("eq took %d ms (%d bytes)\n", ms, size*2);
     }
+#endif
 #endif
     (*env)->SetShortArrayRegion(env, buffer, 0, size, (short *)b);
     return bytesread;

@@ -37,6 +37,9 @@
 #include "premix.h"
 #include "ringbuf.h"
 #include "replaygain.h"
+#ifdef ANDROID
+#include "android/jni/equalizer.h"
+#endif
 
 //extern void android_trace (const char *fmt, ...);
 //#define trace(...) { android_trace(__VA_ARGS__); }
@@ -77,10 +80,16 @@ static int streaming_terminate;
 // e.g. 8000Hz -> 192000Hz upsampling requires 24x buffer size,
 // so if we originally request 4096 bytes blocks -
 // that will require 24x buffer size, which is 98304 bytes buffer
-#define MAX_DSP_RATIO 24
 
+#ifdef ANDROID
+#define MAX_DSP_RATIO 1
+#define MIN_BLOCK_SIZE 65535
+#define MAX_BLOCK_SIZE (MIN_BLOCK_SIZE * 4)
+#else
+#define MAX_DSP_RATIO 24
 #define MIN_BLOCK_SIZE 4096
 #define MAX_BLOCK_SIZE 16384
+#endif
 #define READBUFFER_SIZE (MAX_BLOCK_SIZE * MAX_DSP_RATIO)
 static char readbuffer[READBUFFER_SIZE];
 
@@ -118,6 +127,13 @@ static int streamer_buffering;
 
 // to allow interruption of stall file requests
 static DB_FILE *streamer_file;
+
+#if defined(ANDROID) && defined(USE_NEON)
+// dsp params
+float eq_bands[11]; // nr.0 is preamp
+int eq_on = 0;
+float eq_changed = 0;
+#endif
 
 #if DETECT_PL_LOCK_RC
 volatile pthread_t streamer_lock_tid = 0;
@@ -1271,7 +1287,7 @@ streamer_thread (void *ctx) {
         int bytes_in_one_second = rate * (output->fmt.bps>>3) * channels;
         const int blocksize = MIN_BLOCK_SIZE;
         int alloc_time = 1000 / (bytes_in_one_second / blocksize);
-        alloc_time /= 1.2;
+//        alloc_time /= 1.2;
 
         int skip = 0;
         if (bytes_until_next_song >= 0) {
@@ -1325,7 +1341,7 @@ streamer_thread (void *ctx) {
                 ringbuf_write (&streamer_ringbuf, readbuffer, bytesread);
             }
 
-            //trace ("fill: %d, read: %d, size=%d, blocksize=%d\n", streamer_ringbuf.remaining, bytesread, STREAM_BUFFER_SIZE, blocksize);
+            trace ("fill: %d, read: %d, size=%d, blocksize=%d\n", streamer_ringbuf.remaining, bytesread, STREAM_BUFFER_SIZE, blocksize);
         }
         streamer_unlock ();
         if ((streamer_ringbuf.remaining > 128000 && streamer_buffering) || !streaming_track) {
@@ -1353,7 +1369,11 @@ streamer_thread (void *ctx) {
 
         alloc_time -= ms;
         if (!streamer_buffering && alloc_time > 0) {
+#ifdef ANDROID
+            alloc_time/=2;
+#endif
             usleep (alloc_time * 1000);
+            trace ("sleep %d\n", alloc_time);
         }
     }
 
@@ -1830,6 +1850,15 @@ streamer_read_async (char *bytes, int size) {
 #endif
 
         replaygain_apply (&output->fmt, streaming_track, bytes, bytesread);
+#if defined(ANDROID) && defined(USE_NEON)
+        if (eq_on) {
+            if (eq_changed) {
+                init_iir (eq_on, eq_bands[0], &eq_bands[1]);
+                eq_changed = 0;
+            }
+            iir ((int16_t*)bytes, bytesread);
+        }
+#endif
     }
     mutex_unlock (decodemutex);
     if (!is_eof) {

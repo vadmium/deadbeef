@@ -27,6 +27,9 @@ LOCAL_SRC_FILES +=\
 
 
 LOCAL_CFLAGS += -O2 -I$(LOCAL_PATH) -std=c99 -DVERSION=\"0.4.4\"
+ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
+	LOCAL_CFLAGS += -DUSE_NEON
+endif
 
 LOCAL_ARM_MODE := arm
 

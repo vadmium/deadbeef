@@ -55,7 +55,7 @@ class Player {
 	    private boolean playback_state = false;
 
     	public void run() {
-    		Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+    		Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
     		int prevsize = minSize;
     	    short buffer[] = new short[minSize];
     		Log.e("DDB","PlayerRunnable.run started");
