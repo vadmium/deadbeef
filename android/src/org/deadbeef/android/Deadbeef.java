@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import org.deadbeef.android.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -180,19 +180,38 @@ public class Deadbeef extends Activity implements OnTouchListener {
     Log.e("DDB", "Deadbeef.onCreate connected");
     MusicUtils.sService = IMediaPlaybackService.Stub
       .asInterface(obj);
-    final FileListAdapter adapter = new FileListAdapter(
-      Deadbeef.this, R.layout.plitem, R.id.title);
+    try {
+     if (MusicUtils.sService.busyAddingFiles ()) {
+      showProgress (true);
+     }
+     else {
+      final FileListAdapter adapter = new FileListAdapter(
+        Deadbeef.this, R.layout.plitem, R.id.title);
+      handler.post(new Runnable() {
+       public void run() {
+        ListView lst = (ListView) findViewById(R.id.playlist);
+        if (lst != null) {
+         lst.setAdapter(adapter);
+        }
+        lst = (ListView) findViewById(R.id.playlists);
+        if (lst != null) {
+         fillPlaylistsList(lst);
+        }
+        if (0 == DeadbeefAPI.conf_get_int(
+          "android.freeplugins_dont_ask", 0)) {
+         if (!DeadbeefAPI.plugin_exists("stdmpg")) {
+          showDialog(DLG_ASK_INSTALL_FREEPLUGS);
+         }
+        }
+       }
+      });
+     }
+    }
+    catch (RemoteException e) {
+    }
     startMediaServiceListener();
     handler.post(new Runnable() {
      public void run() {
-      ListView lst = (ListView) findViewById(R.id.playlist);
-      if (lst != null) {
-       lst.setAdapter(adapter);
-      }
-      lst = (ListView) findViewById(R.id.playlists);
-      if (lst != null) {
-       fillPlaylistsList(lst);
-      }
       if (0 == DeadbeefAPI.conf_get_int(
         "android.freeplugins_dont_ask", 0)) {
        if (!DeadbeefAPI.plugin_exists("stdmpg")) {
@@ -655,6 +674,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
     return;
    }
    try {
+    if (MusicUtils.sService.busyAddingFiles ()) {
+     return;
+    }
     if (mScrollFollow >= 0 && new Date().getTime() - mPlaylistTimer > 5000) {
      ListView lst = (ListView) findViewById(R.id.playlist);
      if (lst != null) {

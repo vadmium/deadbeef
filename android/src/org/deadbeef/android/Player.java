@@ -34,19 +34,31 @@ class Player {
 		minSize = AudioTrack.getMinBufferSize(current_samplerate,
 	    		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
 	    		AudioFormat.ENCODING_PCM_16BIT);
-		int bufsize = DeadbeefAPI.conf_get_int ("javaplayer.buffersize", 32000);
-		if (bufsize != -1) {
-			minSize = bufsize;
-		}
-   		Log.e("DDB","bufSize="+minSize);
-
 		
-		audio = new AudioTrack(
-		AudioManager.STREAM_MUSIC, samplerate,
-		channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
-		AudioFormat.ENCODING_PCM_16BIT,
-		minSize,
-		AudioTrack.MODE_STREAM);
+		int bufsize = DeadbeefAPI.conf_get_int ("javaplayer.buffersize", 32000);
+		if (bufsize == -1) {
+			bufsize = minSize;
+		}
+		
+   		Log.e("DDB","bufSize="+bufsize);
+
+   		while (true) {
+			audio = new AudioTrack(
+					AudioManager.STREAM_MUSIC, samplerate,
+					channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
+					AudioFormat.ENCODING_PCM_16BIT,
+					bufsize,
+					AudioTrack.MODE_STREAM
+			);
+			
+			if (audio == null) {
+				if (bufsize != minSize) {
+					bufsize = minSize;
+					continue;
+				}
+			}
+			break;
+   		}
     }
 
     private class PlayRunnable implements Runnable {
