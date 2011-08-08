@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeef.android.R;
+import org.deadbeefpro.android.R;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -127,7 +127,6 @@ public class SelectEqPreset extends ListActivity {
 
  @Override
  public void onCreateContextMenu (ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
-  Log.e("DDB","onCreateContextMenu");
   mSelected = ((AdapterContextMenuInfo)menuInfo).position-1;
   menu.add(0, ACT_RENAME, 0, R.string.rename_eq_preset);
   menu.add(0, ACT_DELETE, 1, R.string.delete_eq_preset);

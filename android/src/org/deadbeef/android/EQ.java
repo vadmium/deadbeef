@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeef.android.R;
+import org.deadbeefpro.android.R;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -17,6 +17,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
+import android.util.Log;
 
 public class EQ extends Activity {
 
@@ -132,6 +133,7 @@ public class EQ extends Activity {
  @Override
     protected void onActivityResult (int requestCode, int resultCode, Intent data) {
      if (requestCode == 0) {
+      Log.e("DDB","load eq preset: " + resultCode);
       DeadbeefAPI.eq_load_preset (resultCode);
       initGui ();
      }
