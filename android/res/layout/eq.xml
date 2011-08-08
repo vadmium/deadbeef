@@ -16,6 +16,7 @@
     android:layout_height="fill_parent"
     android:id="@+id/eq_onoff"></ToggleButton>
   <Button android:id="@+id/preset" android:text="Presets" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1"></Button>
+  <Button android:id="@+id/eqreset" android:text="All zero" android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
 </LinearLayout>
 <ScrollView android:id="@+id/ScrollView01" android:layout_width="fill_parent" android:layout_height="wrap_content">
 <LinearLayout
