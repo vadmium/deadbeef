@@ -45,6 +45,7 @@ public class PlaylistListAdapter extends BaseAdapter
              TextView t2 = (TextView) v.findViewById(R.id.count);
 	         if (position == 0) {
 	        	 t1.setText ("Add new playlist");
+                 t2.setText("");
 	         }
 	         else {
                  t1.setText(DeadbeefAPI.plt_get_title(position-1));

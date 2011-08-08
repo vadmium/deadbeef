@@ -1201,8 +1201,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
 							new DialogInterface.OnClickListener() {
 								public void onClick(DialogInterface dialog,
 										int whichButton) {
-									DeadbeefAPI.plt_add(DeadbeefAPI
-											.plt_get_count(),
+									DeadbeefAPI.plt_add(
+											DeadbeefAPI.plt_get_count(),
 											((TextView) textEntryView
 													.findViewById(R.id.title))
 													.getText().toString());
