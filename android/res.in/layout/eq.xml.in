@@ -6,7 +6,9 @@
 #endif
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"
-  android:orientation="vertical">
+  android:orientation="vertical"
+  android:background="@drawable/infopanel"
+  >
 
 #ifdef FREEVERSION
 	<com.google.ads.AdView android:id="@+id/adView"
@@ -43,90 +45,134 @@
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="Preamp"></TextView>
-	<SeekBar android:id="@+id/preamp" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_preamp"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="Preamp" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/preamp" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_preamp" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="60 Hz"></TextView>
-	<SeekBar android:id="@+id/band0" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band0"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="60 Hz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band0" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band0" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="170 Hz"></TextView>
-	<SeekBar android:id="@+id/band1" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band1"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="170 Hz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band1" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band1" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="310 Hz"></TextView>
-	<SeekBar android:id="@+id/band2" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band2"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="310 Hz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band2" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band2" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="600 Hz"></TextView>
-	<SeekBar android:id="@+id/band3" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band3"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="600 Hz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band3" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band3" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="1 kHz"></TextView>
-	<SeekBar android:id="@+id/band4" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band4"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="1 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band4" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band4" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="3 kHz"></TextView>
-	<SeekBar android:id="@+id/band5" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band5"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="3 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band5" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band5" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="6 kHz"></TextView>
-	<SeekBar android:id="@+id/band6" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band6"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="6 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band6" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band6" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="12 kHz"></TextView>
-	<SeekBar android:id="@+id/band7" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band7"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="12 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band7" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band7" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="14 kHz"></TextView>
-	<SeekBar android:id="@+id/band8" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band8"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="14 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band8" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band8" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
-  android:layout_height="wrap_content">
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="16 kHz"></TextView>
-	<SeekBar android:id="@+id/band9" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:paddingBottom="10sp" />
-	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band9"></TextView>
+  android:layout_height="wrap_content"
+  android:paddingTop="10sp"
+  >
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:text="16 kHz" android:textColor="#f000"></TextView>
+	<SeekBar android:id="@+id/band9" android:layout_width="fill_parent" android:layout_height="25sp" android:layout_weight="1" android:progressDrawable="@drawable/ddb_seekbar"
+  android:thumb="@color/transparent"
+	/>
+	<TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band9" android:textColor="#f000"></TextView>
 </LinearLayout>
 
 </LinearLayout>
