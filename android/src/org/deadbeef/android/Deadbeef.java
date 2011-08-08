@@ -681,7 +681,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
      ListView lst = (ListView) findViewById(R.id.playlist);
      if (lst != null) {
       int h = lst.getHeight();
-      lst.setSelectionFromTop(mScrollFollow, 0);
+      lst.setSelectionFromTop(mScrollFollow, 0); // h/2
       mScrollFollow = -1;
      }
     }

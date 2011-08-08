@@ -43,13 +43,22 @@ class Player {
    		Log.e("DDB","bufSize="+bufsize);
 
    		while (true) {
-			audio = new AudioTrack(
-					AudioManager.STREAM_MUSIC, samplerate,
-					channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
-					AudioFormat.ENCODING_PCM_16BIT,
-					bufsize,
-					AudioTrack.MODE_STREAM
-			);
+   			try {
+				audio = new AudioTrack(
+						AudioManager.STREAM_MUSIC, samplerate,
+						channels == 1 ? AudioFormat.CHANNEL_CONFIGURATION_MONO : AudioFormat.CHANNEL_CONFIGURATION_STEREO,
+						AudioFormat.ENCODING_PCM_16BIT,
+						bufsize,
+						AudioTrack.MODE_STREAM
+				);
+   			}
+   			catch (IllegalArgumentException	ex) {
+   				audio = null;
+				if (bufsize != minSize) {
+					bufsize = minSize;
+					continue;
+				}
+   			}
 			
 			if (audio == null) {
 				if (bufsize != minSize) {
