@@ -55,6 +55,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 import android.widget.AbsListView;
+import android.content.ActivityNotFoundException;
 
 public class Deadbeef extends Activity implements OnTouchListener {
 	String TAG = "DDB";
@@ -1132,7 +1133,17 @@ public class Deadbeef extends Activity implements OnTouchListener {
 									Intent i = new Intent(
 											Intent.ACTION_VIEW,
 											Uri.parse("market://search?q=pname:org.deadbeef.android.freeplugins"));
-									startActivity(i);
+									try {
+										startActivity(i);
+									}
+									catch (ActivityNotFoundException ex)
+									{
+										Toast toast = Toast
+												.makeText(Deadbeef.this,
+														"Failed to install plugins, you need to have android market app installed for that",
+														Toast.LENGTH_SHORT);
+										toast.show();
+									}
 								}
 							})
 					.setNegativeButton("No",
