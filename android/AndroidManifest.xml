@@ -27,7 +27,7 @@
      android:icon="@drawable/icon"
      android:label="@string/app_name"
      android:testOnly="false"
-     android:debuggable="false"
+     android:debuggable="true"
      >
 
       <activity android:name="org.deadbeef.android.Deadbeef"

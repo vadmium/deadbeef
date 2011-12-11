@@ -13,7 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
-
+import android.os.Environment;
 
 public class FileBrowserAdapter extends BaseAdapter {
     private Context myContext;
@@ -55,6 +55,11 @@ public class FileBrowserAdapter extends BaseAdapter {
      files.clear ();
      files.add ("..");
      File list[] = currentDir.listFiles ();
+     if (list == null) {
+      currentPath = Environment.getExternalStorageDirectory().getAbsolutePath();
+      setPathReal ();
+      return;
+     }
      java.util.Arrays.sort(list, new MyComp());
      if (list != null) {
       for (File f : list) {
