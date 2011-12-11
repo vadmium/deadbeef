@@ -318,7 +318,16 @@ fail:
 
 static int
 lfm_fetch_song_info (DB_playItem_t *song, const char **a, const char **t, const char **b, float *l, const char **n, const char **m) {
-    *a = deadbeef->pl_find_meta (song, "artist");
+    *a = deadbeef->pl_find_meta (song, "band");
+    if (!(*a)) {
+        *a = deadbeef->pl_find_meta (song, "album artist");
+    }
+    if (!(*a)) {
+        *a = deadbeef->pl_find_meta (song, "albumartist");
+    }
+    if (!(*a)) {
+        *a = deadbeef->pl_find_meta (song, "artist");
+    }
     if (!*a) {
         return -1;
     }
@@ -347,7 +356,7 @@ static int
 lfm_uri_encode (char *out, int outl, const char *str) {
     int l = outl;
     //trace ("lfm_uri_encode %p %d %s\n", out, outl, str);
-    while (*str) {
+    while (*str && *((uint8_t*)str) >= 32) {
         if (outl <= 1) {
             //trace ("no space left for 1 byte in buffer\n");
             return -1;

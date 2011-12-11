@@ -202,22 +202,47 @@ http_parse_shoutcast_meta (HTTP_FILE *fp, const char *meta, int size) {
             title[s] = 0;
             trace ("got stream title: %s\n", title);
             if (fp->track) {
+                int songstarted = 0;
                 char *tit = strstr (title, " - ");
+                deadbeef->pl_lock ();
                 if (tit) {
                     *tit = 0;
                     tit += 3;
-                    vfs_curl_set_meta (fp->track, "artist", title);
-                    vfs_curl_set_meta (fp->track, "title", tit);
+
+                    const char *orig_title = deadbeef->pl_find_meta (fp->track, "title");
+                    const char *orig_artist = deadbeef->pl_find_meta (fp->track, "artist");
+
+                    if (!orig_title || strcasecmp (orig_title, tit)) {
+                        vfs_curl_set_meta (fp->track, "title", tit);
+                        songstarted = 1;
+                    }
+                    if (!orig_artist || strcasecmp (orig_artist, title)) {
+                        vfs_curl_set_meta (fp->track, "artist", title);
+                        songstarted = 1;
+                    }
                 }
                 else {
-                    vfs_curl_set_meta (fp->track, "title", title);
+                    const char *orig_title = deadbeef->pl_find_meta (fp->track, "title");
+                    if (!orig_title || strcasecmp (orig_title, title)) {
+                        vfs_curl_set_meta (fp->track, "title", title);
+                        songstarted = 1;
+                    }
                 }
+                deadbeef->pl_unlock ();
                 ddb_playlist_t *plt = deadbeef->plt_get_curr ();
                 if (plt) {
                     deadbeef->plt_modified (plt);
                     deadbeef->plt_unref (plt);
                 }
                 deadbeef->sendmessage (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+                if (songstarted) {
+                    ddb_event_track_t *ev = (ddb_event_track_t *)deadbeef->event_alloc (DB_EV_SONGSTARTED);
+                    ev->track = fp->track;
+                    if (ev->track) {
+                        deadbeef->pl_item_ref (ev->track);
+                    }
+                    deadbeef->event_send ((ddb_event_t *)ev, 0, 0);
+                }
             }
             return 0;
         }
@@ -404,7 +429,7 @@ parse_header (const uint8_t *p, const uint8_t *e, uint8_t *key, int keysize, uin
     p = v;
 
     // find linebreak
-    while (v < e && *v != 0x0d || *v == 0x0a) {
+    while (v < e && *v != 0x0d && *v != 0x0a) {
         v++;
     }
     
@@ -452,9 +477,7 @@ http_content_header_handler (void *ptr, size_t size, size_t nmemb, void *stream)
             fp->content_type = strdup (value);
         }
         else if (!strcasecmp (key, "Content-Length")) {
-            if (fp->length < 0) {
-                fp->length = atoi (value);
-            }
+            fp->length = atoi (value);
         }
         else if (!strcasecmp (key, "icy-name")) {
             if (fp->track) {
@@ -611,7 +634,7 @@ http_thread_func (void *ctx) {
             if (*proxyuser || *proxypass) {
 #if LIBCURL_VERSION_MINOR >= 19 && LIBCURL_VERSION_PATCH >= 1
                 curl_easy_setopt (curl, CURLOPT_PROXYUSERNAME, proxyuser);
-                curl_easy_setopt (curl, CURLOPT_PROXYUSERNAME, proxypass);
+                curl_easy_setopt (curl, CURLOPT_PROXYPASSWORD, proxypass);
 #else
                 char pwd[200];
                 snprintf (pwd, sizeof (pwd), "%s:%s", proxyuser, proxypass);
@@ -784,7 +807,7 @@ http_read (void *ptr, size_t size, size_t nmemb, DB_FILE *stream) {
         }
     //    trace ("buffer remaining: %d\n", fp->remaining);
         deadbeef->mutex_lock (fp->mutex);
-        trace ("http_read %lld/%lld/%d\n", fp->pos, fp->length, fp->remaining);
+        //trace ("http_read %lld/%lld/%d\n", fp->pos, fp->length, fp->remaining);
         int cp = min (sz, fp->remaining);
         int readpos = fp->pos & BUFFER_MASK;
         int part1 = BUFFER_SIZE-readpos;
@@ -813,7 +836,7 @@ http_read (void *ptr, size_t size, size_t nmemb, DB_FILE *stream) {
 
 static int
 http_seek (DB_FILE *stream, int64_t offset, int whence) {
-    trace ("http_seek %lld %d\n", offset, whence);
+    //trace ("http_seek %lld %d\n", offset, whence);
     assert (stream);
     HTTP_FILE *fp = (HTTP_FILE *)stream;
     fp->seektoend = 0;

@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "gme/gme.h"
 #include <zlib.h>
 #include "../../deadbeef.h"
@@ -39,6 +40,8 @@ int _Unwind_GetIPInfo;
 
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
+static int conf_fadeout = 10;
+static int conf_loopcount = 2;
 
 typedef struct {
     DB_fileinfo_t info;
@@ -112,18 +115,15 @@ cgme_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     gme_fileinfo_t *info = (gme_fileinfo_t*)_info;
     int samplerate = deadbeef->conf_get_int ("synth.samplerate", 44100);
 
-    gme_err_t res;
+    gme_err_t res = "gme uninitialized";
     const char *ext = strrchr (deadbeef->pl_find_meta (it, ":URI"), '.');
-    if (ext && !strcasecmp (ext, ".vgz")) {
-        trace ("opening gzipped vgm...\n");
-        char *buffer;
-        int sz;
-        if (!read_gzfile (deadbeef->pl_find_meta (it, ":URI"), &buffer, &sz)) {
-            res = gme_open_data (buffer, sz, &info->emu, samplerate);
-            free (buffer);
-        }
+    char *buffer;
+    int sz;
+    if (!read_gzfile (deadbeef->pl_find_meta (it, ":URI"), &buffer, &sz)) {
+        res = gme_open_data (buffer, sz, &info->emu, samplerate);
+        free (buffer);
     }
-    else {
+    if (res) {
         DB_FILE *f = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
         int64_t sz = deadbeef->fgetlength (f);
         if (sz <= 0) {
@@ -197,6 +197,22 @@ cgme_read (DB_fileinfo_t *_info, char *bytes, int size) {
     if (gme_play (info->emu, size/2, (short*)bytes)) {
         return 0;
     }
+    if (conf_fadeout > 0 && info->duration >= conf_fadeout && info->reallength <= 0 && _info->readpos >= info->duration - conf_fadeout) {
+        float fade_amnt =  (info->duration - _info->readpos) / (float)conf_fadeout;
+        int nsamples = size/2;
+        float fade_incr = 1.f / (_info->fmt.samplerate * conf_fadeout) * 256;
+        const float ln10=2.3025850929940002f;
+        float fade = exp(ln10*(-(1.f-fade_amnt) * 3));
+
+        for (int i = 0; i < nsamples; i++) {
+            ((short*)bytes)[i] *= fade;
+            if (!(i & 0xff)) {
+                fade_amnt += fade_incr;
+                fade = exp(ln10*(-(1.f-fade_amnt) * 3));
+            }
+        }
+    }
+
     _info->readpos += t;
     if (info->reallength == -1) {
         if (gme_track_ended (info->emu)) {
@@ -249,19 +265,16 @@ cgme_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     Music_Emu *emu;
     trace ("gme_open_file %s\n", fname);
 
-    gme_err_t res;
+    gme_err_t res = "gme uninitialized";
 
     const char *ext = strrchr (fname, '.');
-    if (ext && !strcasecmp (ext, ".vgz")) {
-        trace ("opening gzipped vgm...\n");
-        char *buffer;
-        int sz;
-        if (!read_gzfile (fname, &buffer, &sz)) {
-            res = gme_open_data (buffer, sz, &emu, gme_info_only);
-            free (buffer);
-        }
+    char *buffer;
+    int sz;
+    if (!read_gzfile (fname, &buffer, &sz)) {
+        res = gme_open_data (buffer, sz, &emu, gme_info_only);
+        free (buffer);
     }
-    else {
+    if (res) {
         DB_FILE *f = deadbeef->fopen (fname);
         if (!f) {
             return NULL;
@@ -304,10 +317,10 @@ cgme_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
                 DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
                 char str[1024];
                 if (inf->song[0]) {
-                    snprintf (str, 1024, "%d %s - %s", i, inf->game, inf->song);
+                    snprintf (str, sizeof(str), "%d %s - %s", i, inf->game, inf->song);
                 }
                 else {
-                    snprintf (str, 1024, "%d %s - ?", i, inf->game);
+                    snprintf (str, sizeof(str), "%d %s - ?", i, inf->game);
                 }
                 trace ("track subtune %d %s, length=%d\n", i, str, inf->length);
                 deadbeef->pl_set_meta_int (it, ":TRACKNUM", i);
@@ -331,9 +344,26 @@ cgme_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
                 char trk[10];
                 snprintf (trk, 10, "%d", i+1);
                 cgme_add_meta (it, "track", trk);
+                snprintf (str, sizeof(str), "%d", inf->length);
+                deadbeef->pl_add_meta (it, ":GME_LENGTH", str);
+                snprintf (str, sizeof(str), "%d", inf->intro_length);
+                deadbeef->pl_add_meta (it, ":GME_INTRO_LENGTH", str);
+                snprintf (str, sizeof(str), "%d", inf->loop_length);
+                deadbeef->pl_add_meta (it, ":GME_LOOP_LENGTH", str);
                 if (inf->length == -1 || inf->length == 0) {
-                    float songlength = deadbeef->conf_get_float ("gme.songlength", 3);
-                    deadbeef->plt_set_item_duration (plt, it, songlength * 60.f);
+                    float songlength;
+                    
+                    if (inf->loop_length > 0 && conf_loopcount > 0) {
+                        songlength = inf->intro_length / 1000.f;
+                        if (songlength < 0) {
+                            songlength = 0;
+                        }
+                        songlength += (inf->loop_length * conf_loopcount) / 1000.f;
+                    }
+                    else {
+                        songlength = deadbeef->conf_get_float ("gme.songlength", 3) * 60.f;
+                    }
+                    deadbeef->plt_set_item_duration (plt, it, songlength);
                 }
                 else {
                     deadbeef->plt_set_item_duration (plt, it, (float)inf->length/1000.f);
@@ -402,8 +432,21 @@ cgme_stop (void) {
     return 0;
 }
 
+int
+cgme_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) {
+    switch (id) {
+    case DB_EV_CONFIGCHANGED:
+        conf_fadeout = deadbeef->conf_get_int ("gme.fadeout", 10);
+        conf_loopcount = deadbeef->conf_get_int ("gme.loopcount", 2);
+        break;
+    }
+    return 0;
+}
+
 static const char settings_dlg[] =
     "property \"Max song length (in minutes)\" entry gme.songlength 3;\n"
+    "property \"Fadeout length (seconds)\" entry gme.fadeout 10;\n"
+    "property \"Play loops nr. of times (if available)\" entry gme.loopcount 2;\n"
 ;
 
 // define plugin interface
@@ -419,7 +462,7 @@ static DB_decoder_t plugin = {
     .plugin.copyright = 
         "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
         "\n"
-        "Uses Game-Music-Emu v0.5.5 by Shay Green <gblargg@gmail.com>, http://www.slack.net/~ant/libs\n"
+        "Uses Game-Music-Emu by Shay Green <gblargg@gmail.com>, http://code.google.com/p/game-music-emu/\n"
         "\n"
         "This program is free software; you can redistribute it and/or\n"
         "modify it under the terms of the GNU General Public License\n"

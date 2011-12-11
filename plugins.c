@@ -24,7 +24,7 @@
 //#include <alloca.h>
 #include <string.h>
 #ifndef __linux__
-#define _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 1
 #endif
 #include <limits.h>
 #ifdef HAVE_CONFIG_H
@@ -45,6 +45,7 @@
 #include "premix.h"
 #include "dsppreset.h"
 #include "pltmeta.h"
+#include "metacache.h"
 
 extern void android_trace (const char *fmt, ...);
 #define trace(...) { android_trace(__VA_ARGS__); }
@@ -243,7 +244,7 @@ static DB_functions_t deadbeef_api = {
     // junk reading
     .junk_id3v1_read = (int (*)(DB_playItem_t *it, DB_FILE *fp))junk_id3v1_read,
     .junk_id3v1_find = junk_id3v1_find,
-    .junk_id3v1_write = (int (*) (FILE *, DB_playItem_t *))junk_id3v1_write,
+    .junk_id3v1_write = (int (*) (FILE *, DB_playItem_t *, const char *))junk_id3v1_write,
     .junk_id3v2_find = junk_id3v2_find,
     .junk_id3v2_read = (int (*)(DB_playItem_t *it, DB_FILE *fp))junk_id3v2_read,
     .junk_id3v2_read_full = (int (*)(DB_playItem_t *, DB_id3v2_tag_t *tag, DB_FILE *fp))junk_id3v2_read_full,
@@ -318,7 +319,18 @@ static DB_functions_t deadbeef_api = {
     // dsp preset management
     .dsp_preset_load = dsp_preset_load,
     .dsp_preset_save = dsp_preset_save,
-    .dsp_preset_free = dsp_preset_free
+    .dsp_preset_free = dsp_preset_free,
+    // new 1.2 APIs
+    .plt_alloc = (ddb_playlist_t *(*)(const char *title))plt_alloc,
+    .plt_free = (void (*)(ddb_playlist_t *plt))plt_free,
+    //.plt_insert = plt_insert,
+    .plt_set_fast_mode = (void (*)(ddb_playlist_t *plt, int fast))plt_set_fast_mode,
+    .plt_is_fast_mode = (int (*)(ddb_playlist_t *plt))plt_is_fast_mode,
+    .metacache_add_string = metacache_add_string,
+    .metacache_remove_string = metacache_remove_string,
+    .metacache_ref = metacache_ref,
+    .metacache_unref = metacache_unref,
+    .pl_find_meta_raw = (const char *(*) (DB_playItem_t *it, const char *key))pl_find_meta_raw,
 };
 
 DB_functions_t *deadbeef = &deadbeef_api;

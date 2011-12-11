@@ -15,6 +15,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -26,7 +29,7 @@
 #include <sys/prctl.h>
 #endif
 #ifndef __linux__
-#define _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 1
 #endif
 #include <limits.h>
 #include <errno.h>
@@ -34,15 +37,13 @@
 #include <sys/types.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <sys/un.h>
 #include <sys/fcntl.h>
 #include <sys/errno.h>
 #include <signal.h>
 #ifdef __linux__
 #include <execinfo.h>
-#endif
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
 #endif
 #include <unistd.h>
 #include "gettext.h"
@@ -75,6 +76,8 @@ char dbdocdir[PATH_MAX]; // see deadbeef->get_doc_dir
 char dbplugindir[PATH_MAX]; // see deadbeef->get_plugin_dir
 char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 
+char use_gui_plugin[100];
+
 // client-side commandline support
 // -1 error, program must exit with error code -1
 //  0 proceed normally as nothing happened
@@ -101,6 +104,7 @@ client_exec_command_line (const char *cmdline, int len) {
             fprintf (stdout, _("   --prev             Previous song in playlist\n"));
             fprintf (stdout, _("   --random           Random song in playlist\n"));
             fprintf (stdout, _("   --queue            Append file(s) to existing playlist\n"));
+            fprintf (stdout, _("   --gui PLUGIN       Tells which GUI plugin to use, default is \"GTK2\"\n"));
             fprintf (stdout, _("   --nowplaying FMT   Print formatted track name to stdout\n"));
             fprintf (stdout, _("                      FMT %%-syntax: [a]rtist, [t]itle, al[b]um,\n"
                              "                      [l]ength, track[n]umber, [y]ear, [c]omment,\n"
@@ -112,6 +116,11 @@ client_exec_command_line (const char *cmdline, int len) {
         else if (!strcmp (parg, "--version")) {
             fprintf (stdout, "DeaDBeeF " VERSION " Copyright © 2009-2011 Alexey Yakovenko\n");
             return 1;
+        }
+        else if (!strcmp (parg, "--gui")) {
+            parg += strlen (parg);
+            parg++;
+            strcpy (use_gui_plugin, parg);
         }
         parg += strlen (parg);
         parg++;
@@ -425,7 +434,16 @@ player_mainloop (void) {
                 conf_save ();
                 break;
             case DB_EV_TERMINATE:
-                term = 1;
+                {
+                    pl_playqueue_clear ();
+
+                    // stop streaming and playback before unloading plugins
+                    DB_output_t *output = plug_get_output ();
+                    output->stop ();
+                    streamer_free ();
+                    output->free ();
+                    term = 1;
+                }
                 break;
             case DB_EV_PLAY_CURRENT:
                 if (p1) {
@@ -499,32 +517,8 @@ player_mainloop (void) {
             return;
         }
         messagepump_wait ();
-        //usleep(50000);
-        //plug_trigger_event (DB_EV_FRAMEUPDATE, 0);
     }
 }
-
-#if 0
-static int sigterm_handled = 0;
-void
-atexit_handler (void) {
-    fprintf (stderr, "atexit_handler\n");
-    if (!sigterm_handled) {
-        fprintf (stderr, "handling atexit.\n");
-        pl_save_all ();
-        conf_save ();
-    }
-}
-
-void
-sigterm_handler (int sig) {
-    fprintf (stderr, "got sigterm.\n");
-    atexit_handler ();
-    sigterm_handled = 1;
-    fprintf (stderr, "bye.\n");
-    exit (0);
-}
-#endif
 
 #ifdef __linux__
 void
@@ -837,6 +831,10 @@ main (int argc, char *argv[]) {
     conf_init ();
     conf_load (); // required by some plugins at startup
 
+    if (use_gui_plugin[0]) {
+        conf_set_str ("gui_plugin", use_gui_plugin);
+    }
+
     conf_set_str ("deadbeef_version", VERSION);
 
     volume_set_db (conf_get_float ("playback.volume", 0)); // volume need to be initialized before plugins start
@@ -882,6 +880,7 @@ main (int argc, char *argv[]) {
     server_tid = thread_start (server_loop, NULL);
     // this runs in main thread (blocks right here)
     player_mainloop ();
+
     // terminate server and wait for completion
     if (server_tid) {
         server_terminate = 1;
@@ -906,12 +905,6 @@ main (int argc, char *argv[]) {
     // stop receiving messages from outside
     server_close ();
 
-    // stop streaming and playback before unloading plugins
-    DB_output_t *output = plug_get_output ();
-    output->stop ();
-    streamer_free ();
-    output->free ();
-
     // plugins might still hood references to playitems,
     // and query configuration in background
     // so unload everything 1st before final cleanup
@@ -923,9 +916,7 @@ main (int argc, char *argv[]) {
     conf_free ();
     messagepump_free ();
     plug_cleanup ();
-#if 0
-    sigterm_handled = 1;
-#endif
+
     fprintf (stderr, "hej-hej!\n");
     return 0;
 }

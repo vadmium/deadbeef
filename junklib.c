@@ -711,7 +711,8 @@ convstr_id3v2 (int version, uint8_t encoding, const unsigned char* str, int sz) 
             }
             else {
                 trace ("invalid ucs-2 signature %x %x\n", (int)str[0], (int)str[1]);
-                return NULL;
+                enc = "UCS-2LE";
+                // NOTE: this is an assumption, might break in the future.
             }
         }
         else {
@@ -734,7 +735,7 @@ convstr_id3v2 (int version, uint8_t encoding, const unsigned char* str, int sz) 
         }
     }
     // trim trailing linebreaks
-    for (n = converted_sz-2; n >= 0; n--) {
+    for (n = converted_sz-1; n >= 0; n--) {
         if (out[n] == '\n') {
             out[n] = 0;
         }
@@ -877,7 +878,7 @@ junk_id3v1_read (playItem_t *it, DB_FILE *fp) {
 }
 
 int
-junk_id3v1_write (FILE *fp, playItem_t *it) {
+junk_id3v1_write (FILE *fp, playItem_t *it, const char *enc) {
     char title[30] = "";
     char artist[30] = "";
     char album[30] = "";
@@ -893,7 +894,7 @@ junk_id3v1_write (FILE *fp, playItem_t *it) {
     meta = pl_find_meta (it, name);\
     if (meta) {\
         char temp[1000];\
-        int l = junk_iconv (meta, strlen (meta), temp, sizeof (temp), UTF8_STR, "ASCII");\
+        int l = junk_iconv (meta, strlen (meta), temp, sizeof (temp), UTF8_STR, enc);\
         if (l == -1) {\
             memset (store, 0, sizeof (store));\
         }\
@@ -3731,7 +3732,7 @@ junk_rewrite_tags (playItem_t *it, uint32_t junk_flags, int id3v2_version, const
     }
     else if (write_id3v1) {
         trace ("writing new id3v1 tag\n");
-        if (junk_id3v1_write (out, it) != 0) {
+        if (junk_id3v1_write (out, it, id3v1_encoding) != 0) {
             trace ("cmp3_write_metadata: failed to write id3v1 tag to %s\n", pl_find_meta (it, ":URI"))
             goto error;
         }

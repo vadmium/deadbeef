@@ -1,3 +1,6 @@
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,13 +25,17 @@ static uintptr_t imlib_mutex;
 #include <png.h>
 #endif
 
+#ifdef USE_METAFLAC
+#include <FLAC/metadata.h>
+#endif
+
 #define min(x,y) ((x)<(y)?(x):(y))
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(...)
 
 static char default_cover[PATH_MAX];
-#define DEFAULT_FILEMASK "*cover*.jpg;*front*.jpg;*folder*.jpg"
+#define DEFAULT_FILEMASK "*cover*.jpg;*front*.jpg;*folder*.jpg;*cover*.png;*front*.png;*folder*.png"
 
 static DB_artwork_plugin_t plugin;
 DB_functions_t *deadbeef;
@@ -44,6 +51,11 @@ typedef struct cover_query_s {
     void *user_data;
     struct cover_query_s *next;
 } cover_query_t;
+
+typedef struct mutex_cond_s {
+    uintptr_t mutex;
+    uintptr_t cond;
+} mutex_cond_t;
 
 static cover_query_t *queue;
 static cover_query_t *queue_tail;
@@ -183,8 +195,7 @@ check_dir (const char *dir, mode_t mode)
         }
         if (slash)
             *slash = '/';
-    }
-    while (slash);
+    } while (slash);
     free (tmp);
     return 1;
 }
@@ -721,6 +732,11 @@ static const char *filter_custom_mask = NULL;
 static int
 filter_custom (const struct dirent *f)
 {
+// FNM_CASEFOLD is not defined on solaris. On other platforms it is.
+// It should be safe to define it as FNM_INGORECASE if it isn't defined.
+#ifndef FNM_CASEFOLD
+#define FNM_CASEFOLD FNM_IGNORECASE
+#endif
     if (!fnmatch (filter_custom_mask, f->d_name, FNM_CASEFOLD)) {
         return 1;
     }
@@ -802,83 +818,88 @@ fetcher_thread (void *none)
             make_cache_path (cache_path, sizeof (cache_path), param->album, param->artist, -1);
             int got_pic = 0;
 
-            // try to load embedded from id3v2
             if (deadbeef->is_local_file (param->fname)) {
                 if (artwork_enable_embedded) {
-                    trace ("trying to load artwork from id3v2 tag for %s\n", param->fname);
-                    DB_id3v2_tag_t tag;
-                    memset (&tag, 0, sizeof (tag));
-                    DB_FILE *fp = deadbeef->fopen (param->fname);
-                    current_file = fp;
-                    if (fp) {
-                        int res = deadbeef->junk_id3v2_read_full (NULL, &tag, fp);
-                        if (!res) {
-                            for (DB_id3v2_frame_t *f = tag.frames; f; f = f->next) {
-                                if (!strcmp (f->id, "APIC")) {
+                    // try to load embedded from id3v2
+                    {
+                        trace ("trying to load artwork from id3v2 tag for %s\n", param->fname);
+                        DB_id3v2_tag_t tag;
+                        memset (&tag, 0, sizeof (tag));
+                        DB_FILE *fp = deadbeef->fopen (param->fname);
+                        current_file = fp;
+                        if (fp) {
+                            int res = deadbeef->junk_id3v2_read_full (NULL, &tag, fp);
+                            if (!res) {
+                                for (DB_id3v2_frame_t *f = tag.frames; f; f = f->next) {
+                                    if (!strcmp (f->id, "APIC")) {
+                                        if (f->size < 20) {
+                                            trace ("artwork: id3v2 APIC frame is too small\n");
+                                            continue;
+                                        }
+                                        uint8_t *data = f->data;
+                                        if (tag.version[0] == 4) {
+                                            // skip size
+                                            data += 4;
+                                        }
+                                        uint8_t *end = f->data + f->size;
+                                        int enc = *data;
+                                        data++; // enc
+                                        // mime-type must always be ASCII - hence enc is 0 here
+                                        uint8_t *mime_end = id3v2_skip_str (enc, data, end);
+                                        if (!mime_end) {
+                                            trace ("artwork: corrupted id3v2 APIC frame\n");
+                                            continue;
+                                        }
+                                        if (strcasecmp (data, "image/jpeg") && strcasecmp (data, "image/png")) {
+                                            trace ("artwork: unsupported mime type: %s\n", data);
+                                            continue;
+                                        }
+                                        if (*mime_end != 3) {
+                                            trace ("artwork: picture type=%d, skipped: %s\n", *mime_end);
+                                            continue;
+                                        }
+                                        trace ("artwork: mime-type=%s, picture type: %d\n", data, *mime_end);
+                                        data = mime_end;
+                                        data++; // picture type
+                                        data = id3v2_skip_str (enc, data, end); // description
+                                        if (!data) {
+                                            trace ("artwork: corrupted id3v2 APIC frame\n");
+                                            continue;
+                                        }
+                                        int sz = f->size - (data - f->data);
 
-                                    if (f->size < 20) {
-                                        trace ("artwork: id3v2 APIC frame is too small\n");
-                                        continue;
-                                    }
-                                    uint8_t *data = f->data;
-                                    uint8_t *end = f->data + f->size;
-                                    int enc = *data;
-                                    data++; // enc
-                                    // mime-type must always be ASCII - hence enc is 0 here
-                                    uint8_t *mime_end = id3v2_skip_str (0, data, end);
-                                    if (!mime_end) {
-                                        trace ("artwork: corrupted id3v2 APIC frame\n");
-                                        continue;
-                                    }
-                                    if (strcasecmp (data, "image/jpeg") && strcasecmp (data, "image/png")) {
-                                        trace ("artwork: unsupported mime type: %s\n", data);
-                                        continue;
-                                    }
-                                    if (*mime_end != 3) {
-                                        trace ("artwork: picture type=%d, skipped: %s\n", *mime_end);
-                                        continue;
-                                    }
-                                    trace ("artwork: mime-type=%s, picture type: %d\n", data, *mime_end);
-                                    data = mime_end;
-                                    data++; // picture type
-                                    data = id3v2_skip_str (enc, data, end); // description
-                                    if (!data) {
-                                        trace ("artwork: corrupted id3v2 APIC frame\n");
-                                        continue;
-                                    }
-                                    int sz = f->size - (data - f->data);
-
-                                    char tmp_path[1024];
-                                    trace ("will write id3v2 APIC into %s\n", cache_path);
-                                    snprintf (tmp_path, sizeof (tmp_path), "%s.part", cache_path);
-                                    FILE *out = fopen (tmp_path, "w+b");
-                                    if (!out) {
-                                        trace ("artwork: failed to open %s for writing\n", tmp_path);
-                                        break;
-                                    }
-                                    if (fwrite (data, 1, sz, out) != sz) {
-                                        trace ("artwork: failed to write id3v2 picture into %s\n", tmp_path);
+                                        char tmp_path[1024];
+                                        trace ("will write id3v2 APIC into %s\n", cache_path);
+                                        snprintf (tmp_path, sizeof (tmp_path), "%s.part", cache_path);
+                                        FILE *out = fopen (tmp_path, "w+b");
+                                        if (!out) {
+                                            trace ("artwork: failed to open %s for writing\n", tmp_path);
+                                            break;
+                                        }
+                                        if (fwrite (data, 1, sz, out) != sz) {
+                                            trace ("artwork: failed to write id3v2 picture into %s\n", tmp_path);
+                                            fclose (out);
+                                            unlink (tmp_path);
+                                            break;
+                                        }
                                         fclose (out);
+                                        int err = rename (tmp_path, cache_path);
+                                        if (err != 0) {
+                                            trace ("Failed not move %s to %s: %s\n", tmp_path, cache_path, strerror (err));
+                                            unlink (tmp_path);
+                                            break;
+                                        }
                                         unlink (tmp_path);
+                                        got_pic = 1;
                                         break;
                                     }
-                                    fclose (out);
-                                    int err = rename (tmp_path, cache_path);
-                                    if (err != 0) {
-                                        trace ("Failed not move %s to %s: %s\n", tmp_path, cache_path, strerror (err));
-                                        unlink (tmp_path);
-                                        break;
-                                    }
-                                    unlink (tmp_path);
-                                    got_pic = 1;
-                                    break;
                                 }
                             }
-                        }
 
-                        deadbeef->junk_id3v2_free (&tag);
-                        current_file = NULL;
-                        deadbeef->fclose (fp);
+                            deadbeef->junk_id3v2_free (&tag);
+                            current_file = NULL;
+                            deadbeef->fclose (fp);
+                        }
                     }
 
                     // try to load embedded from apev2
@@ -951,6 +972,79 @@ fetcher_thread (void *none)
                             deadbeef->fclose (fp);
                         }
                     }
+
+#ifdef USE_METAFLAC
+                    // try to load embedded from flac metadata
+                    {
+                        FLAC__StreamMetadata *meta = NULL;
+                        do {
+                            trace ("trying to load artwork flac metadata for %s\n", param->fname);
+
+                            if (!FLAC__metadata_get_picture (
+                                param->fname,                  // filename
+                                &meta,                         // picture
+                                FLAC__STREAM_METADATA_PICTURE_TYPE_FRONT_COVER,                            // type
+                                NULL,                          // mime_type
+                                NULL,                          // description
+                                (unsigned)(-1),                // max_width
+                                (unsigned)(-1),                // max_height
+                                (unsigned)(-1),                // max_depth
+                                (unsigned)(-1)                 // max_colors
+                                )){
+                                    trace ("%s don't have an embedded cover\n",param->fname);
+
+                                if (!FLAC__metadata_get_picture (
+                                    param->fname,                  // filename
+                                    &meta,                         // picture
+                                    -1,                            // type
+                                    NULL,                          // mime_type
+                                    NULL,                          // description
+                                    (unsigned)(-1),                // max_width
+                                    (unsigned)(-1),                // max_height
+                                    (unsigned)(-1),                // max_depth
+                                    (unsigned)(-1)                 // max_colors
+                                    )){
+                                        trace ("%s don't have an embedded album art\n",param->fname);
+                                        break;
+                                }
+
+                            }
+                            FLAC__StreamMetadata_Picture *pic = &meta->data.picture;
+
+                            trace ("found flac cover art of %d bytes (%s)\n", pic->data_length, pic->description);
+                            char tmp_path[1024];
+                            char cache_path[1024];
+                            make_cache_path (cache_path, sizeof (cache_path), param->album, param->artist, -1);
+                            trace ("will write flac cover art into %s\n", cache_path);
+                            snprintf (tmp_path, sizeof (tmp_path), "%s.part", cache_path);
+                            FILE *out = fopen (tmp_path, "w+b");
+                            if (!out) {
+                                trace ("artwork: failed to open %s for writing\n", tmp_path);
+                                break;
+                            }
+                            if (fwrite (pic->data, 1, pic->data_length, out) != pic->data_length) {
+                                trace ("artwork: failed to write flac picture into %s\n", tmp_path);
+                                fclose (out);
+                                unlink (tmp_path);
+                                break;
+                            }
+                            fclose (out);
+                            int err = rename (tmp_path, cache_path);
+                            if (err != 0) {
+                                trace ("Failed not move %s to %s: %s\n", tmp_path, cache_path, strerror (err));
+                                unlink (tmp_path);
+                                break;
+                            }
+                            unlink (tmp_path);
+                            got_pic = 1;
+                        } while (0);
+
+                        if (meta != NULL) {
+                            trace ("release flac metadata block\n");
+                            FLAC__metadata_object_delete (meta);
+                        }
+                    }
+#endif
                 }
 
                 if (!got_pic && artwork_enable_local) {
@@ -1129,6 +1223,31 @@ get_album_art (const char *fname, const char *artist, const char *album, int siz
     return size == -1 ? strdup (get_default_cover ()) : NULL;
 }
 
+static void
+sync_callback (const char *fname, const char *artist, const char *album, void *user_data) {
+    mutex_cond_t *mc = (mutex_cond_t *)user_data;
+    deadbeef->mutex_lock (mc->mutex);
+    deadbeef->cond_signal (mc->cond);
+    deadbeef->mutex_unlock (mc->mutex);
+}
+
+static char*
+get_album_art_sync (const char *fname, const char *artist, const char *album, int size) {
+    mutex_cond_t mc;
+    mc.mutex = deadbeef->mutex_create ();
+    mc.cond = deadbeef->cond_create ();
+    deadbeef->mutex_lock (mc.mutex);
+    char *image_fname = get_album_art (fname, artist, album, size, sync_callback, &mc);
+    while (!image_fname) {
+        deadbeef->cond_wait (mc.cond, mc.mutex);
+        image_fname = get_album_art (fname, artist, album, size, sync_callback, &mc);
+    }
+    deadbeef->mutex_unlock (mc.mutex);
+    deadbeef->mutex_free (mc.mutex);
+    deadbeef->cond_free (mc.cond);
+    return image_fname;
+}
+
 DB_plugin_t *
 artwork_load (DB_functions_t *api) {
     deadbeef = api;
@@ -1147,6 +1266,9 @@ artwork_reset (int fast) {
             free (queue->next->fname);
             free (queue->next->artist);
             free (queue->next->album);
+            if (queue->next->callback == sync_callback) {
+                sync_callback (NULL, NULL, NULL, queue->next->user_data);
+            }
             queue->next = next;
             if (next == NULL) {
                 queue_tail = queue;
@@ -1289,7 +1411,7 @@ static DB_artwork_plugin_t plugin = {
     .plugin.plugin.api_vmajor = 1,
     .plugin.plugin.api_vminor = 0,
     .plugin.plugin.version_major = 1,
-    .plugin.plugin.version_minor = 0,
+    .plugin.plugin.version_minor = 1,
     .plugin.plugin.type = DB_PLUGIN_MISC,
     .plugin.plugin.id = "artwork",
     .plugin.plugin.name = "Album Artwork",
@@ -1320,4 +1442,5 @@ static DB_artwork_plugin_t plugin = {
     .get_album_art = get_album_art,
     .reset = artwork_reset,
     .get_default_cover = get_default_cover,
+    .get_album_art_sync = get_album_art_sync,
 };

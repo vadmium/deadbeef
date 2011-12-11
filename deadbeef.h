@@ -76,7 +76,7 @@ extern "C" {
 // 0.1 -- deadbeef-0.2.0
 
 #define DB_API_VERSION_MAJOR 1
-#define DB_API_VERSION_MINOR 1
+#define DB_API_VERSION_MINOR 2
 
 #define DDB_PLUGIN_SET_API_VERSION\
     .plugin.api_vmajor = DB_API_VERSION_MAJOR,\
@@ -633,7 +633,7 @@ typedef struct {
     // junk reading/writing
     int (*junk_id3v1_read) (DB_playItem_t *it, DB_FILE *fp);
     int (*junk_id3v1_find) (DB_FILE *fp);
-    int (*junk_id3v1_write) (FILE *fp, DB_playItem_t *it);
+    int (*junk_id3v1_write) (FILE *fp, DB_playItem_t *it, const char *enc);
     int (*junk_id3v2_find) (DB_FILE *fp, int *psize);
     int (*junk_id3v2_read) (DB_playItem_t *it, DB_FILE *fp);
     int (*junk_id3v2_read_full) (DB_playItem_t *it, DB_id3v2_tag_t *tag, DB_FILE *fp);
@@ -725,6 +725,21 @@ typedef struct {
     int (*dsp_preset_load) (const char *fname, struct ddb_dsp_context_s **head);
     int (*dsp_preset_save) (const char *fname, struct ddb_dsp_context_s *head);
     void (*dsp_preset_free) (struct ddb_dsp_context_s *head);
+
+    // ******* new 1.2 APIs ********
+    ddb_playlist_t *(*plt_alloc) (const char *title);
+    void (*plt_free) (ddb_playlist_t *plt);
+
+    void (*plt_set_fast_mode) (ddb_playlist_t *plt, int fast);
+    int (*plt_is_fast_mode) (ddb_playlist_t *plt);
+
+    const char * (*metacache_add_string) (const char *str);
+    void (*metacache_remove_string) (const char *str);
+    void (*metacache_ref) (const char *str);
+    void (*metacache_unref) (const char *str);
+
+    // this function must return original un-overriden value (ignoring the keys prefixed with '!')
+    const char *(*pl_find_meta_raw) (DB_playItem_t *it, const char *key);
 } DB_functions_t;
 
 enum {
