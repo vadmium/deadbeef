@@ -24,6 +24,10 @@
 #include "../../deadbeef.h"
 #include "../artwork/artwork.h"
 
+#if defined(ANDROID)
+#define strdupa(x) (strcpy (alloca(strlen(x)+1), x))
+#endif
+
 static DB_decoder_t plugin;
 static DB_functions_t *deadbeef;
 
