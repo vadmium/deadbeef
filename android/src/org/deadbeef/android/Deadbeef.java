@@ -671,6 +671,9 @@ public class Deadbeef extends Activity implements OnTouchListener {
  }
  final Runnable UpdateInfoRunnable = new Runnable() {
   public void run() {
+   if (MusicUtils.sService == null) {
+    return;
+   }
    if (!isVisible) {
     return;
    }
