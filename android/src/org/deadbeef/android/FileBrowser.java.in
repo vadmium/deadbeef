@@ -37,19 +37,19 @@ public class FileBrowser extends ListActivity {
     //private ProgressDialog progressDialog; 
     private void AddCurrentFolder() {
     	try {
-		if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
-	        Intent i = getIntent ();
-	        String idx_str = getIntent().getData().getFragment ();
-	        int idx = Integer.parseInt(idx_str);
-	        String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
-	        
-	        int plt = Integer.parseInt(plt_str);
-	        
-    		MusicUtils.sService.pl_insert_dir(((FileBrowserAdapter)getListAdapter()).getPath (), plt, idx);
-        }
-        else {
-    		MusicUtils.sService.pl_add_dir(((FileBrowserAdapter)getListAdapter()).getPath ());
-        }
+			if (null != getIntent().getAction () && getIntent().getAction ().toString ().equals ("ADD_FOLDER_AFTER")) {
+		        Intent i = getIntent ();
+		        String idx_str = getIntent().getData().getFragment ();
+		        int idx = Integer.parseInt(idx_str);
+		        String plt_str = getIntent().getData().getEncodedSchemeSpecificPart();
+		        
+		        int plt = Integer.parseInt(plt_str);
+		        
+	    		MusicUtils.sService.pl_insert_dir(((FileBrowserAdapter)getListAdapter()).getPath (), plt, idx);
+	        }
+	        else {
+	    		MusicUtils.sService.pl_add_dir(((FileBrowserAdapter)getListAdapter()).getPath ());
+	        }
     	}
     	catch (RemoteException ex) {
     	}
