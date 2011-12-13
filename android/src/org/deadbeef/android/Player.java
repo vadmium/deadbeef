@@ -116,7 +116,11 @@ class Player {
         	    }
         	    if (audio.getPlayState () == AudioTrack.PLAYSTATE_PLAYING) {
         	    	DeadbeefAPI.getBuffer(minSize, buffer);
-        	    	audio.write(buffer, 0, minSize);
+        	    	int err = audio.write(buffer, 0, minSize);
+        	    	if (err == AudioTrack.ERROR_INVALID_OPERATION || err == AudioTrack.ERROR_BAD_VALUE) {
+        	    		needReinit = true;
+        	    		continue;
+        	    	}
         	    }
 
     			if (null != MusicUtils.sService) {
@@ -139,7 +143,11 @@ class Player {
 					}
     			}
 		    	if (!DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PAUSED) {
-		    		audio.stop ();
+		    		try {
+		    			audio.stop ();
+		    		}
+		    		catch (IllegalStateException ex) {
+		    		}
 		    	}
     			if (!DeadbeefAPI.play_is_playing ()) {
     				try {
@@ -149,13 +157,23 @@ class Player {
     				continue;
     			}
 		    	if (DeadbeefAPI.play_is_playing () && audio.getPlayState () != AudioTrack.PLAYSTATE_PLAYING) {
-		    		audio.play ();
+		    		try {
+		    			audio.play ();
+		    		}
+		    		catch (IllegalStateException ex) {
+		    			needReinit = true;
+		    			continue;
+		    		}
 		    	}    			
     		}
 
     		Log.e("DDB","PlayerRunnable.run exit loop");
     		if (audio != null) {
-    			audio.stop();
+	    		try {
+	    			audio.stop ();
+	    		}
+	    		catch (IllegalStateException ex) {
+	    		}
     			audio = null;
     		}
 	   		if (0 != curr_track) {

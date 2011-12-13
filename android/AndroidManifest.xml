@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest
 
-
-
- package="org.deadbeefpro.android"
-
+ package="org.deadbeef.android"
 
 
 
-      android:versionCode="12"
-      android:versionName="1.0.9"
+
+
+
+      android:versionCode="13"
+      android:versionName="1.0.10beta"
 
       xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />

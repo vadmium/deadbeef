@@ -4,17 +4,28 @@
               android:id="@+id/mainview"
               xmlns:android="http://schemas.android.com/apk/res/android"
 
-
+              xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
 
               android:layout_width="fill_parent"
               android:layout_height="fill_parent"
               android:orientation="vertical"
      android:background="@drawable/infopanel"
               >
+
+ <com.google.ads.AdView android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        ads:adUnitId="a14de22b29b03f5"
+        ads:adSize="BANNER"
+        ads:loadAdOnCreate="true"
+        />
+
+
 <ViewFlipper android:id="@+id/mainflipper"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_weight="1">
+
  <LinearLayout
   android:id="@+id/view1"
         android:layout_width="fill_parent"
@@ -42,6 +53,7 @@
         android:background="#0000"
         android:src="@drawable/repeat_bg"
         android:layout_alignParentRight="true"
+
         />
  <TextView
   android:layout_height="wrap_content"
@@ -59,6 +71,7 @@
         android:shadowDy="2"
         android:shadowRadius="2"
      />
+
  <TextView android:id="@+id/np_title"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -92,6 +105,8 @@
         android:shadowRadius="2"
         android:text=" "
      />
+
+
  <TextView android:id="@+id/status"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
@@ -104,6 +119,7 @@
         android:shadowDy="2"
         android:shadowRadius="2"
               />
+
  <!--TextView android:id="@+id/plstate"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
@@ -112,6 +128,7 @@
               android:textSize="10sp"
         android:layout_below="@id/status"
               /-->
+
     <SeekBar android:id="@+id/seekbar"
                android:layout_width="fill_parent"
                android:layout_height="30dip"
@@ -119,12 +136,16 @@
         android:layout_below="@id/status"
   android:progressDrawable="@drawable/ddb_seekbar"
   android:thumb="@color/transparent"
+
                />
+
  </RelativeLayout>
+
 <ViewFlipper android:id="@+id/coverflipper"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_weight="1">
+
     <ListView android:id="@+id/playlist"
                android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -138,6 +159,7 @@
                android:listSelector="@drawable/list_selector"
                >
     </ListView>
+
  <RelativeLayout
   android:id="@+id/coverwrap"
   android:orientation="vertical"
@@ -153,7 +175,9 @@
  >
  </ImageView>
  </RelativeLayout>
+
 </ViewFlipper>
+
 <LinearLayout
  android:id="@+id/playbar"
     android:layout_width="fill_parent"
@@ -163,6 +187,7 @@
         android:layout_alignParentBottom="true"
         android:background="@drawable/seekbar_bg"
     >
+
     <ImageButton
         android:id="@+id/showplaylist"
         android:layout_width="0dip"
@@ -209,7 +234,9 @@
         android:scaleType="fitCenter"
         />
     </LinearLayout>
+
     </LinearLayout>
+
     <ListView android:id="@+id/playlists"
               android:layout_width="fill_parent"
                android:layout_height="fill_parent"
@@ -223,5 +250,7 @@
                android:listSelector="@drawable/list_selector"
                >
     </ListView>
+
 </ViewFlipper>
+
 </LinearLayout>
