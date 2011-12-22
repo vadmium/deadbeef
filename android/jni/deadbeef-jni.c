@@ -90,6 +90,9 @@ extern int eq_on;
 extern float eq_changed;
 #endif
 
+static int
+jni_setformat(ddb_waveformat_t *fmt);
+
 static int jni_out_init(void)
 {
     jni_out_state = OUTPUT_STATE_STOPPED;
@@ -132,9 +135,6 @@ static int jni_out_get_state(void)
 {
     return jni_out_state;
 }
-
-static int
-jni_setformat(ddb_waveformat_t *fmt);
 
 static DB_output_t jni_out = {
     DB_PLUGIN_SET_API_VERSION
@@ -486,6 +486,30 @@ JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_4;
 }
 
+void
+restore_resume_state (void) {
+    DB_output_t *output = plug_get_output ();
+    if (output && output->state () == OUTPUT_STATE_STOPPED) {
+        int plt = conf_get_int ("resume.playlist", -1);
+        int track = conf_get_int ("resume.track", -1);
+        float pos = conf_get_float ("resume.position", -1);
+        int paused = conf_get_int ("resume.paused", 0);
+        trace ("resume: track %d pos %f playlist %d\n", track, pos, plt);
+        if (plt >= 0 && track >= 0 && pos >= 0) {
+            streamer_lock (); // need to hold streamer thread to make the resume operation atomic
+            streamer_set_current_playlist (plt);
+            streamer_set_nextsong (track, paused ? 2 : 3);
+            streamer_set_seek (pos);
+            streamer_unlock ();
+        }
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_restore_1resume_1state (JNIEnv *env, jclass cls) {
+    restore_resume_state ();
+}
+
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
     trace("ddb_start");
@@ -592,6 +616,9 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 
     trace ("streamer_init\n");
     streamer_init ();
+    plug_connect_all ();
+
+    restore_resume_state ();
 
     jnievent_init ();
 
@@ -1795,4 +1822,25 @@ Java_org_deadbeef_android_DeadbeefAPI_vfp_1supported (JNIEnv *env, jclass cls) {
 JNIEXPORT jboolean JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_armv7a_1supported (JNIEnv *env, jclass cls) {
     return armv7a_supported;
+}
+
+JNIEXPORT void JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_save_1resume_1state (JNIEnv *env, jclass cls) {
+    playItem_t *trk = streamer_get_playing_track ();
+    DB_output_t *output = plug_get_output ();
+    float playpos = -1;
+    int playtrack = -1;
+    int playlist = streamer_get_current_playlist ();
+    int paused = (output->state () == OUTPUT_STATE_PAUSED);
+    if (trk && playlist >= 0) {
+        playtrack = str_get_idx_of (trk);
+        playpos = streamer_get_playpos ();
+        pl_item_unref (trk);
+    }
+
+    conf_set_float ("resume.position", playpos);
+    conf_set_int ("resume.track", playtrack);
+    conf_set_int ("resume.playlist", playlist);
+    conf_set_int ("resume.paused", 1);
+    trace ("saved session: pos=%f track=%d plt=%d\n", playpos, playtrack, playlist);
 }

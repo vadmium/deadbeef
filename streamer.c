@@ -1150,8 +1150,10 @@ streamer_start_new_song (void) {
             avg_bitrate = -1;
             streamer_reset (1);
             if (fileinfo && memcmp (&orig_output_format, &fileinfo->fmt, sizeof (ddb_waveformat_t))) {
+                memcpy (&output_format, &fileinfo->fmt, sizeof (ddb_waveformat_t));
                 memcpy (&orig_output_format, &fileinfo->fmt, sizeof (ddb_waveformat_t));
-                formatchanged = 1;
+                fprintf (stderr, "streamer_set_output_format %dbit %s %dch %dHz channelmask=%X\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask);
+                streamer_set_output_format ();
             }
             // we need to start playback before we can pause it
             if (0 != output->play ()) {
@@ -1410,6 +1412,7 @@ streamer_thread (void *ctx) {
             int bytesread = 0;
             do {
                 int prev_buns = bytes_until_next_song;
+//                trace ("streamer_read_async %d (samplesize: %d)\n", sz-bytesread, samplesize);
                 int nb = streamer_read_async (readbuffer+bytesread,sz-bytesread);
                 bytesread += nb;
                 struct timeval tm2;
@@ -1428,7 +1431,7 @@ streamer_thread (void *ctx) {
                 ringbuf_write (&streamer_ringbuf, readbuffer, bytesread);
             }
 
-            trace ("fill: %d, read: %d, size=%d, blocksize=%d\n", streamer_ringbuf.remaining, bytesread, STREAM_BUFFER_SIZE, blocksize);
+            //trace ("fill: %d, read: %d, size=%d, blocksize=%d\n", streamer_ringbuf.remaining, bytesread, STREAM_BUFFER_SIZE, blocksize);
         }
         streamer_unlock ();
         if ((streamer_ringbuf.remaining > 128000 && streamer_buffering) || !streaming_track) {
@@ -1787,7 +1790,7 @@ streamer_set_output_format (void) {
     DB_output_t *output = plug_get_output ();
     int playing = (output->state () == OUTPUT_STATE_PLAYING);
 
-    fprintf (stderr, "streamer_set_output_format %dbit %s %dch %dHz channelmask=%X, bufferfill: %d\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask, streamer_ringbuf.remaining);
+    trace ("streamer_set_output_format %dbit %s %dch %dHz channelmask=%X, bufferfill: %d\n", output_format.bps, output_format.is_float ? "float" : "int", output_format.channels, output_format.samplerate, output_format.channelmask, streamer_ringbuf.remaining);
     ddb_waveformat_t fmt;
     memcpy (&fmt, &output_format, sizeof (ddb_waveformat_t));
     if (autoconv_8_to_16) {

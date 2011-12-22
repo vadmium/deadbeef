@@ -425,6 +425,8 @@ public class MediaPlaybackService extends Service {
  }
  @Override
  public void onDestroy() {
+  DeadbeefAPI.save_resume_state ();
+  DeadbeefAPI.conf_save ();
   // Check that we're not being destroyed while something is still
   // playing.
   if (isPlaying()) {
@@ -482,6 +484,7 @@ public class MediaPlaybackService extends Service {
      pause();
      mPausedByTransientLossOfFocus = false;
     } else {
+     Log.e(LOGTAG, "** Unpause ***");
      play();
     }
     notifyChange(META_CHANGED);
@@ -551,6 +554,8 @@ public class MediaPlaybackService extends Service {
   synchronized (this) {
    DeadbeefAPI.play_idx(idx);
    refreshStatus();
+   DeadbeefAPI.save_resume_state ();
+   DeadbeefAPI.conf_save ();
   }
  }
  public void refreshStatus() {
@@ -593,6 +598,9 @@ public class MediaPlaybackService extends Service {
  public void pause() {
   synchronized (this) {
    if (isPlaying()) {
+    // remember playback position, and save config
+    DeadbeefAPI.save_resume_state ();
+    DeadbeefAPI.conf_save ();
     DeadbeefAPI.play_pause();
     gotoIdleState();
     notifyChange(PLAYSTATE_CHANGED);

@@ -132,6 +132,8 @@ public class DeadbeefAPI
 	public static native boolean neon_supported ();
 	public static native boolean vfp_supported ();
 	public static native boolean armv7a_supported ();
+	public static native void save_resume_state();
+	public static native void restore_resume_state();
 
 	static {
 		System.loadLibrary("deadbeef");

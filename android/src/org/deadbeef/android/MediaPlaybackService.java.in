@@ -555,6 +555,8 @@ public class MediaPlaybackService extends Service {
 #ifdef USE_LICENSING
 		mChecker.onDestroy();
 #endif
+		DeadbeefAPI.save_resume_state ();
+		DeadbeefAPI.conf_save ();
 		// Check that we're not being destroyed while something is still
 		// playing.
 		if (isPlaying()) {
@@ -578,7 +580,7 @@ public class MediaPlaybackService extends Service {
 		mWakeLock.release();
 		super.onDestroy();
 	}
-	
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		mDelayedStopHandler.removeCallbacksAndMessages(null);
@@ -627,6 +629,7 @@ public class MediaPlaybackService extends Service {
 					pause();
 					mPausedByTransientLossOfFocus = false;
 				} else {
+					Log.e(LOGTAG, "** Unpause ***");
 					play();
 				}
 				notifyChange(META_CHANGED);
@@ -705,6 +708,8 @@ public class MediaPlaybackService extends Service {
 		synchronized (this) {
 			DeadbeefAPI.play_idx(idx);
 			refreshStatus();
+			DeadbeefAPI.save_resume_state ();
+			DeadbeefAPI.conf_save ();
 		}
 	}
 
@@ -744,13 +749,16 @@ public class MediaPlaybackService extends Service {
 			stopForegroundCompat(PLAYBACKSERVICE_STATUS);
 		}
 	}
-
+	
 	/**
 	 * Pauses playback (call play() to resume)
 	 */
 	public void pause() {
 		synchronized (this) {
 			if (isPlaying()) {
+				// remember playback position, and save config
+				DeadbeefAPI.save_resume_state ();
+				DeadbeefAPI.conf_save ();
 				DeadbeefAPI.play_pause();
 				gotoIdleState();
 				notifyChange(PLAYSTATE_CHANGED);

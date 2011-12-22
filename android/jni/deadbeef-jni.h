@@ -767,6 +767,22 @@ JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_vfp_1supported
 JNIEXPORT jboolean JNICALL Java_org_deadbeef_android_DeadbeefAPI_armv7a_1supported
   (JNIEnv *, jclass);
 
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    save_resume_state
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_save_1resume_1state
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    restore_resume_state
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_restore_1resume_1state
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif
