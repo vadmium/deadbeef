@@ -39,6 +39,9 @@ class Player {
 		if (bufsize == -1) {
 			bufsize = minSize;
 		}
+		if (bufsize < minSize) {
+			bufsize = minSize;
+		}
 		
    		Log.e("DDB","bufSize="+bufsize);
 
@@ -105,7 +108,13 @@ class Player {
     			
         	    if (needReinit || audio == null || samplerate != current_samplerate || channels != current_channels) {
         	    	initAudio (samplerate, channels);
-        	    	audio.play();
+		    		try {
+		    			audio.play ();
+		    		}
+		    		catch (IllegalStateException ex) {
+		    			needReinit = true;
+		    			continue;
+		    		}
         	    	needReinit = false;
         	    }
 
