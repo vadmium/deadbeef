@@ -425,8 +425,10 @@ public class MediaPlaybackService extends Service {
  }
  @Override
  public void onDestroy() {
-  DeadbeefAPI.save_resume_state ();
-  DeadbeefAPI.conf_save ();
+  if (isPlaying() || isPaused()) {
+   DeadbeefAPI.save_resume_state ();
+   DeadbeefAPI.conf_save ();
+  }
   // Check that we're not being destroyed while something is still
   // playing.
   if (isPlaying()) {
@@ -435,12 +437,12 @@ public class MediaPlaybackService extends Service {
   // release all MediaPlayer resources, including the native player and
   // wakelocks
      Log.e("DDB","mediaPlaybackService onDestroy");
-  stopWatchingExternalStorage ();
-  stopWatchingPackageUpdate ();
-  unregisterReceiver(mIntentReceiver);
   mPlayer.stop();
   mPlayer = null;
   DeadbeefAPI.stop();
+  stopWatchingExternalStorage ();
+  stopWatchingPackageUpdate ();
+  unregisterReceiver(mIntentReceiver);
   // make sure there aren't any other messages coming
   mDelayedStopHandler.removeCallbacksAndMessages(null);
   mMediaplayerHandler.removeCallbacksAndMessages(null);
@@ -518,7 +520,6 @@ public class MediaPlaybackService extends Service {
  @Override
  public boolean onUnbind(Intent intent) {
   mServiceInUse = false;
-//		return true; // FIXME: mediaservice must be able to stop when not used, but right now it hangs on 2nd connect/reinit
   if (DeadbeefAPI.is_streamer_active() || mPausedByTransientLossOfFocus) {
    return true;
   }
@@ -554,8 +555,6 @@ public class MediaPlaybackService extends Service {
   synchronized (this) {
    DeadbeefAPI.play_idx(idx);
    refreshStatus();
-   DeadbeefAPI.save_resume_state ();
-   DeadbeefAPI.conf_save ();
   }
  }
  public void refreshStatus() {
@@ -745,10 +744,14 @@ public class MediaPlaybackService extends Service {
       i.putExtra("duration", dur);
       sendBroadcast(i);
      }
+     DeadbeefAPI.save_resume_state ();
+     DeadbeefAPI.conf_save ();
     }
     else if (id.equals ("paused")) {
         Intent i = new Intent("fm.last.android.playbackcomplete");
         sendBroadcast(i);
+     DeadbeefAPI.save_resume_state ();
+     DeadbeefAPI.conf_save ();
     }
     else if (id.equals ("resumed")) {
      String artist = DeadbeefAPI.event_get_string(0);
