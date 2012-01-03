@@ -10,11 +10,14 @@ LOCAL_CFLAGS    += -O2 -finline-functions -I$(LOCAL_PATH) -I$(LOCAL_PATH)/../.. 
 
 LOCAL_MODULE    := deadbeef
 LOCAL_SRC_FILES := deadbeef-jni.c
+LOCAL_CFLAGS += -DHAVE_EQ
 
 ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
 	LOCAL_ARM_NEON := true
 	LOCAL_CFLAGS += -mfpu=neon -DUSE_NEON -DUSE_ASM
 	LOCAL_SRC_FILES += eq.S equalizer.c.neon
+else
+	LOCAL_SRC_FILES += equalizer.c
 endif
 
 LOCAL_ARM_MODE := arm

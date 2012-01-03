@@ -51,33 +51,20 @@
 void
 android_trace (const char *fmt, ...);
 
-//#define USE_FIXEDPOINT
-
-#ifdef USE_FIXEDPOINT
-typedef int32_t REAL;
-#define BP 10
-#define STEP (1.0 / (1<<BP))
-#define FIXED(f) ((REAL)((f) / STEP))
-#define REAL(f) ((float)(f) * STEP)
-#define MUL(a,b) ((REAL)(((long long)(a)*(b))>>BP))
-//#define DIV(a,b) ((((long long)(a)<<BP))/(b))
-#else
 typedef float REAL;
-#define FIXED(f) (f)
 #define REAL(f) (f)
 #define MUL(a,b) ((a)*(b))
 //#define DIV(a,b) ((a)/(b))
-#endif
 
 /* BETA, ALPHA, GAMMA */
 #define BETA 0
 #define ALPHA 1
 #define GAMMA 2
-const REAL iir_cfb[12] __attribute__ ((aligned (16))) = { FIXED(9.9421504945e-01), FIXED(9.8335039428e-01), FIXED(9.6958094144e-01), FIXED(9.4163923306e-01), FIXED(9.0450844499e-01), FIXED(7.3940088234e-01), FIXED(5.4697667908e-01), FIXED(3.1023210589e-01), FIXED(2.6718639778e-01), FIXED(2.4201241845e-01), 0, 0 };
+const REAL iir_cfb[12] __attribute__ ((aligned (16))) = { 9.9421504945e-01, 9.8335039428e-01, 9.6958094144e-01, 9.4163923306e-01, 9.0450844499e-01, 7.3940088234e-01, 5.4697667908e-01, 3.1023210589e-01, 2.6718639778e-01, 2.4201241845e-01, 0, 0 };
 
-const REAL iir_cfa[12] __attribute__ ((aligned (16))) = { FIXED(2.8924752745e-03), FIXED(8.3248028618e-03), FIXED(1.5209529281e-02), FIXED(2.9180383468e-02), FIXED(4.7745777504e-02), FIXED(1.3029955883e-01), FIXED(2.2651166046e-01), FIXED(3.4488394706e-01), FIXED(3.6640680111e-01), FIXED(3.7899379077e-01), 0, 0 };
+const REAL iir_cfa[12] __attribute__ ((aligned (16))) = { 2.8924752745e-03, 8.3248028618e-03, 1.5209529281e-02, 2.9180383468e-02, 4.7745777504e-02, 1.3029955883e-01, 2.2651166046e-01, 3.4488394706e-01, 3.6640680111e-01, 3.7899379077e-01, 0, 0 };
 
-const REAL iir_cfg[12] __attribute__ ((aligned (16))) = { FIXED(1.9941421835e+00), FIXED(1.9827686547e+00), FIXED(1.9676601546e+00), FIXED(1.9345490229e+00), FIXED(1.8852109613e+00), FIXED(1.5829158753e+00), FIXED(1.0153238114e+00), FIXED(-1.8142472036e-01), FIXED(-5.2117742267e-01), FIXED(-8.0847117831e-01), 0, 0 };
+const REAL iir_cfg[12] __attribute__ ((aligned (16))) = { 1.9941421835e+00, 1.9827686547e+00, 1.9676601546e+00, 1.9345490229e+00, 1.8852109613e+00, 1.5829158753e+00, 1.0153238114e+00, -1.8142472036e-01, -5.2117742267e-01, -8.0847117831e-01, 0, 0 };
 
 /* History for two filters */
 static REAL data_history_x[EQ_CHANNELS][3][EQ_MAX_BANDS] __attribute__ ((aligned (16)));
@@ -93,11 +80,11 @@ output_set_eq(int active, float pre, float * bands)
 {
     int i;
 
-    preamp = FIXED(1.0 + 0.0932471 * pre + 0.00279033 * pre * pre);
+    preamp = 1.0 + 0.0932471 * pre + 0.00279033 * pre * pre;
 
     for (i = 0; i < 10; ++i) {
         float g = bands[i];
-        eq_gain[i] = FIXED(0.03 * g + 0.000999999 * g * g);
+        eq_gain[i] = 0.03 * g + 0.000999999 * g * g;
     }
 }
 
@@ -146,14 +133,10 @@ iir(int16_t * restrict data, int length)
         /* For each channel */
         for (channel = 0; channel < EQ_CHANNELS; channel++) {
             /* No need to scale when processing the PCM with the filter */
-            REAL out;
-#ifdef USE_FIXEDPOINT
-            REAL pcm = (REAL)data[index + channel] * preamp;
-#else
             REAL input = (float)(*data);
             REAL pcm = input * preamp; //MUL((float)data[index + channel],preamp);
-#endif
 #ifdef USE_NEON
+            REAL out;
             char *dhxi = (char *)data_history_x[channel][i];
             char *dhxk = (char *)data_history_x[channel][k];
             char *dhyi = (char *)data_history_y[channel][i];
@@ -161,7 +144,7 @@ iir(int16_t * restrict data, int length)
             char *dhyk = (char *)data_history_y[channel][k];
 #ifdef USE_ASM
             out = EXTERN_ASMeq_apply_neon((float32_t*)dhxi, (float32_t*)dhxk, (float32_t*)dhyi, (float32_t*)dhyj, (float32_t*)dhyk, pcm);
-#else
+#else // {{{ neon intrinsic version
 
             float32x4_t q0 = vdupq_n_f32 (pcm);
             float s31 = 0;
@@ -198,23 +181,29 @@ iir(int16_t * restrict data, int length)
                 s31 += vgetq_lane_f32 (q4, 3);
             }
             out = s31;
-#endif
+#endif // }}}
 #else
+            REAL out = 0;
             /* For each band */
             for (band = 0; band < 10; band++) {
                 /* Store Xi(n) */
                 data_history_x[channel][i][band] = pcm;
                 /* Calculate and store Yi(n) */
-                data_history_y[channel][i][band] =
-                    (MUL(iir_cf[ALPHA][band], (data_history_x[channel][i][band] - data_history_x[channel][k][band]))
-                     + MUL(iir_cf[GAMMA][band], data_history_y[channel][j][band])
-                     - MUL(iir_cf[BETA][band], data_history_y[channel][k][band])
+                data_history_y[channel][i][band] = 
+                    (
+                     /*           = alpha * [x(n)-x(n-2)] */
+                     iir_cfa[band] * ( data_history_x[channel][i][band]
+                         -  data_history_x[channel][k][band])
+                     /*           + gamma * y(n-1) */
+                     + iir_cfg[band] * data_history_y[channel][j][band]
+                     /*           - beta * y(n-2) */
+                     - iir_cfb[band] * data_history_y[channel][k][band]
                     );
                 /*
                  * The multiplication by 2.0 was 'moved' into the coefficients to save
                  * CPU cycles here */
                 /* Apply the gain  */
-                out += MUL(data_history_y[channel][i][band], eq_gain[band]); // * 2.0;
+                out += data_history_y[channel][i][band]*eq_gain[band]; // * 2.0;
             }                   /* For each band */
 #endif
 
@@ -225,12 +214,8 @@ iir(int16_t * restrict data, int length)
 
             out += (*data) >> 2;
             
-#ifdef USE_FIXEDPOINT
-            tempint = out >> (BP-2);
-#else
             tempint = (int) out;
             tempint *= 4;
-#endif
 //            trace ("data %d, preamp %lld, pcm %lld, out %d\n", (int)data[index + channel], preamp, pcm[channel], tempint);
 
             /* Limit the output */

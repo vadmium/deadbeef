@@ -964,7 +964,8 @@ public class Deadbeef extends Activity implements OnTouchListener {
   } else if (id == R.id.menu_add_location) {
    showDialog(DLG_ADD_LOCATION);
   } else if (id == R.id.menu_equalizer) {
-   if (DeadbeefAPI.neon_supported ()) {
+   //DeadbeefAPI.neon_supported ()
+   if (true) {
     Intent i = new Intent(this, EQ.class);
     startActivity(i);
    }

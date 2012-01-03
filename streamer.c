@@ -130,7 +130,7 @@ static int streamer_buffering;
 // to allow interruption of stall file requests
 static DB_FILE *streamer_file;
 
-#if defined(ANDROID) && defined(USE_NEON)
+#if defined(ANDROID) && defined(HAVE_EQ)
 // dsp params
 float eq_bands[11]; // nr.0 is preamp
 int eq_on = 0;
@@ -1951,7 +1951,7 @@ streamer_read_async (char *bytes, int size) {
 #endif
 
         replaygain_apply (&output->fmt, streaming_track, bytes, bytesread);
-#if defined(ANDROID) && defined(USE_NEON)
+#if defined(ANDROID) && defined(HAVE_EQ)
         if (eq_on) {
             if (eq_changed) {
                 init_iir (eq_on, eq_bands[0], &eq_bands[1]);
