@@ -1171,11 +1171,15 @@ streamer_next (int bytesread) {
     streamer_lock ();
     bytes_until_next_song = streamer_ringbuf.remaining + bytesread;
     streamer_unlock ();
+
+#ifndef ANDROID
     if (conf_get_int ("playlist.stop_after_current", 0)) {
         streamer_buffering = 0;
         streamer_set_nextsong (-2, -2);
     }
-    else {
+    else
+#endif
+    {
         streamer_move_to_nextsong (0);
     }
 }
@@ -1235,6 +1239,12 @@ streamer_thread (void *ctx) {
 
         if (bytes_until_next_song == 0) {
             streamer_lock ();
+#ifdef ANDROID
+            if (conf_get_int ("playlist.stop_after_current", 0)) {
+                output->pause ();
+            }
+#endif
+
             if (!streaming_track) {
                 // means last song was deleted during final drain
                 nextsong = -1;
@@ -1259,6 +1269,7 @@ streamer_thread (void *ctx) {
             trace ("songstarted %s\n", playing_track ? pl_find_meta (playing_track, ":URI") : "null");
             playtime = 0;
             send_songstarted (playing_track);
+
             last_bitrate = -1;
             avg_bitrate = -1;
             playlist_track = playing_track;

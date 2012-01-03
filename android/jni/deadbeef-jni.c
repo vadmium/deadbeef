@@ -490,10 +490,10 @@ void
 restore_resume_state (void) {
     DB_output_t *output = plug_get_output ();
     if (output && output->state () == OUTPUT_STATE_STOPPED) {
-        int plt = conf_get_int ("resume.playlist", -1);
-        int track = conf_get_int ("resume.track", -1);
-        float pos = conf_get_float ("resume.position", -1);
-        int paused = conf_get_int ("resume.paused", 0);
+        int plt = conf_get_int ("resume.playlist", plt_get_curr_idx ());
+        int track = conf_get_int ("resume.track", 0);
+        float pos = conf_get_float ("resume.position", 0);
+        int paused = conf_get_int ("resume.paused", 1);
         trace ("resume: track %d pos %f playlist %d\n", track, pos, plt);
         if (plt >= 0 && track >= 0 && pos >= 0) {
             streamer_lock (); // need to hold streamer thread to make the resume operation atomic
