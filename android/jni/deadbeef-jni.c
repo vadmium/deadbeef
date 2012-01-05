@@ -1823,9 +1823,14 @@ Java_org_deadbeef_android_DeadbeefAPI_save_1resume_1state (JNIEnv *env, jclass c
         pl_item_unref (trk);
     }
 
-    conf_set_float ("resume.position", playpos);
-    conf_set_int ("resume.track", playtrack);
-    conf_set_int ("resume.playlist", playlist);
-    conf_set_int ("resume.paused", 1);
-    trace ("saved session: pos=%f track=%d plt=%d\n", playpos, playtrack, playlist);
+    if (playtrack != -1) {
+        conf_set_float ("resume.position", playpos);
+        conf_set_int ("resume.track", playtrack);
+        conf_set_int ("resume.playlist", playlist);
+        conf_set_int ("resume.paused", 1);
+        trace ("saved session: pos=%f track=%d plt=%d\n", playpos, playtrack, playlist);
+    }
+    else {
+        trace ("not saving session, trk=-1, out_state=%d\n", output->state ());
+    }
 }

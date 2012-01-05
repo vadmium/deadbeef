@@ -43,7 +43,7 @@ class Player {
 			bufsize = minSize;
 		}
 		
-   		Log.e("DDB","bufSize="+bufsize);
+   		Log.i("DDB","bufSize="+bufsize);
 
    		while (true) {
    			try {
@@ -82,7 +82,7 @@ class Player {
     		Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
     		int prevsize = minSize;
     	    short buffer[] = new short[minSize];
-    		Log.e("DDB","PlayerRunnable.run started");
+    		Log.i("DDB","PlayerRunnable.run started");
 
     		while (playing) {
     			// handle 
@@ -176,7 +176,7 @@ class Player {
 		    	}    			
     		}
 
-    		Log.e("DDB","PlayerRunnable.run exit loop");
+    		Log.i("DDB","PlayerRunnable.run exit loop");
     		if (audio != null) {
 	    		try {
 	    			audio.stop ();
@@ -190,14 +190,14 @@ class Player {
 	   			curr_track = 0;
 	   		}
 
-    		Log.e("DDB","PlayerRunnable.run audio stop");
+    		Log.i("DDB","PlayerRunnable.run audio stop");
     		DeadbeefAPI.stop();
-    		Log.e("DDB","PlayerRunnable.run stoped");
+    		Log.i("DDB","PlayerRunnable.run stoped");
     	}
     }
     
     public void stop () {
-   		Log.e("DDB","Player.stop");
+   		Log.i("DDB","Player.stop");
     	playing = false;
     	try {
     		playThread.join();
