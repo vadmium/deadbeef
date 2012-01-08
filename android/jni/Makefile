@@ -4,6 +4,6 @@ DEX_FILE=../bin/classes.dex
 RES_FILE=../bin/resources.ap_
 
 all:
-	javah -classpath ../../android/bin/ -o deadbeef-jni.h org.deadbeef.android.DeadbeefAPI
+	javah -classpath ../../android/bin/classes -o deadbeef-jni.h org.deadbeef.android.DeadbeefAPI
 	$(NDK)/ndk-build
 

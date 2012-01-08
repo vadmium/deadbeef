@@ -861,6 +861,12 @@ public class MediaPlaybackService extends Service {
    if (idx != -1) {
     DeadbeefAPI.play_idx(idx);
    }
+   else {
+    idx = DeadbeefAPI.pl_add_playlist (fname);
+    if (idx != -1) {
+     DeadbeefAPI.play_idx(idx);
+    }
+   }
   }
 //		public int getCurrentIdx() {
 //			return DeadbeefAPI.pl_get_current_idx ();

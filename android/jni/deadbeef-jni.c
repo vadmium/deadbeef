@@ -780,6 +780,39 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1file (JNIEnv *env, jclass cls, js
      }
      return idx;
 }
+JNIEXPORT jint JNICALL
+Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1playlist (JNIEnv *env, jclass cls, jstring name) {
+    const jbyte *str;
+    str = (*env)->GetStringUTFChars(env, name, NULL);
+    if (str == NULL) {
+        return -1;
+    }
+    const char *p = str;
+    if (!strncmp (str, "file://", 7)) {
+        p += 7;
+    }
+    playlist_t *curr_plt = plt_get_curr ();
+    if (!curr_plt) {
+        (*env)->ReleaseStringUTFChars(env, name, str);
+        return -1;
+    }
+
+    int ab = 0;
+    playItem_t *it = plt_load (curr_plt, NULL, p, &ab, NULL, NULL);
+    int idx = -1;
+    if (it) {
+        idx = plt_get_item_idx (curr_plt, it, PL_MAIN);
+        pl_item_unref (it);
+    }
+    else {
+        trace ("failed to add plt %s\n", p);
+    }
+    if (curr_plt) {
+        plt_unref (curr_plt);
+    }
+    (*env)->ReleaseStringUTFChars(env, name, str);
+    return idx;
+}
 
 JNIEXPORT void JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1clear
   (JNIEnv *env, jclass cls)

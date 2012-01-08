@@ -81,6 +81,14 @@ JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1file
 
 /*
  * Class:     org_deadbeef_android_DeadbeefAPI
+ * Method:    pl_add_playlist
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1playlist
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_deadbeef_android_DeadbeefAPI
  * Method:    pl_clear
  * Signature: ()V
  */

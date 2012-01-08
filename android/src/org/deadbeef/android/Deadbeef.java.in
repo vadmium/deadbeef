@@ -1308,6 +1308,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
 										.pl_add_file(((TextView) textEntryView
 												.findViewById(R.id.title))
 												.getText().toString());
+								ListView lst = (ListView) findViewById(R.id.playlists);
+								if (lst != null) {
+									fillPlaylistsList(lst);
+								}
 								DeadbeefAPI.plt_save_current();
 							}
 						})
