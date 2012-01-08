@@ -803,7 +803,23 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1playlist (JNIEnv *env, jclass cls
     if (!strncmp (str, "file://", 7)) {
         p += 7;
     }
+
+    char plname[200];
+    conf_get_str ("cli_add_playlist_name", "Default", plname, sizeof (plname));
+    int idx = plt_find (plname);
+    if (idx < 0) {
+        idx = plt_add (plt_get_count (), plname);
+    }
+    if (idx >= 0) {
+        plt_set_curr_idx (idx);
+    }
+
     playlist_t *curr_plt = plt_get_curr ();
+
+    plt_clear (curr_plt);
+    messagepump_push (DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+    plt_reset_cursor (curr_plt);
+
     if (!curr_plt) {
         (*env)->ReleaseStringUTFChars(env, name, str);
         return -1;
@@ -811,7 +827,7 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1playlist (JNIEnv *env, jclass cls
 
     int ab = 0;
     playItem_t *it = plt_load (curr_plt, NULL, p, &ab, NULL, NULL);
-    int idx = -1;
+    idx = -1;
     if (it) {
         idx = plt_get_item_idx (curr_plt, it, PL_MAIN);
         pl_item_unref (it);
@@ -823,6 +839,7 @@ Java_org_deadbeef_android_DeadbeefAPI_pl_1add_1playlist (JNIEnv *env, jclass cls
         plt_unref (curr_plt);
     }
     (*env)->ReleaseStringUTFChars(env, name, str);
+    conf_save ();
     return idx;
 }
 
