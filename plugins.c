@@ -660,7 +660,7 @@ load_plugin_dir (const char *plugdir) {
     }
     else
     {
-        trace ("plug_load_all: scandir found %d files\n", n);
+        trace ("load_plugin_dir %s: scandir found %d files\n", plugdir, n);
         int i;
         for (i = 0; i < n; i++)
         {
@@ -788,6 +788,8 @@ plug_load_all (void) {
     const char *plugins_dirs[] = { dirname, NULL };
 #endif
 
+#ifndef ANDROID
+// this filepath is always in the android.plugin_path config var
     int k = 0;
 
     while (plugins_dirs[k]) {
@@ -797,6 +799,7 @@ plug_load_all (void) {
         }
         load_plugin_dir (plugdir);
     }
+#endif
 
 #ifdef ANDROID
     char plugin_path[1000];

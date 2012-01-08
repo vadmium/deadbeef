@@ -1,5 +1,5 @@
 package org.deadbeef.android;
-import org.deadbeefpro.android.R;
+import org.deadbeef.android.R;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -56,6 +56,8 @@ import android.widget.Toast;
 import android.widget.ViewFlipper;
 import android.widget.AbsListView;
 import android.content.ActivityNotFoundException;
+import com.google.ads.AdView;
+import com.google.ads.AdRequest;
 
 public class Deadbeef extends Activity implements OnTouchListener {
  String TAG = "DDB";
@@ -400,6 +402,10 @@ public class Deadbeef extends Activity implements OnTouchListener {
   sb.setOnSeekBarChangeListener(sbChangeListener);
   seekbar = (SeekBar) findViewById(R.id.seekbar);
   startService ();
+  AdView adView = (AdView) findViewById(R.id.adView);
+  AdRequest req = new AdRequest();
+  req.addTestDevice("0951AB03FA8254ED66065F7D8DEE1A89");
+  adView.loadAd(req);
  }
  @Override
  protected void onSaveInstanceState(Bundle outState) {
