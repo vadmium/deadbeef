@@ -488,21 +488,33 @@ JNI_OnLoad(JavaVM *vm, void *reserved) {
 
 void
 restore_resume_state (void) {
+    trace ("restore_resume_state started\n");
     DB_output_t *output = plug_get_output ();
+    trace ("output=%p\n", output);
     if (output && output->state () == OUTPUT_STATE_STOPPED) {
         int plt = conf_get_int ("resume.playlist", plt_get_curr_idx ());
+        trace ("plt=%d\n", plt);
         int track = conf_get_int ("resume.track", 0);
+        trace ("track=%d\n", track);
         float pos = conf_get_float ("resume.position", 0);
+        trace ("pos=%d\n", pos);
         int paused = conf_get_int ("resume.paused", 1);
+        trace ("paused=%d\n", paused);
         trace ("resume: track %d pos %f playlist %d\n", track, pos, plt);
         if (plt >= 0 && track >= 0 && pos >= 0) {
+            trace ("streamer_lock\n");
             streamer_lock (); // need to hold streamer thread to make the resume operation atomic
+            trace ("streamer_set_current_playlist\n");
             streamer_set_current_playlist (plt);
+            trace ("streamer_set_nextsong\n");
             streamer_set_nextsong (track, paused ? 2 : 3);
+            trace ("streamer_set_seek\n");
             streamer_set_seek (pos);
+            trace ("streamer_unlock\n");
             streamer_unlock ();
         }
     }
+    trace ("restore_resume_state finished\n");
 }
 
 JNIEXPORT void JNICALL
