@@ -51,6 +51,11 @@
                 android:title="Pause after each track"
                 android:defaultValue="false"
                 android:key="stop_after_current" />
+        <CheckBoxPreference
+                android:title="Resume after call ends"
+                android:summary="Automatically resume playback after call ends"
+                android:defaultValue="false"
+                android:key="auto_resume_after_phonecall_ends" />
         </PreferenceCategory>
 </PreferenceScreen>
 

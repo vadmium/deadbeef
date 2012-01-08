@@ -61,6 +61,7 @@ public class MediaPlaybackService extends Service {
  private boolean mServiceInUse = false;
  // used to track what type of audio focus loss caused the playback to pause
  private boolean mPausedByTransientLossOfFocus = false;
+ private boolean mbWasPausedByOffhook = false;
  // interval after which we stop the service when idle
  private static final int IDLE_DELAY = 60000;
  private static final Class[] mStartForegroundSignature = new Class[] {
@@ -206,9 +207,14 @@ public class MediaPlaybackService extends Service {
 				 */
    } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
     // pause the music while a conversation is in progress
+    mbWasPausedByOffhook = true;
     pause();
    } else if (state == TelephonyManager.CALL_STATE_IDLE) {
-    // call finished, do nothing
+    // call finished
+    mbWasPausedByOffhook = false;
+    if (0 != DeadbeefAPI.conf_get_int ("android.auto_resume_after_phonecall_ends", 0) && mbWasPausedByOffhook && isPaused()) {
+     play();
+    }
    }
   }
  };

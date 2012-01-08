@@ -94,5 +94,13 @@ public class Settings extends PreferenceActivity {
             	return true;                    	
             }
         });
-    }
+
+        findPreference("auto_resume_after_phonecall_ends").setOnPreferenceClickListener(new OnPreferenceClickListener() {
+            public boolean onPreferenceClick(Preference preference) {
+        		DeadbeefAPI.conf_set_int("android.auto_resume_after_phonecall_ends", ((CheckBoxPreference)preference).isChecked() ? 1 : 0);
+            	DeadbeefAPI.conf_save ();
+            	return true;                    	
+            }
+        });
+}
 }
