@@ -71,12 +71,12 @@
 #define PLAYLIST_MAJOR_VER 1
 #define PLAYLIST_MINOR_VER 2
 
-//extern void android_trace (const char *fmt, ...);
-//#define trace(...) { android_trace(__VA_ARGS__); }
 #if (PLAYLIST_MINOR_VER<2)
 #error writing playlists in format <1.2 is not supported
 #endif
 
+//extern void android_trace (const char *fmt, ...);
+//#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
 
