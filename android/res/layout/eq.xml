@@ -2,47 +2,29 @@
 <LinearLayout
   xmlns:android="http://schemas.android.com/apk/res/android"
 
-  xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+
 
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"
   android:orientation="vertical"
   android:background="@drawable/infopanel"
   >
-
-
- <com.google.ads.AdView android:id="@+id/adView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        ads:adUnitId="a14de22b29b03f5"
-        ads:adSize="BANNER"
-        ads:loadAdOnCreate="true"
-        />
-
-
 <LinearLayout
  android:layout_width="fill_parent"
  android:layout_height="wrap_content"
  android:orientation="horizontal">
-
   <ToggleButton android:text="ON"
    android:layout_width="wrap_content"
     android:layout_height="fill_parent"
     android:id="@+id/eq_onoff"></ToggleButton>
   <Button android:id="@+id/preset" android:text="Presets" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1"></Button>
   <Button android:id="@+id/eqreset" android:text="All zero" android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
-
-
 </LinearLayout>
-
 <ScrollView android:id="@+id/ScrollView01" android:layout_width="fill_parent" android:layout_height="wrap_content">
-
 <LinearLayout
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"
   android:orientation="vertical">
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -54,7 +36,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_preamp" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -66,7 +47,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band0" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -78,7 +58,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band1" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -90,7 +69,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band2" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -102,7 +80,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band3" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -114,7 +91,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band4" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -126,7 +102,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band5" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -138,7 +113,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band6" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -150,7 +124,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band7" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -162,7 +135,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band8" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 <LinearLayout android:orientation="horizontal"
   android:layout_width="fill_parent"
   android:layout_height="wrap_content"
@@ -174,7 +146,6 @@
  />
  <TextView android:layout_width="55sp" android:layout_height="wrap_content" android:gravity="right" android:text="+0 dB" android:id="@+id/db_band9" android:textColor="#f000"></TextView>
 </LinearLayout>
-
 </LinearLayout>
 </ScrollView>
 </LinearLayout>
