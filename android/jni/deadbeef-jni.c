@@ -591,7 +591,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
 
     trace ("messagepump_init\n");
     messagepump_init ();
-    trace ("plug_load_all\n");
+    trace ("plug_load_all from main\n");
     plug_load_all ();
 
     trace ("pl_free\n");
@@ -1651,6 +1651,7 @@ Java_org_deadbeef_android_DeadbeefAPI_plt_1save_1current (JNIEnv *env, jclass cl
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_plug_1load_1all (JNIEnv *env, jclass cls) {
+    trace ("plug_load_all from JNI\n");
     return plug_load_all ();
 }
 
