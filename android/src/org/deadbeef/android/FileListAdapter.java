@@ -15,17 +15,17 @@ public class FileListAdapter extends BaseAdapter
 {
     private Context myContext;
     private int mCurrent = -1;
-    private boolean mbPlaying = false;
+    private int mPlayState = 0;
 
     public FileListAdapter(Context context, int resource, int textViewResourceId) {
         super();
         this.myContext = context;
     }
 
-    public void updateCurrent (int current, boolean playing) {
-     if (mCurrent != current || mbPlaying != playing) {
+    public void updateCurrent (int current, int playing) {
+     if (mCurrent != current || mPlayState != playing) {
       mCurrent = current;
-      mbPlaying = playing;
+      mPlayState = playing;
          notifyDataSetChanged();
         }
     }
@@ -66,7 +66,7 @@ public class FileListAdapter extends BaseAdapter
          if (v != null) {
              TextView tt = (TextView) v.findViewById(R.id.title);
              if (tt != null) {
-              if (position == mCurrent && mbPlaying) {
+              if (position == mCurrent) {
                tt.setTypeface (Typeface.DEFAULT, Typeface.BOLD);
               }
               else {
@@ -84,8 +84,11 @@ public class FileListAdapter extends BaseAdapter
              }
              ImageView st = (ImageView)v.findViewById(R.id.status);
              if (st != null) {
-              if (position == mCurrent && mbPlaying) {
+              if (position == mCurrent && 1 == mPlayState) {
                st.setImageResource(R.drawable.playing_small);
+              }
+              else if (position == mCurrent && 2 == mPlayState) {
+               st.setImageResource(R.drawable.pause_small);
               }
               else {
                st.setImageResource(-1);

@@ -65,7 +65,7 @@ public class Deadbeef extends Activity implements OnTouchListener {
  boolean dontUpdatePlayPos = false;
 
  int curr_track = -1;
- boolean curr_state = false; // false=stopped/paused
+ int curr_state = 0; // 0=stopped, 1=playing, 2=paused
 
  private TextView current_pos_tv;
  private String current_pos_text = "-:--";
@@ -712,11 +712,11 @@ public class Deadbeef extends Activity implements OnTouchListener {
      return;
     }
     // playpause button
-    boolean new_state = MusicUtils.sService.isPlaying();
+    int new_state = MusicUtils.sService.isPlaying() ? 1 : (MusicUtils.sService.isPaused() ? 2 : 0);
     if (new_state != curr_state) {
      curr_state = new_state;
      ImageButton button = (ImageButton) findViewById(R.id.play);
-     if (!curr_state) {
+     if (curr_state != 1) {
       button.setImageResource(R.drawable.lcd_play_selector);
      } else {
       button.setImageResource(R.drawable.lcd_pause_selector);
