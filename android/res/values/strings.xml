@@ -2,9 +2,9 @@
 <resources>
     <string name="hello">Hello World, Deadbeef!</string>
 
+    <string name="app_name">DeaDBeeF Pro</string>
 
 
-    <string name="app_name">DeaDBeeF</string>
 
     <string name="service_name">org.deadbeef.android.mediaservice</string>
     <string name="title_file_browser">Browse file</string>
@@ -28,9 +28,9 @@
 <string name="about">About</string>
 <string name="about_text">
 
+DeaDBeeF Pro 1.13\n
 
 
-DeaDBeeF 1.12 for Android\n
 
 Copyright © 2009-2012 <a href="mailto:wakeroid@gmail.com">Alexey Yakovenko</a>\n
 <a href="http://deadbeef.sf.net">http://deadbeef.sf.net</a>\n

@@ -701,6 +701,7 @@ public class MediaPlaybackService extends Service {
 	public void play() {
 		synchronized (this) {
 			boolean  paused = DeadbeefAPI.play_is_paused();
+			mWakeLock.acquire();
 			if (paused) {
 				DeadbeefAPI.play_play();
 			} else {
@@ -713,6 +714,7 @@ public class MediaPlaybackService extends Service {
 	// play specific
 	public void playIdx(int idx) {
 		synchronized (this) {
+			mWakeLock.acquire();
 			DeadbeefAPI.play_idx(idx);
 			refreshStatus();
 		}
@@ -752,6 +754,7 @@ public class MediaPlaybackService extends Service {
 			mPlayer.stop();
 			gotoIdleState();
 			stopForegroundCompat(PLAYBACKSERVICE_STATUS);
+			mWakeLock.release();
 		}
 	}
 	
@@ -767,6 +770,7 @@ public class MediaPlaybackService extends Service {
 				DeadbeefAPI.play_pause();
 				gotoIdleState();
 				notifyChange(PLAYSTATE_CHANGED);
+				mWakeLock.release();
 			}
 		}
 	}
