@@ -432,8 +432,8 @@ public class MediaPlaybackService extends Service {
  @Override
  public void onDestroy() {
   if (isPlaying() || isPaused()) {
-   DeadbeefAPI.save_resume_state ();
-   DeadbeefAPI.conf_save ();
+//			DeadbeefAPI.save_resume_state ();
+//			DeadbeefAPI.conf_save ();
   }
   // Check that we're not being destroyed while something is still
   // playing.
@@ -604,8 +604,8 @@ public class MediaPlaybackService extends Service {
   synchronized (this) {
    if (isPlaying()) {
     // remember playback position, and save config
-    DeadbeefAPI.save_resume_state ();
-    DeadbeefAPI.conf_save ();
+//				DeadbeefAPI.save_resume_state ();
+//				DeadbeefAPI.conf_save ();
     DeadbeefAPI.play_pause();
     gotoIdleState();
     notifyChange(PLAYSTATE_CHANGED);
@@ -750,14 +750,14 @@ public class MediaPlaybackService extends Service {
       i.putExtra("duration", dur);
       sendBroadcast(i);
      }
-     DeadbeefAPI.save_resume_state ();
-     DeadbeefAPI.conf_save ();
+//					DeadbeefAPI.save_resume_state ();
+//					DeadbeefAPI.conf_save ();
     }
     else if (id.equals ("paused")) {
         Intent i = new Intent("fm.last.android.playbackcomplete");
         sendBroadcast(i);
-     DeadbeefAPI.save_resume_state ();
-     DeadbeefAPI.conf_save ();
+//					DeadbeefAPI.save_resume_state ();
+//					DeadbeefAPI.conf_save ();
     }
     else if (id.equals ("resumed")) {
      String artist = DeadbeefAPI.event_get_string(0);

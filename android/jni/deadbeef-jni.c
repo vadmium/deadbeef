@@ -486,6 +486,7 @@ JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_4;
 }
 
+#if 0
 void
 restore_resume_state (void) {
     trace ("restore_resume_state started\n");
@@ -521,6 +522,8 @@ JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_restore_1resume_1state (JNIEnv *env, jclass cls) {
     restore_resume_state ();
 }
+
+#endif
 
 JNIEXPORT jint JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring android_config_dir, jstring plugins_path) {
@@ -632,7 +635,7 @@ Java_org_deadbeef_android_DeadbeefAPI_start (JNIEnv *env, jclass cls, jstring an
     streamer_init ();
     plug_connect_all ();
 
-    restore_resume_state ();
+    //restore_resume_state ();
 
     jnievent_init ();
 
@@ -1872,6 +1875,8 @@ Java_org_deadbeef_android_DeadbeefAPI_armv7a_1supported (JNIEnv *env, jclass cls
     return armv7a_supported;
 }
 
+#if 0
+
 JNIEXPORT void JNICALL
 Java_org_deadbeef_android_DeadbeefAPI_save_1resume_1state (JNIEnv *env, jclass cls) {
     playItem_t *trk = streamer_get_playing_track ();
@@ -1897,3 +1902,4 @@ Java_org_deadbeef_android_DeadbeefAPI_save_1resume_1state (JNIEnv *env, jclass c
         trace ("not saving session, trk=-1, out_state=%d\n", output->state ());
     }
 }
+#endif
