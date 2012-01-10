@@ -90,6 +90,22 @@ extern int eq_on;
 extern float eq_changed;
 #endif
 
+// sending events back to java
+// FIXME: make a send_event function
+
+#define EV_MAX_ARGS 5
+intptr_t jnievent_mutex;
+
+typedef struct jni_event_s {
+    const char *id;
+    char *str_args[EV_MAX_ARGS];
+    int int_args[EV_MAX_ARGS];
+    struct jni_event_s *next;
+} jni_event_t;
+
+static jni_event_t *events;
+static jni_event_t *events_tail;
+
 static int
 jni_setformat(ddb_waveformat_t *fmt);
 
@@ -114,7 +130,30 @@ static int jni_out_play(void)
 
 static int jni_out_stop(void)
 {
+    if (jni_out_state == OUTPUT_STATE_STOPPED) {
+        return 0;
+    }
     jni_out_state = OUTPUT_STATE_STOPPED;
+
+    // notify java
+    jni_event_t *ev = NULL;
+
+    ev = malloc (sizeof (jni_event_t));
+    memset (ev, 0, sizeof (jni_event_t));
+    ev->id = "stopped";
+
+    if (ev) {
+        mutex_lock (jnievent_mutex);
+        if (events_tail) {
+            events_tail->next = ev;
+            events_tail = ev;
+        }
+        else {
+            events = events_tail = ev;
+        }
+        mutex_unlock (jnievent_mutex);
+    }
+    trace ("sent stopped event\n");
     return 0;
 }
 
@@ -177,20 +216,6 @@ jni_setformat(ddb_waveformat_t *fmt)
     trace ("jni_setformat %d %d\n", jni_out.fmt.samplerate, jni_out.fmt.channels);
     return 0;
 }
-
-
-#define EV_MAX_ARGS 5
-intptr_t jnievent_mutex;
-
-typedef struct jni_event_s {
-    const char *id;
-    char *str_args[EV_MAX_ARGS];
-    int int_args[EV_MAX_ARGS];
-    struct jni_event_s *next;
-} jni_event_t;
-
-static jni_event_t *events;
-static jni_event_t *events_tail;
 
 void
 jnievent_dispatch (void) {
