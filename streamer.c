@@ -42,10 +42,10 @@
 #include "android/jni/equalizer.h"
 #endif
 
-//extern void android_trace (const char *fmt, ...);
-//#define trace(...) { android_trace(__VA_ARGS__); }
+extern void android_trace (const char *fmt, ...);
+#define trace(...) { android_trace(__VA_ARGS__); }
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define trace(fmt,...)
 
 //#define WRITE_DUMP 1
 //#define DETECT_PL_LOCK_RC 1

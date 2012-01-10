@@ -5,7 +5,7 @@ LOCAL_MODULE := vorbis
 
 LOCAL_SRC_FILES += vorbis.c vcedit.c
 
-LOCAL_STATIC_LIBRARIES := vorbislib ogglib
+LOCAL_STATIC_LIBRARIES := tremorlib ogglib
 
 LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../android/jni/libogg/include -I$(LOCAL_PATH)/../../android/jni/libvorbis/include -std=c99 -O2
 

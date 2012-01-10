@@ -618,6 +618,10 @@ error:
 
 int
 cvorbis_write_metadata (DB_playItem_t *it) {
+#ifdef ANDROID
+    // tag writing not in android version yet
+    return 0;
+#else
     vcedit_state *state = NULL;
     vorbis_comment *vc = NULL;
     FILE *fp = NULL;
@@ -761,6 +765,7 @@ error:
     }
 
     return err;
+#endif
 }
 
 
