@@ -1,6 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+LOCAL_STATIC_LIBRARIES := cpufeatures
+
 LOCAL_MODULE := ffap
 
 LOCAL_SRC_FILES += ffap.c
@@ -15,4 +17,5 @@ endif
 LOCAL_ARM_MODE := arm
 
 include $(BUILD_SHARED_LIBRARY)
+$(call import-module,cpufeatures)
 

@@ -40,6 +40,8 @@
 #include "../../deadbeef.h"
 
 #ifdef ANDROID
+#include <cpu-features.h>
+
 int posix_memalign (void **memptr, size_t alignment, size_t size) {
     *memptr = memalign (alignment, size);
     return *memptr ? 0 : -1;
@@ -2016,10 +2018,23 @@ int32_t EXTERN_ASMff_scalarproduct_and_madd_int16_neon(int16_t *v1, const int16_
 
 DB_plugin_t *
 ffap_load (DB_functions_t *api) {
-    // detect sse2
 #if ARCH_ARM
+    // detect neon
+    int neon_supported = 0;
+    uint64_t features = android_getCpuFeatures ();
+    if (android_getCpuFamily() == ANDROID_CPU_FAMILY_ARM) {
+        if (features & ANDROID_CPU_ARM_FEATURE_NEON) {
+            neon_supported = 1;
+        }
+    }
+    if (neon_supported) {
         scalarproduct_and_madd_int16 = EXTERN_ASMff_scalarproduct_and_madd_int16_neon;
+    }
+    else {
+        scalarproduct_and_madd_int16 = scalarproduct_and_madd_int16_c;
+    }
 #elif HAVE_SSE2 && !ARCH_UNKNOWN
+    // detect sse2
     trace ("ffap: was compiled with sse2 support\n");
     int mm_flags = mm_support ();
     if (mm_flags & FF_MM_SSE2) {
