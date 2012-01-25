@@ -10,7 +10,7 @@
 #define QUOTEME(x) QUOTEME_(x)
       android:versionCode=QUOTEME(VERSION_CODE)
       android:versionName=QUOTEME(VERSION_STRING)
-
+      
       xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="4" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -22,6 +22,8 @@
 #ifdef USE_LICENSING
     <uses-permission android:name="com.android.vending.CHECK_LICENSE" />
 #endif
+
+	
     
     <application
     	android:icon="@drawable/icon"

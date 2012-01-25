@@ -199,7 +199,7 @@ cvorbis_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
 
     info->info.file = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!info->info.file) {
-        trace ("ogg: failed to open file %s\n", it->fname);
+        trace ("ogg: failed to open file %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
     int ln = deadbeef->fgetlength (info->info.file);
@@ -454,6 +454,7 @@ cvorbis_seek (DB_fileinfo_t *_info, float time) {
 
 static DB_playItem_t *
 cvorbis_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
+    trace ("adding %s\n", fname);
     // check for validity
     DB_FILE *fp = deadbeef->fopen (fname);
     if (!fp) {
@@ -488,6 +489,7 @@ cvorbis_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
     }
 
     long nstreams = ov_streams (&vorbis_file);
+    trace ("nstreams %d\n", nstreams);
     int currentsample = 0;
     for (int stream = 0; stream < nstreams; stream++) {
         vi = ov_info (&vorbis_file, stream);
@@ -497,6 +499,10 @@ cvorbis_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
         }
         float duration = ov_time_total (&vorbis_file, stream);
         int totalsamples = ov_pcm_total (&vorbis_file, stream);
+#ifdef ANDROID
+        duration = totalsamples / (float)vi->rate;
+#endif
+        trace ("vorbis: duration=%f, totalsamples=%d\n", duration, totalsamples);
 
         DB_playItem_t *it = deadbeef->pl_item_alloc_init (fname, plugin.plugin.id);
         deadbeef->pl_add_meta (it, ":FILETYPE", "OggVorbis");
@@ -576,11 +582,11 @@ cvorbis_read_metadata (DB_playItem_t *it) {
     
     fp = deadbeef->fopen (deadbeef->pl_find_meta (it, ":URI"));
     if (!fp) {
-        trace ("cvorbis_read_metadata: failed to fopen %s\n", it->fname);
+        trace ("cvorbis_read_metadata: failed to fopen %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
     if (fp->vfs->is_streaming ()) {
-        trace ("cvorbis_read_metadata: failed to fopen %s\n", it->fname);
+        trace ("cvorbis_read_metadata: failed to fopen %s\n", deadbeef->pl_find_meta (it, ":URI"));
         goto error;
     }
     ov_callbacks ovcb = {
@@ -597,7 +603,7 @@ cvorbis_read_metadata (DB_playItem_t *it) {
     int tracknum = deadbeef->pl_find_meta_int (it, ":TRACKNUM", -1);
     vi = ov_info (&vorbis_file, tracknum);
     if (!vi) { // not a vorbis stream
-        trace ("cvorbis_read_metadata: failed to ov_open %s\n", it->fname);
+        trace ("cvorbis_read_metadata: failed to ov_open %s\n", deadbeef->pl_find_meta (it, ":URI"));
         goto error;
     }
 
