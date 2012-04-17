@@ -43,7 +43,14 @@ static snd_pcm_t *audio;
 static int alsa_terminate;
 static ddb_waveformat_t requested_fmt;
 static int state; // one of output_state_t
+
+/* The playback thread must verify that it should still be playing every time
+it acquires the lock. The lock may not be available to other threads until
+the playback thread has obvserved that it should stop playback, so the other
+threads should not acquire the lock during playback to avoid the possibility
+of them starving. */
 static uintptr_t mutex;
+
 static intptr_t alsa_tid;
 
 static snd_pcm_uframes_t buffer_size;
@@ -447,19 +454,18 @@ palsa_setformat (ddb_waveformat_t *fmt) {
         );
     }
 #endif
-    LOCK;
     int s = state;
     state = OUTPUT_STATE_STOPPED;
+    LOCK;
     snd_pcm_drop (audio);
     int ret = palsa_set_hw_params (fmt);
+    UNLOCK;
     if (ret < 0) {
         trace ("palsa_setformat: impossible to set requested format\n");
         // even if it failed -- copy the format
         memcpy (&plugin.fmt, fmt, sizeof (ddb_waveformat_t));
-        UNLOCK;
         return -1;
     }
-    UNLOCK;
     trace ("new format %dbit %s %dch %dHz channelmask=%X\n", plugin.fmt.bps, plugin.fmt.is_float ? "float" : "int", plugin.fmt.channels, plugin.fmt.samplerate, plugin.fmt.channelmask);
 
     switch (s) {
@@ -581,10 +587,10 @@ palsa_pause (void) {
         return -1;
     }
     // set pause state
+    state = OUTPUT_STATE_PAUSED;
     LOCK;
     palsa_hw_pause (1);
     UNLOCK;
-    state = OUTPUT_STATE_PAUSED;
     return 0;
 }
 
@@ -592,10 +598,10 @@ int
 palsa_unpause (void) {
     // unset pause state
     if (state == OUTPUT_STATE_PAUSED) {
-        state = OUTPUT_STATE_PLAYING;
         LOCK;
         palsa_hw_pause (0);
         UNLOCK;
+        state = OUTPUT_STATE_PLAYING;
     }
     return 0;
 }
@@ -635,12 +641,7 @@ palsa_thread (void *context) {
             }
 
             if (bytes_to_write >= (plugin.fmt.bps>>3) * plugin.fmt.channels) {
-                UNLOCK;
                 err = snd_pcm_writei (audio, buf, snd_pcm_bytes_to_frames(audio, bytes_to_write));
-                LOCK;
-                if (OUTPUT_STATE_PLAYING != state || alsa_terminate) {
-                    break;
-                }
             }
             else {
                 UNLOCK;
