@@ -54,3 +54,13 @@ actual package names for your Linux distribution may vary.
 The Deadbeef player code is licensed under GPLv2, but this is not a requirement for plugins.
 Plugins don't link directly to deadbeef code, but are using special API header file which uses ZLib license.
 
+= vadmium TODO
+investigate CBR MP3 truncation with scanning disabled
+cancel a long MP3 scan or seek by stopping, playing something else, seeking somewhere else, closing, etc
+random item button with stop, play, pause, etc.
+seek UI without rounded edges: keep centre seek points and start, end points alike
+jump to search results in playlist without having interrupt current playback
+pi soundtrack: half rate mp3s; only with ALSA resampling enabled
+also orb’s “bedouin” plays too fast rate without ALSA resampling
+length and seek tricked even when initial scan enabled
+seek past end half succeeds: sets timer; continues playing from original point

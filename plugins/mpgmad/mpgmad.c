@@ -25,8 +25,8 @@
 #include <sys/time.h>
 #include "../../deadbeef.h"
 
-//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+//~ #define trace(fmt,...)
 
 //#define WRITE_DUMP 1
 
@@ -812,17 +812,20 @@ cmp3_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
             trace ("mpgmad: cmp3_init: initial cmp3_scan_stream failed\n");
             return -1;
         }
+        
+        /* Compensation for decoder delay (?) */
         info->buffer.delay += 529;
-        if (info->buffer.padding >= 529) {
+        if (info->buffer.padding >= 529) { // TODO: if there isn't enough padding, can you feed an extra MP3 frame to squeeze the last of the data from the decoder?
             info->buffer.padding -= 529;
         }
-        if (it->endsample > 0) {
+        
+        if (it->endsample > 0) { // Part of MP3 selected by a cue file (?)
             info->buffer.startsample = it->startsample + info->buffer.delay;
             info->buffer.endsample = it->endsample + info->buffer.delay;
             // that comes from cue, don't calc duration, just seek and play
             trace ("mp3 totalsamples: %d\n", info->buffer.endsample-info->buffer.startsample+1);
         }
-        else {
+        else { // Entire plain MP3 file (?)
             ddb_playlist_t *plt = deadbeef->pl_get_playlist (it);
             deadbeef->plt_set_item_duration (plt, it, info->buffer.duration);
             if (plt) {
@@ -1281,17 +1284,17 @@ cmp3_seek_sample (DB_fileinfo_t *_info, int sample) {
 	mad_frame_init(&info->frame);
 	mad_synth_init(&info->synth);
 
-//    struct timeval tm1;
-//    gettimeofday (&tm1, NULL);
+    struct timeval tm1;
+    gettimeofday (&tm1, NULL);
     if (cmp3_seek_stream (_info, sample) == -1) {
         trace ("failed to seek to sample %d\n", sample);
         _info->readpos = 0;
         return -1;
     }
-//    struct timeval tm2;
-//    gettimeofday (&tm2, NULL);
-//    int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
-//    printf ("cmp3_scan_stream took %d ms\n", ms);
+    struct timeval tm2;
+    gettimeofday (&tm2, NULL);
+    int ms = (tm2.tv_sec*1000+tm2.tv_usec/1000) - (tm1.tv_sec*1000+tm1.tv_usec/1000);
+    printf ("cmp3_scan_stream took %d ms\n", ms);
 	trace ("seeked to %d\n", info->buffer.currentsample);
     _info->readpos = (float)(info->buffer.currentsample - info->buffer.startsample) / info->buffer.samplerate;
     return 0;

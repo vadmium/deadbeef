@@ -416,19 +416,35 @@ int32_t mp4ff_find_sample_use_offsets(const mp4ff_t *f, const int32_t track, con
 {
 	return mp4ff_find_sample(f,track,offset + mp4ff_get_sample_offset(f,track,0),toskip);
 }
-
+#include <execinfo.h>
+#include <unistd.h>
+static void print_stack(int limit) {
+    void* buffer[limit];
+    int size = backtrace(buffer, limit);
+    fprintf(stderr, "[%i] Stack frames: %i%s:\n", (int)getpid(), size,
+        size >= limit? "+" : "");
+    backtrace_symbols_fd(buffer, size, STDERR_FILENO);
+}
 int32_t mp4ff_read_sample(mp4ff_t *f, const int32_t track, const int32_t sample,
                           uint8_t **audio_buffer,  uint32_t *bytes)
 {
     int32_t result = 0;
-
-    *bytes = mp4ff_audio_frame_size(f, track, sample);
-
+int32_t s;
+    s = mp4ff_audio_frame_size(f, track, sample);
+*bytes=s;
 	if (*bytes==0) return 0;
 
     *audio_buffer = (uint8_t*)malloc(*bytes);
     if (!(*audio_buffer)) {
-        fprintf (stderr, "mp4ff_read_sample: malloc failure (tried to alloc %d bytes). possible mp4ff bug or memleak! please report a bug to deadbeef developers (i'm serious).\n", *bytes);
+        fprintf (stderr, "mp4ff_read_sample: tried to alloc %d bytes; s=%i\n", *bytes,(int)s);
+        print_stack (60);
+        const mp4ff_track_t * p_track = f->track[track];
+        fprintf (stderr, "f %p; track %i; sample %i; p track %p\n", f, track, sample, p_track);
+        fprintf (stderr, "stsz sample size %i\n",(int)p_track->stsz_sample_size);
+        if (!p_track->stsz_sample_size) {
+            fprintf (stderr, "stsz table[sample %i] %i\n",(int)sample,(int)p_track->stsz_table[sample]);
+        }
+
         return 0;
     }
 

@@ -67,6 +67,14 @@
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
 
+void print_stack(int limit) {
+    void* buffer[limit];
+    int size = backtrace(buffer, limit);
+    fprintf(stderr, "[%i] Stack frames: %i%s:\n", (int)getpid(), size,
+        size >= limit? "+" : "");
+    backtrace_symbols_fd(buffer, size, STDERR_FILENO);
+}
+
 // some common global variables
 char sys_install_path[PATH_MAX]; // see deadbeef->get_prefix
 char confdir[PATH_MAX]; // $HOME/.config

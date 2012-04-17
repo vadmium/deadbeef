@@ -23,7 +23,7 @@
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
-//#define ENABLE_TRACE
+#define ENABLE_TRACE
 
 #ifdef ENABLE_TRACE
 #    define trace(...) { fprintf(stderr, __VA_ARGS__); }

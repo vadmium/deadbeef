@@ -610,7 +610,7 @@ palsa_thread (void *context) {
             break;
         }
         if (state != OUTPUT_STATE_PLAYING || !deadbeef->streamer_ok_to_read (-1)) {
-            usleep (10000);
+            usleep (10000); // TODO: use a condition variable to avoid having to sleep
             continue;
         }
         LOCK;

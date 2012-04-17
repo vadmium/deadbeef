@@ -18,9 +18,9 @@ aac_la_LIBADD = $(LDADD) $(FAAD2_LIBS)
 AM_CFLAGS = -std=c99 -DUSE_MP4FF -DUSE_TAGGING
 
 # Disabled so that Automake can build the FAAD files without warnings
-#AM_CFLAGS += -Wall -Wextra
-#AM_CFLAGS += -Wno-missing-field-initializers  # Avoid GCC bug 36446
-#AM_CFLAGS += -Wno-unused-parameter  # Callbacks may have unused parameters
-#AM_CFLAGS += -Wno-missing-braces  # Avoid GCC bug 53119
+AM_CFLAGS += -Wall -Wextra
+AM_CFLAGS += -Wno-missing-field-initializers  # Avoid GCC bug 36446
+AM_CFLAGS += -Wno-unused-parameter  # Callbacks may have unused parameters
+AM_CFLAGS += -Wno-missing-braces  # Avoid GCC bug 53119
 endif
 

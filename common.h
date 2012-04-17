@@ -34,5 +34,6 @@ extern char dbdocdir[PATH_MAX]; // see deadbeef->get_doc_dir
 extern char dbplugindir[PATH_MAX]; // see deadbeef->get_plugin_dir
 extern char dbpixmapdir[PATH_MAX]; // see deadbeef->get_pixmap_dir
 
+void print_stack(int limit);
 
 #endif // __COMMON_H
