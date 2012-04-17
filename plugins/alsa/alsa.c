@@ -622,10 +622,8 @@ palsa_thread (void *context) {
         // FIXME: pushing data without waiting for next buffer will drain entire
         // streamer buffer, and might lead to stuttering
         // however, waiting for buffer does a lot of cpu wakeups
-        while (/*state == OUTPUT_STATE_PLAYING*/frames_to_deliver >= period_size) {
-            if (alsa_terminate) {
-                break;
-            }
+        while (state == OUTPUT_STATE_PLAYING &&
+        frames_to_deliver >= period_size && !alsa_terminate) {
             err = 0;
             if (!bytes_to_write) {
                 UNLOCK; // holding a lock here may cause deadlock in the streamer
@@ -640,7 +638,7 @@ palsa_thread (void *context) {
                 UNLOCK;
                 err = snd_pcm_writei (audio, buf, snd_pcm_bytes_to_frames(audio, bytes_to_write));
                 LOCK;
-                if (alsa_terminate) {
+                if (OUTPUT_STATE_PLAYING != state || alsa_terminate) {
                     break;
                 }
             }
