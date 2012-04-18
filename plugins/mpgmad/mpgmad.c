@@ -67,7 +67,7 @@ typedef struct {
     DB_playItem_t *it;
 
     // input buffer, for MPEG data
-    char input[READBUFFER];
+    unsigned char input[READBUFFER];
     int remaining;
 
     // output buffer, supplied by player
@@ -280,7 +280,7 @@ cmp3_scan_stream (buffer_t *buffer, int sample) {
         // parse header
         
         // sync bits
-        int usync = hdr & 0xffe00000;
+        uint32_t usync = hdr & 0xffe00000;
         if (usync != 0xffe00000) {
             fprintf (stderr, "fatal error: mp3 header parser is broken\n");
         }
@@ -609,7 +609,7 @@ cmp3_scan_stream (buffer_t *buffer, int sample) {
                     buffer->avg_samples_per_frame = samples_per_frame;
                     buffer->duration = (buffer->nframes * samples_per_frame - buffer->delay - buffer->padding) / samplerate;
                     buffer->totalsamples = buffer->nframes * samples_per_frame;
-                    trace ("totalsamples: %d, samplesperframe: %d, fsize=%lld\n", buffer->totalsamples, samples_per_frame, fsize);
+                    trace ("totalsamples: %d, samplesperframe: %d, fsize=%lld\n", buffer->totalsamples, samples_per_frame, (long long)fsize);
 //                    trace ("bitrate=%d, layer=%d, packetlength=%d, fsize=%d, nframes=%d, samples_per_frame=%d, samplerate=%d, duration=%f, totalsamples=%d\n", bitrate, layer, packetlength, sz, nframe, samples_per_frame, samplerate, buffer->duration, buffer->totalsamples);
 
                     if (sample == 0) {
@@ -651,7 +651,7 @@ cmp3_scan_stream (buffer_t *buffer, int sample) {
                 buffer->lead_in_frames = nframe-lead_in_frame_no;
                 buffer->currentsample = sample;
                 buffer->skipsamples = sample - scansamples;
-                trace ("scan: cursample=%d, frame: %d, skipsamples: %d, filepos: %llX, lead-in frames: %d\n", buffer->currentsample, nframe, buffer->skipsamples, deadbeef->ftell (buffer->file), buffer->lead_in_frames);
+                trace ("scan: cursample=%d, frame: %d, skipsamples: %d, filepos: %llX, lead-in frames: %d\n", buffer->currentsample, nframe, buffer->skipsamples, (unsigned long long)deadbeef->ftell (buffer->file), buffer->lead_in_frames);
                 return 0;
             }
         }
@@ -681,7 +681,7 @@ end_scan:
             buffer->duration = (buffer->totalsamples - buffer->delay - buffer->padding) / buffer->avg_samplerate;
         }
         buffer->bitrate = (fsize-buffer->startoffset-buffer->endoffset) / buffer->duration * 8;
-        trace ("nframes: %d, fsize: %lld, spf: %d, smp: %d, totalsamples: %d\n", buffer->nframes, fsize, buffer->avg_samples_per_frame, buffer->avg_samplerate, buffer->totalsamples);
+        trace ("nframes: %d, fsize: %lld, spf: %d, smp: %d, totalsamples: %d\n", buffer->nframes, (long long)fsize, buffer->avg_samples_per_frame, buffer->avg_samplerate, buffer->totalsamples);
 // }}}
         return 0;
     }
@@ -727,7 +727,7 @@ cmp3_set_extra_properties (buffer_t *buffer, int fake) {
     char s[100];
     int64_t size = deadbeef->fgetlength (buffer->file);
     if (size >= 0) {
-        snprintf (s, sizeof (s), "%lld", size);
+        snprintf (s, sizeof (s), "%lld", (long long)size);
         deadbeef->pl_replace_meta (buffer->it, ":FILE_SIZE", s);
     }
     else {
@@ -882,7 +882,7 @@ cmp3_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         trace ("duration=%f, endsample=%d, totalsamples=%d\n", info->buffer.duration, info->buffer.endsample, info->buffer.totalsamples);
     }
     if (info->buffer.samplerate == 0) {
-        trace ("bad mpeg file: %f\n", deadbeef->pl_find_meta (it, ":URI"));
+        trace ("bad mpeg file: %s\n", deadbeef->pl_find_meta (it, ":URI"));
         return -1;
     }
     _info->fmt.bps = info->buffer.bitspersample;
@@ -1074,7 +1074,7 @@ cmp3_stream_frame (mpgmad_info_t *info) {
             }
             int size = READBUFFER - info->buffer.remaining;
             int bytesread = 0;
-            uint8_t *bytes = info->buffer.input + info->buffer.remaining;
+            unsigned char *bytes = info->buffer.input + info->buffer.remaining;
             bytesread = deadbeef->fread (bytes, 1, size, info->buffer.file);
             if (!bytesread) {
                 // add guard
@@ -1150,7 +1150,6 @@ cmp3_decode_int16 (mpgmad_info_t *info) {
     while (!eof) {
         eof = cmp3_stream_frame (info);
         if (info->buffer.decode_remaining > 0) {
-            int readsize = info->buffer.readsize;
             cmp3_decode_requested_int16 (info);
             if (info->buffer.readsize == 0) {
                 return 0;
@@ -1225,8 +1224,8 @@ cmp3_seek_sample (DB_fileinfo_t *_info, int sample) {
     if (info->buffer.file->vfs->is_streaming ()) {
         if (info->buffer.totalsamples > 0 && info->buffer.avg_samples_per_frame > 0 && info->buffer.avg_packetlength > 0) { // that means seekable remote stream, like podcast
             trace ("seeking is possible!\n");
-            // get length excluding id3v2
-            int64_t l = deadbeef->fgetlength (info->buffer.file) - info->buffer.startoffset - info->buffer.endoffset;
+//            // get length excluding id3v2
+//            int64_t l = deadbeef->fgetlength (info->buffer.file) - info->buffer.startoffset - info->buffer.endoffset;
             
             int r;
 
@@ -1259,7 +1258,7 @@ cmp3_seek_sample (DB_fileinfo_t *_info, int sample) {
             trace ("seek failed!\n");
             return -1;
         }
-        trace ("seek is impossible (avg_samples_per_frame=%d, avg_packetlength=%d)!\n", info->buffer.avg_samples_per_frame, info->buffer.avg_packetlength);
+        trace ("seek is impossible (avg_samples_per_frame=%d, avg_packetlength=%f)!\n", info->buffer.avg_samples_per_frame, info->buffer.avg_packetlength);
         return 0;
     }
 // }}}
@@ -1359,7 +1358,7 @@ cmp3_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
 
     const char *cuesheet = deadbeef->pl_find_meta (it, "cuesheet");
     if (cuesheet) {
-        DB_playItem_t *last = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), buffer.totalsamples-buffer.delay-buffer.padding, buffer.samplerate);
+        DB_playItem_t *last = deadbeef->plt_insert_cue_from_buffer (plt, after, it, (const uint8_t *)cuesheet, strlen (cuesheet), buffer.totalsamples-buffer.delay-buffer.padding, buffer.samplerate);
         if (last) {
             deadbeef->pl_item_unref (it);
             deadbeef->pl_item_unref (last);

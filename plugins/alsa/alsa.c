@@ -89,12 +89,6 @@ palsa_pause (void);
 static int
 palsa_unpause (void);
 
-static int
-palsa_get_channels (void);
-
-static int
-palsa_get_endianness (void);
-
 static void
 palsa_enum_soundcards (void (*callback)(const char *name, const char *desc, void*), void *userdata);
 
@@ -112,7 +106,6 @@ palsa_set_hw_params (ddb_waveformat_t *fmt) {
         plugin.fmt.samplerate = 44100;
         plugin.fmt.channelmask = 3;
     }
-retry:
 
     if ((err = snd_pcm_hw_params_malloc (&hw_params)) < 0) {
         fprintf (stderr, "cannot allocate hardware parameter structure (%s)\n",
@@ -210,7 +203,7 @@ retry:
     snd_pcm_hw_params_get_format (hw_params, &sample_fmt);
     trace ("chosen sample format: %04Xh\n", (int)sample_fmt);
 
-    int val = plugin.fmt.samplerate;
+    unsigned val = plugin.fmt.samplerate;
     int ret = 0;
 
     if ((err = snd_pcm_hw_params_set_rate_resample (audio, hw_params, conf_alsa_resample)) < 0) {
@@ -225,28 +218,28 @@ retry:
         goto error;
     }
     plugin.fmt.samplerate = val;
-    trace ("chosen samplerate: %d Hz\n", val);
+    trace ("chosen samplerate: %u Hz\n", val);
 
-    int chanmin, chanmax;
+    unsigned chanmin, chanmax;
     snd_pcm_hw_params_get_channels_min (hw_params, &chanmin);
     snd_pcm_hw_params_get_channels_max (hw_params, &chanmax);
 
-    trace ("minchan: %d, maxchan: %d\n", chanmin, chanmax);
-    int nchan = plugin.fmt.channels;
+    trace ("minchan: %u, maxchan: %u\n", chanmin, chanmax);
+    unsigned nchan = plugin.fmt.channels;
     if (nchan > chanmax) {
         nchan = chanmax;
     }
     else if (nchan < chanmin) {
         nchan = chanmin;
     }
-    trace ("setting chan=%d\n", nchan);
+    trace ("setting chan=%u\n", nchan);
     if ((err = snd_pcm_hw_params_set_channels (audio, hw_params, nchan)) < 0) {
         fprintf (stderr, "cannot set channel count (%s)\n",
                 snd_strerror (err));
     }
 
     snd_pcm_hw_params_get_channels (hw_params, &nchan);
-    trace ("alsa channels: %d\n", nchan);
+    trace ("alsa channels: %u\n", nchan);
 
     req_buffer_size = deadbeef->conf_get_int ("alsa.buffer", DEFAULT_BUFFER_SIZE);
     req_period_size = deadbeef->conf_get_int ("alsa.period", DEFAULT_PERIOD_SIZE);
@@ -286,6 +279,8 @@ retry:
     case SND_PCM_FORMAT_FLOAT_BE:
         plugin.fmt.bps = 32;
         plugin.fmt.is_float = 1;
+        break;
+    default: // Ignore other enum values
         break;
     }
 
@@ -629,7 +624,8 @@ palsa_thread (void *context) {
         // streamer buffer, and might lead to stuttering
         // however, waiting for buffer does a lot of cpu wakeups
         while (state == OUTPUT_STATE_PLAYING &&
-        frames_to_deliver >= period_size && !alsa_terminate) {
+        frames_to_deliver >= (snd_pcm_sframes_t)period_size &&
+        !alsa_terminate) {
             err = 0;
             if (!bytes_to_write) {
                 UNLOCK; // holding a lock here may cause deadlock in the streamer
@@ -700,8 +696,8 @@ alsa_configchanged (void) {
     if (audio &&
             (alsa_resample != conf_alsa_resample
             || strcmp (alsa_soundcard, conf_alsa_soundcard)
-            || buffer != req_buffer_size
-            || period != req_period_size)) {
+            || (snd_pcm_uframes_t)buffer != req_buffer_size
+            || (snd_pcm_uframes_t)period != req_period_size)) {
         trace ("alsa: config option changed, restarting\n");
         deadbeef->sendmessage (DB_EV_REINIT_SOUND, 0, 0, 0);
     }

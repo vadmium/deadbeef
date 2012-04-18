@@ -89,7 +89,7 @@ typedef struct {
     int startsample;
     int endsample;
     int currentsample;
-    char buffer[AAC_BUFFER_SIZE];
+    unsigned char buffer[AAC_BUFFER_SIZE];
     int remaining;
     char out_buffer[OUT_BUFFER_SIZE];
     int out_remaining;
@@ -120,7 +120,8 @@ aac_fs_read (void *user_data, void *buffer, uint32_t length) {
 static uint32_t
 aac_fs_seek (void *user_data, uint64_t position) {
     aac_info_t *info = user_data;
-    trace ("aac_fs_seek %lld (%lld)\n", position, position + info->junk);
+    trace ("aac_fs_seek %lld (%lld)\n",
+        (long long)position, (long long)position + info->junk);
     return deadbeef->fseek (info->file, position+info->junk, SEEK_SET);
 }
 
@@ -175,7 +176,6 @@ parse_aac_stream(DB_FILE *fp, int *psamplerate, int *pchannels, float *pduration
     int stream_sr = 0;
     int stream_ch = 0;
 
-    int eof = 0;
     int bufsize = 0;
     int remaining = 0;
 
@@ -186,7 +186,7 @@ parse_aac_stream(DB_FILE *fp, int *psamplerate, int *pchannels, float *pduration
     }
 
     do {
-        int size = sizeof (buf) - bufsize;
+        size_t size = sizeof (buf) - bufsize;
         if (deadbeef->fread (buf + bufsize, 1, size, fp) != size) {
             trace ("parse_aac_stream: eof\n");
             break;
@@ -206,7 +206,7 @@ parse_aac_stream(DB_FILE *fp, int *psamplerate, int *pchannels, float *pduration
             continue;
         }
         else {
-            trace ("aac: frame #%d sync: %dch %d %d %d %d\n", frame, channels, samplerate, bitrate, samples, size);
+            trace ("aac: frame #%d sync: %dch %d %d %d %u\n", frame, channels, samplerate, bitrate, samples, (unsigned)size);
             frame++;
             nsamples += samples;
             if (!stream_sr) {
@@ -223,8 +223,8 @@ parse_aac_stream(DB_FILE *fp, int *psamplerate, int *pchannels, float *pduration
 //                *pchannels = stream_ch;
 //            }
             framepos += size;
-            if (deadbeef->fseek (fp, size-(int)sizeof(buf), SEEK_CUR) == -1) {
-                trace ("parse_aac_stream: invalid seek %d\n", size-sizeof(buf));
+            if (deadbeef->fseek (fp, size-sizeof(buf), SEEK_CUR) == -1) {
+                trace ("parse_aac_stream: invalid seek %u\n", (unsigned)(size-sizeof(buf)));
                 break;
             }
             bufsize = 0;
@@ -264,7 +264,7 @@ parse_aac_stream(DB_FILE *fp, int *psamplerate, int *pchannels, float *pduration
 int
 aac_probe (DB_FILE *fp, const char *fname, MP4FILE_CB *cb, float *duration, int *samplerate, int *channels, int *totalsamples, int *mp4track, MP4FILE *pmp4) {
     // try mp4
-    trace ("aac_probe: pos=%lld, junk=%d\n", deadbeef->ftell (fp), ((aac_info_t*)cb->user_data)->junk);
+    trace ("aac_probe: pos=%lld, junk=%d\n", (long long)deadbeef->ftell (fp), ((aac_info_t*)cb->user_data)->junk);
 
     if (mp4track) {
         *mp4track = -1;
@@ -292,7 +292,6 @@ aac_probe (DB_FILE *fp, const char *fname, MP4FILE_CB *cb, float *duration, int 
         trace ("m4a container detected, ntracks=%d\n", ntracks);
         int i = -1;
         trace ("looking for mp4 data...\n");
-        int sr = -1;
         unsigned char*  buff = 0;
         unsigned int    buff_size = 0;
         for (i = 0; i < ntracks; i++) {
@@ -300,7 +299,6 @@ aac_probe (DB_FILE *fp, const char *fname, MP4FILE_CB *cb, float *duration, int 
             mp4ff_get_decoder_config(mp4, i, &buff, &buff_size);
             if (buff) {
                 int rc = AudioSpecificConfig(buff, buff_size, &mp4ASC);
-                sr = mp4ASC.samplingFrequency;
                 if(rc < 0) {
                     free (buff);
                     buff = 0;
@@ -348,7 +346,7 @@ aac_probe (DB_FILE *fp, const char *fname, MP4FILE_CB *cb, float *duration, int 
             }
             tsamples *= mp4framesize;
 
-            trace ("mp4 nsamples=%d, samplerate=%d, timescale=%d, duration=%lld\n", samples, *samplerate, mp4ff_time_scale(mp4, i), mp4ff_get_track_duration(mp4, i));
+            trace ("mp4 nsamples=%d, samplerate=%d, timescale=%d, duration=%lld\n", samples, *samplerate, mp4ff_time_scale(mp4, i), (long long)mp4ff_get_track_duration(mp4, i));
             *duration = (float)tsamples / (*samplerate);
             trace ("mp4 duration: %f (tsamples %d/samplerate %d)\n", *duration, tsamples, *samplerate);
             
@@ -680,7 +678,7 @@ aac_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
         trace ("NeAACDecOpen\n");
         info->dec = NeAACDecOpen ();
 
-        trace ("prepare for NeAACDecInit: fread %d from offs %lld\n", AAC_BUFFER_SIZE, deadbeef->ftell (info->file));
+        trace ("prepare for NeAACDecInit: fread %d from offs %lld\n", AAC_BUFFER_SIZE, (long long)deadbeef->ftell (info->file));
         info->remaining = deadbeef->fread (info->buffer, 1, AAC_BUFFER_SIZE, info->file);
 
         NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration (info->dec);
@@ -883,7 +881,7 @@ aac_read (DB_fileinfo_t *_info, char *bytes, int size) {
             }
             
             unsigned char *buffer = NULL;
-            int buffer_size = 0;
+            unsigned buffer_size = 0;
 #ifdef USE_MP4FF
             int rc = mp4ff_read_sample (info->mp4file, info->mp4track, info->mp4sample, &buffer, &buffer_size);
             if (rc == 0) {
@@ -919,7 +917,7 @@ aac_read (DB_fileinfo_t *_info, char *bytes, int size) {
         }
         else {
             if (info->remaining < AAC_BUFFER_SIZE) {
-                trace ("fread from offs %lld\n", deadbeef->ftell (info->file));
+                trace ("fread from offs %lld\n", (long long)deadbeef->ftell (info->file));
                 size_t res = deadbeef->fread (info->buffer + info->remaining, 1, AAC_BUFFER_SIZE-info->remaining, info->file);
                 info->remaining += res;
                 trace ("remain: %d\n", info->remaining);
@@ -932,7 +930,7 @@ aac_read (DB_fileinfo_t *_info, char *bytes, int size) {
             samples = NeAACDecDecode (info->dec, &info->frame_info, info->buffer, info->remaining);
             trace ("samples =%p\n", samples);
             if (!samples) {
-                trace ("NeAACDecDecode failed with error %s (%d), consumed=%d\n", NeAACDecGetErrorMessage(info->frame_info.error), (int)info->frame_info.error, info->frame_info.bytesconsumed);
+                trace ("NeAACDecDecode failed with error %s (%d), consumed=%lu\n", NeAACDecGetErrorMessage(info->frame_info.error), (int)info->frame_info.error, info->frame_info.bytesconsumed);
 
                 if (info->num_errors > 10) {
                     trace ("NeAACDecDecode failed %d times, interrupting\n", info->num_errors);
@@ -987,7 +985,7 @@ seek_raw_aac (aac_info_t *info, int sample) {
 
     do {
         curr_sample += frame_samples;
-        int size = sizeof (buf) - bufsize;
+        size_t size = sizeof (buf) - bufsize;
         if (deadbeef->fread (buf + bufsize, 1, size, info->file) != size) {
             trace ("seek_raw_aac: eof\n");
             break;
@@ -1002,10 +1000,11 @@ seek_raw_aac (aac_info_t *info, int sample) {
             continue;
         }
         else {
-            //trace ("aac: frame #%d(%d/%d) sync: %d %d %d %d %d\n", frame, curr_sample, sample, channels, samplerate, bitrate, frame_samples, size);
+            //trace ("aac: frame #%d(%d/%d) sync: %d %d %d %d %u\n", frame, curr_sample, sample, channels, samplerate, bitrate, frame_samples, (unsigned)size);
             frame++;
-            if (deadbeef->fseek (info->file, size-(int)sizeof(buf), SEEK_CUR) == -1) {
-                trace ("seek_raw_aac: invalid seek %d\n", size-sizeof(buf));
+            if (deadbeef->fseek (info->file, size-sizeof(buf), SEEK_CUR) == -1) {
+                trace ("seek_raw_aac: invalid seek %u\n",
+                    (unsigned)(size-sizeof(buf)));
                 break;
             }
             bufsize = 0;
@@ -1345,9 +1344,9 @@ aac_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
 #endif
     }
 
-    int apeerr = deadbeef->junk_apev2_read (it, fp);
-    int v2err = deadbeef->junk_id3v2_read (it, fp);
-    int v1err = deadbeef->junk_id3v1_read (it, fp);
+    deadbeef->junk_apev2_read (it, fp);
+    deadbeef->junk_id3v2_read (it, fp);
+    deadbeef->junk_id3v1_read (it, fp);
     deadbeef->pl_add_meta (it, "title", NULL);
 
     int64_t fsize = deadbeef->fgetlength (fp);
@@ -1356,7 +1355,7 @@ aac_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
 
     if (duration > 0) {
         char s[100];
-        snprintf (s, sizeof (s), "%lld", fsize);
+        snprintf (s, sizeof (s), "%lld", (long long)fsize);
         deadbeef->pl_add_meta (it, ":FILE_SIZE", s);
         deadbeef->pl_add_meta (it, ":BPS", "16");
         snprintf (s, sizeof (s), "%d", channels);
@@ -1372,7 +1371,7 @@ aac_insert (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname) {
         DB_playItem_t *cue = NULL;
 
         if (cuesheet) {
-            cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, cuesheet, strlen (cuesheet), totalsamples, samplerate);
+            cue = deadbeef->plt_insert_cue_from_buffer (plt, after, it, (const uint8_t *)cuesheet, strlen (cuesheet), totalsamples, samplerate);
             if (cue) {
                 deadbeef->pl_item_unref (it);
                 deadbeef->pl_item_unref (cue);

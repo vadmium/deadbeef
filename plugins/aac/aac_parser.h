@@ -21,12 +21,13 @@
 #define __AAC_PARSER_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define ADTS_HEADER_SIZE 7
 
 // buf size must be at least ADTS_HEADER_SIZE*8
 // returns frame size
-int
+size_t
 aac_sync(const uint8_t *buf, int *channels, int *sample_rate, int *bit_rate, int *samples);
 
 #endif

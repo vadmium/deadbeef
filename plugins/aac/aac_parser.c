@@ -17,13 +17,19 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <stdio.h>
+#include <stddef.h>
 #include "aac_parser.h"
 
 #define min(x,y) ((x)<(y)?(x):(y))
 #define max(x,y) ((x)>(y)?(x):(y))
 
-//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
-#define trace(fmt,...)
+//#define ENABLE_TRACE
+
+#ifdef ENABLE_TRACE
+#    define trace(...) { fprintf(stderr, __VA_ARGS__); }
+#else
+#    define trace(fmt,...)
+#endif
 
 static const int aac_sample_rates[16] = {
     96000, 88200, 64000, 48000, 44100, 32000,
@@ -34,7 +40,7 @@ static const int aac_channels[8] = {
     0, 1, 2, 3, 4, 5, 6, 8
 };
 
-int
+size_t
 aac_sync(const uint8_t *buf, int *channels, int *sample_rate, int *bit_rate, int *samples)
 {
     int size, rdb;
@@ -54,6 +60,7 @@ aac_sync(const uint8_t *buf, int *channels, int *sample_rate, int *bit_rate, int
 
     int header_size = protection_abs > 0 ? 7 : 9;
 
+#ifdef ENABLE_TRACE
     int profile_objecttype = (buf[2] & 0xC0) >> 6;
 
     const char *profiles[4] = {
@@ -63,6 +70,7 @@ aac_sync(const uint8_t *buf, int *channels, int *sample_rate, int *bit_rate, int
         "3 (reserved)AAC LTP"
     };
     trace ("profile: %s\n", profiles[profile_objecttype]);
+#endif
 
     int sample_freq_index = (buf[2] & 0x3C) >> 2;
     if (!aac_sample_rates[sample_freq_index]) {
