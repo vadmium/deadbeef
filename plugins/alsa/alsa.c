@@ -659,9 +659,7 @@ palsa_thread (void *context) {
             //        break;
                 }
                 else {
-                    //if (err != -EPIPE) {
-                    //    fprintf (stderr, "alsa: snd_pcm_writei error=%d, %s\n", err, snd_strerror (err));
-                    //}
+                    fprintf (stderr, "alsa: snd_pcm_writei error=%d, %s\n", err, snd_strerror (err));
                     snd_pcm_prepare (audio);
                     snd_pcm_start (audio);
                     continue;
