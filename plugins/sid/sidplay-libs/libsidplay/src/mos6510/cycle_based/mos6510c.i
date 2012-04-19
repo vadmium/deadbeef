@@ -2342,14 +2342,14 @@ MOS6510::MOS6510 (EventContext *context)
             {   // Pass 1 - Allocate Memory
                 if (cycleCount)
                 {
-#if defined(_MSC_VER) && (_MSC_VER <= _MSC_VER_BAD_NEW)
                     typedef void (MOS6510::*ptr2cycle) (void);
+#if defined(_MSC_VER) && (_MSC_VER <= _MSC_VER_BAD_NEW)
                     instr->cycle = (ptr2cycle*) new char[sizeof (ptr2cycle) *cycleCount];
 #else
 #   ifdef HAVE_EXCEPTIONS
-                    instr->cycle = new(std::nothrow) (void (MOS6510::*[cycleCount]) (void));
+                    instr->cycle = new(std::nothrow) ptr2cycle[cycleCount];
 #   else
-                    instr->cycle = new (void (MOS6510::*[cycleCount]) (void));
+                    instr->cycle = new ptr2cycle[cycleCount];
 #   endif
 #endif // _MSC_VER
                     if (!instr->cycle)
@@ -2434,14 +2434,14 @@ MOS6510::MOS6510 (EventContext *context)
             {   // Pass 1 - Allocate Memory
                 if (cycleCount)
                 {
-#if defined(_MSC_VER) && (_MSC_VER <= _MSC_VER_BAD_NEW)
                     typedef void (MOS6510::*ptr2cycle) (void);
+#if defined(_MSC_VER) && (_MSC_VER <= _MSC_VER_BAD_NEW)
                     instr->cycle = (ptr2cycle*) new char[sizeof (ptr2cycle) *cycleCount];
 #else
 #   ifdef HAVE_EXCEPTIONS
-                    instr->cycle = new(std::nothrow) (void (MOS6510::*[cycleCount]) (void));
+                    instr->cycle = new(std::nothrow) ptr2cycle[cycleCount];
 #   else
-                    instr->cycle = new (void (MOS6510::*[cycleCount]) (void));
+                    instr->cycle = new ptr2cycle[cycleCount];
 #   endif
 #endif // _MSC_VER
                     if (!instr->cycle)
