@@ -972,7 +972,7 @@ typedef struct DB_output_s {
     // play, stop, pause, unpause are called by deadbeef in response to user
     // events, or as part of streaming process
     int (*play) (void);
-    int (*stop) (void);
+    int (*stop) (void); // May be called asynchronously from multiple threads
     int (*pause) (void);
     int (*unpause) (void);
     // one of output_state_t enum values
