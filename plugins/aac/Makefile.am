@@ -15,6 +15,6 @@ mp4ff/mp4ff_int_types.h
 aac_la_LDFLAGS = -module
 
 aac_la_LIBADD = $(LDADD) $(FAAD2_LIBS)
-AM_CFLAGS = $(CFLAGS) -std=c99 -DUSE_MP4FF -DUSE_TAGGING
+AM_CFLAGS = -std=c99 -DUSE_MP4FF -DUSE_TAGGING
 endif
 
