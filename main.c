@@ -405,6 +405,10 @@ read_entire_message (int sockfd, int *size) {
 
         int rd = recv(sockfd, buf + rdp, bufsize - rdp, 0);
         if (rd < 0) {
+            if (errno == EAGAIN) {
+                usleep (50000);
+                continue;
+            }
             free(buf);
             return NULL;
         }
@@ -450,7 +454,9 @@ server_update (void) {
         }
         close(s2);
 
-        free(buf);
+        if (buf) {
+            free(buf);
+        }
     }
     return 0;
 }
@@ -849,6 +855,9 @@ main (int argc, char *argv[]) {
             else if (sz > 0 && out[0]) {
                 fprintf (stderr, "%s\n", out);
             }
+        }
+        if (out) {
+            free (out);
         }
         close (s);
         exit (0);
