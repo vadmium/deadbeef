@@ -6,6 +6,7 @@ OUTDIR=portable/$ARCH/deadbeef-$VERSION
 PLUGDIR=$OUTDIR/plugins
 DOCDIR=$OUTDIR/doc
 PIXMAPDIR=$OUTDIR/pixmaps
+echo OUTDIR=$OUTDIR
 
 rm -rf $OUTDIR
 
@@ -54,7 +55,7 @@ fi
 
 #pixmaps
 
-for i in pause_16.png play_16.png noartwork.jpg buffering_16.png; do
+for i in pause_16.png play_16.png noartwork.png buffering_16.png; do
 	cp ./pixmaps/$i $PIXMAPDIR/
 done
 
@@ -78,6 +79,7 @@ for i in po/*.gmo ; do
 done
 cp translation/help.pt_BR.txt $OUTDIR/doc/
 cp translation/help.ru.txt $OUTDIR/doc/
+touch $OUTDIR/.ddb_portable
 
 # strip
 if [ $OSTYPE != 'Darwin' ];then

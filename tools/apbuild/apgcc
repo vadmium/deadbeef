@@ -74,14 +74,10 @@ if (!defined $appath) {
 	$appath =~ s/\/*$//g;
 	$appath =~ s/^(.*)\/.*?$/$1/;
 	$appath .= '/include/apbuild';
-	if (! -f "$appath/apsymbols.h" && -f "$FindBin::Bin/apsymbols.h") {
+	if (! -f "$appath/apsymbols.h.i686" && -f "$FindBin::Bin/apsymbols.h.i686") {
 		$appath = $FindBin::Bin;
 	}
 }
-my $arch=`uname -m`;
-chomp $arch;
-`cp $appath/apsymbols.h.$arch $appath/apsymbols.h`;
-
 
 # Special constants
 our @linking = ('-Wl,--enable-new-dtags,--rpath,${ORIGIN}/../lib,--rpath,${ORIGIN}/../lib/autopackage');

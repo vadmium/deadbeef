@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <fnmatch.h>
 #include <inttypes.h>
+#if HAVE_SYS_SYSLIMITS_H
+#include <sys/syslimits.h>
+#endif
 #include "../../deadbeef.h"
 #include "artwork.h"
 #include "lastfm.h"
@@ -1334,7 +1337,7 @@ artwork_plugin_start (void)
 
     const char *def_art = deadbeef->conf_get_str_fast ("gtkui.nocover_pixmap", NULL);
     if (!def_art) {
-        snprintf (default_cover, sizeof (default_cover), "%s/noartwork.jpg", deadbeef->get_pixmap_dir ());
+        snprintf (default_cover, sizeof (default_cover), "%s/noartwork.png", deadbeef->get_pixmap_dir ());
     }
     else {
         strcpy (default_cover, def_art);

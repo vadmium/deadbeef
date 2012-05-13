@@ -13,7 +13,7 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_STDC_HEADERS
 AC_PROG_INSTALL
-#AC_PROG_LIBTOOL
+dnl AC_PROG_LIBTOOL
 AC_CONFIG_MACRO_DIR([m4])
 AC_C_BIGENDIAN
 AM_GNU_GETTEXT
@@ -126,6 +126,8 @@ dnl check libsocket (OpenIndiana)
 AC_CHECK_LIB([socket], [main], [HAVE_SOCKET=yes;DL_LIBS="-lsocket";AC_SUBST(DL_LIBS)])
 dnl check for seperate alloca.h (OpenIndiana)
 AC_CHECK_HEADER([alloca.h],[],[alloca.h not found.])
+dnl check for syslimits.h (BSD)
+AC_CHECK_HEADERS([sys/syslimits.h])
 
 if test "x$enable_portable" != "xno" && test "x$enable_staticlink" != "xno" ; then
     AC_DEFINE_UNQUOTED([PORTABLE], [1], [Define if building portable version])
@@ -181,7 +183,10 @@ fi
 
 if test "x$enable_ffmpeg" != "xno" ; then
 if test "x$enable_staticlink" != "xno" ; then
-    FFMPEG_DEPS_LIBS="../../$LIB/lib/libavcodec.a -lpthread ../../$LIB/lib/libavformat.a ../../$LIB/lib/libavcodec.a ../../$LIB/lib/libavutil.a ../../$LIB/lib/libavcore.a -lm ../../$LIB/lib/libz.a "
+    echo "static ffmpeg"
+    FFMPEG_DEPS_CFLAGS="-I../../$LIB/include"
+    FFMPEG_DEPS_LIBS="../../$LIB/lib/libavcodec.a -lpthread ../../$LIB/lib/libavformat.a ../../$LIB/lib/libavcodec.a ../../$LIB/lib/libavutil.a ../../$LIB/lib/libavcore.a -lm ../../$LIB/lib/libz.a"
+    AC_SUBST(FFMPEG_DEPS_CFLAGS)
     AC_SUBST(FFMPEG_DEPS_LIBS)
     HAVE_FFMPEG=yes
 else

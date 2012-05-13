@@ -348,15 +348,22 @@ init_treeview() {
     g_object_unref(liststore);
 }
 
-static int
-shellexecui_action_callback(DB_plugin_action_t *action,
-                                void *user_data) {
+static gboolean
+shellexecui_action_gtk (void *data)
+{
     conf_dlg = create_shellexec_conf_dialog();
     gtk_widget_set_size_request (conf_dlg, 400, 400);
     gtk_window_set_transient_for(GTK_WINDOW(conf_dlg),
                                  GTK_WINDOW(gtkui_plugin->get_mainwin()));
     init_treeview();
     gtk_widget_show(conf_dlg);
+    return FALSE;
+}
+
+static int
+shellexecui_action_callback(DB_plugin_action_t *action,
+                                void *user_data) {
+    g_idle_add (shellexecui_action_gtk, NULL);
     return 0;
 }
 
@@ -397,11 +404,12 @@ static DB_misc_t plugin = {
     .plugin.version_major = 1,
     .plugin.version_minor = 0,
 #if GTK_CHECK_VERSION(3,0,0)
-    .plugin.id = "shellexecui_gtk2",
-#else
     .plugin.id = "shellexecui_gtk3",
+    .plugin.name = "Shellexec GTK3 UI",
+#else
+    .plugin.id = "shellexecui_gtk2",
+    .plugin.name = "Shellexec GTK2 UI",
 #endif
-    .plugin.name = "Shellexec GTK UI",
     .plugin.descr = "A GTK UI for the Shellexec plugin",
     .plugin.copyright = 
         "Copyright (C) 2012 Azeem Arshad <kr00r4n@gmail.com>\n"
